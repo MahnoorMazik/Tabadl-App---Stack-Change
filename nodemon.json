@@ -1,0 +1,18 @@
+{
+  "watch": [
+    "server.ts",
+    "src/app/api",
+    "src/lib",
+    "prisma/schema.prisma"
+  ],
+  "ext": "ts,tsx,js,jsx,json",
+  "ignore": [
+    "node_modules",
+    ".next",
+    "dist",
+    "*.log"
+  ],
+  "exec": "tsx server.ts",
+  "delay": 1000
+}
+
