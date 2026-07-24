@@ -108,7 +108,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         permission: `${Module.SERVICES}.${Action.VIEW}`
       },
       {
-        title: 'Forms',
+        title: 'Services Forms',
         icon: ClipboardList,
         href: '/admin/services/forms',
         permission: `${Module.SERVICES}.${Action.VIEW}`
