@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { GripVertical, Trash2 } from 'lucide-react'
-import { FormField, FIELD_TYPE_LABELS } from './types'
+import { CanvasField, FIELD_TYPE_LABELS } from './types'
 
 interface SortableFieldRowProps {
-  field: FormField
-  onUpdate: (id: string, patch: Partial<FormField>) => void
+  field: CanvasField
+  onUpdate: (id: string, patch: Partial<CanvasField>) => void
   onRemove: (id: string) => void
 }
 
@@ -53,7 +53,12 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
       <div className="flex-1 min-w-0 space-y-1">
         <Input
           value={field.label}
-          onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+          onChange={(e) =>
+            onUpdate(field.id, {
+              label: e.target.value,
+              labelOverride: e.target.value,
+            })
+          }
           placeholder="Field label"
           className="h-8"
         />

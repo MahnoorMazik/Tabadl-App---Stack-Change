@@ -11,35 +11,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FormField } from './types'
+import { CanvasField } from './types'
 
 interface FormPreviewProps {
   formName: string
-  fields: FormField[]
+  fields: CanvasField[]
 }
 
-function PreviewControl({ field }: { field: FormField }) {
+function PreviewControl({ field }: { field: CanvasField }) {
   const id = `preview-${field.id}`
+  const options = field.options?.length ? field.options : ['Option 1', 'Option 2']
 
   switch (field.type) {
-    case 'long_text':
+    case 'TEXTAREA':
       return <Textarea id={id} disabled placeholder="Enter text…" className="resize-none" rows={3} />
-    case 'number':
+    case 'NUMBER':
       return <Input id={id} type="number" disabled placeholder="0" />
-    case 'email':
+    case 'EMAIL':
       return <Input id={id} type="email" disabled placeholder="name@example.com" />
-    case 'phone':
+    case 'PHONE':
       return <Input id={id} type="tel" disabled placeholder="+966…" />
-    case 'date':
+    case 'DATE':
       return <Input id={id} type="date" disabled />
-    case 'dropdown':
+    case 'SELECT':
       return (
         <Select disabled>
           <SelectTrigger id={id}>
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>
           <SelectContent>
-            {(field.options ?? ['Option 1', 'Option 2']).map((opt) => (
+            {options.map((opt) => (
               <SelectItem key={opt} value={opt}>
                 {opt}
               </SelectItem>
@@ -47,7 +48,20 @@ function PreviewControl({ field }: { field: FormField }) {
           </SelectContent>
         </Select>
       )
-    case 'checkbox':
+    case 'RADIO':
+      return (
+        <div className="space-y-2">
+          {options.map((opt) => (
+            <div key={opt} className="flex items-center gap-2">
+              <input type="radio" disabled name={id} id={`${id}-${opt}`} className="accent-emerald-700" />
+              <Label htmlFor={`${id}-${opt}`} className="font-normal text-muted-foreground">
+                {opt}
+              </Label>
+            </div>
+          ))}
+        </div>
+      )
+    case 'CHECKBOX':
       return (
         <div className="flex items-center gap-2">
           <Checkbox id={id} disabled />
@@ -56,9 +70,9 @@ function PreviewControl({ field }: { field: FormField }) {
           </Label>
         </div>
       )
-    case 'file':
+    case 'FILE':
       return <Input id={id} type="file" disabled className="cursor-not-allowed" />
-    case 'text':
+    case 'TEXT':
     default:
       return <Input id={id} type="text" disabled placeholder="Enter text…" />
   }
@@ -82,7 +96,7 @@ export function FormPreview({ formName, fields }: FormPreviewProps) {
         <div className="space-y-4">
           {fields.map((field) => (
             <div key={field.id} className="space-y-1.5">
-              {field.type !== 'checkbox' && (
+              {field.type !== 'CHECKBOX' && (
                 <Label htmlFor={`preview-${field.id}`} className="text-sm">
                   {field.label || 'Untitled field'}
                   {field.required && <span className="text-destructive ml-0.5">*</span>}

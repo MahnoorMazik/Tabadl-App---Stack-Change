@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AdminPageTemplate } from '@/components/AdminPageTemplate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,25 +15,74 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ClipboardList, Plus } from 'lucide-react'
+import { ClipboardList, Plus, Loader2 } from 'lucide-react'
 import { Module, Action } from '@/lib/rbac'
-import {
-  MOCK_FORM_TEMPLATES,
-  MOCK_BUSINESS_SERVICES,
-  FormTemplate,
-} from '@/components/admin/forms/types'
+import { FormTemplateListItem } from '@/components/admin/forms/types'
+import { formApi, FormApiError } from '@/components/admin/forms/api'
+import { useToast } from '@/hooks/use-toast'
+
+function formatUpdatedAt(value: string) {
+  try {
+    return new Date(value).toLocaleDateString()
+  } catch {
+    return value
+  }
+}
 
 export default function FormTemplatesPage() {
   const router = useRouter()
-  const [templates, setTemplates] = useState<FormTemplate[]>(MOCK_FORM_TEMPLATES)
+  const { toast } = useToast()
+  const [templates, setTemplates] = useState<FormTemplateListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  const serviceName = (id: string) =>
-    MOCK_BUSINESS_SERVICES.find((s) => s.id === id)?.name ?? id
+  const loadTemplates = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await formApi.listTemplates()
+      setTemplates(
+        (res.templates ?? []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          isActive: t.isActive,
+          fieldCount: t.fieldCount ?? 0,
+          updatedAt: t.updatedAt,
+          createdAt: t.createdAt,
+          services: t.services ?? [],
+        }))
+      )
+    } catch (error) {
+      const message =
+        error instanceof FormApiError ? error.message : 'Failed to load form templates'
+      toast({ title: 'Load failed', description: message, variant: 'destructive' })
+      setTemplates([])
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
 
-  const toggleActive = (id: string, isActive: boolean) => {
+  useEffect(() => {
+    void loadTemplates()
+  }, [loadTemplates])
+
+  const toggleActive = async (id: string, isActive: boolean) => {
+    setTogglingId(id)
+    const previous = templates
     setTemplates((prev) =>
       prev.map((t) => (t.id === id ? { ...t, isActive } : t))
     )
+
+    try {
+      await formApi.updateTemplate(id, { isActive })
+    } catch (error) {
+      setTemplates(previous)
+      const message =
+        error instanceof FormApiError ? error.message : 'Failed to update form status'
+      toast({ title: 'Update failed', description: message, variant: 'destructive' })
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   return (
@@ -58,59 +107,81 @@ export default function FormTemplatesPage() {
         <CardHeader>
           <CardTitle>Forms</CardTitle>
           <CardDescription>
-            {templates.length} template{templates.length === 1 ? '' : 's'}
+            {loading
+              ? 'Loading…'
+              : `${templates.length} template${templates.length === 1 ? '' : 's'}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Form name</TableHead>
-                <TableHead>Services</TableHead>
-                <TableHead className="text-center w-28">Fields</TableHead>
-                <TableHead className="w-28">Active</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {templates.map((template) => (
-                <TableRow
-                  key={template.id}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/admin/services/forms/${template.id}`)}
-                >
-                  <TableCell className="font-medium">
-                    {template.name}
-                    <p className="text-xs text-muted-foreground font-normal mt-0.5">
-                      Updated {template.updatedAt}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    {template.serviceIds.length === 0 ? (
-                      <span className="text-sm text-muted-foreground">Unassigned</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {template.serviceIds.map((id) => (
-                          <Badge key={id} variant="secondary" className="font-normal">
-                            {serviceName(id)}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {template.fields.length}
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Switch
-                      checked={template.isActive}
-                      onCheckedChange={(checked) => toggleActive(template.id, checked)}
-                      aria-label={`Toggle ${template.name} active`}
-                    />
-                  </TableCell>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            </div>
+          ) : templates.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-10 text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                No form templates yet. Create your first intake form.
+              </p>
+              <Button
+                className="bg-emerald-700 hover:bg-emerald-800"
+                onClick={() => router.push('/admin/services/forms/new')}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Form
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Form name</TableHead>
+                  <TableHead>Services</TableHead>
+                  <TableHead className="text-center w-28">Fields</TableHead>
+                  <TableHead className="w-28">Active</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {templates.map((template) => (
+                  <TableRow
+                    key={template.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/admin/services/forms/${template.id}`)}
+                  >
+                    <TableCell className="font-medium">
+                      {template.name}
+                      <p className="text-xs text-muted-foreground font-normal mt-0.5">
+                        Updated {formatUpdatedAt(template.updatedAt)}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      {template.services.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {template.services.map((svc) => (
+                            <Badge key={svc.id} variant="secondary" className="font-normal">
+                              {svc.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center tabular-nums">
+                      {template.fieldCount}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        checked={template.isActive}
+                        disabled={togglingId === template.id}
+                        onCheckedChange={(checked) => void toggleActive(template.id, checked)}
+                        aria-label={`Toggle ${template.name} active`}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </AdminPageTemplate>

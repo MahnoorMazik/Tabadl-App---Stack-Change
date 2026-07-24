@@ -10,35 +10,51 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Plus, Library } from 'lucide-react'
+import { Plus, Library, Loader2 } from 'lucide-react'
 import {
   FormFieldType,
   FIELD_TYPE_LABELS,
-  MOCK_REUSABLE_FIELDS,
   ReusableField,
-  createFieldFromType,
-  createFieldFromReusable,
-  FormField,
+  CanvasField,
+  canvasFieldFromReusable,
 } from './types'
+import { formApi, FormApiError } from './api'
+import { useToast } from '@/hooks/use-toast'
 
 interface AddFieldButtonProps {
   type: FormFieldType
-  onAdd: (field: FormField) => void
+  libraryFields: ReusableField[]
+  existingFieldIds: string[]
+  onLibraryFieldCreated: (field: ReusableField) => void
+  onAdd: (field: CanvasField) => void
 }
 
-export function AddFieldButton({ type, onAdd }: AddFieldButtonProps) {
+export function AddFieldButton({
+  type,
+  libraryFields,
+  existingFieldIds,
+  onLibraryFieldCreated,
+  onAdd,
+}: AddFieldButtonProps) {
+  const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'choose' | 'create' | 'library'>('choose')
   const [newLabel, setNewLabel] = useState('')
+  const [optionsText, setOptionsText] = useState('Option 1, Option 2')
+  const [creating, setCreating] = useState(false)
+
+  const needsOptions = type === 'SELECT' || type === 'RADIO'
 
   const libraryMatches = useMemo(
-    () => MOCK_REUSABLE_FIELDS.filter((f) => f.type === type),
-    [type]
+    () => libraryFields.filter((f) => f.type === type && f.isActive !== false),
+    [libraryFields, type]
   )
 
   const reset = () => {
     setMode('choose')
     setNewLabel('')
+    setOptionsText('Option 1, Option 2')
+    setCreating(false)
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -46,14 +62,73 @@ export function AddFieldButton({ type, onAdd }: AddFieldButtonProps) {
     if (!next) reset()
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const label = newLabel.trim() || FIELD_TYPE_LABELS[type]
-    onAdd(createFieldFromType(type, label))
-    handleOpenChange(false)
+    const options = needsOptions
+      ? optionsText
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)
+      : undefined
+
+    if (needsOptions && (!options || options.length === 0)) {
+      toast({
+        title: 'Options required',
+        description: 'Add at least one option for this field type.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setCreating(true)
+    try {
+      const { field } = await formApi.createField({
+        label,
+        type,
+        options: options ?? null,
+      })
+
+      const reusable: ReusableField = {
+        id: field.id,
+        label: field.label,
+        type: field.type,
+        options: field.options,
+        helpText: field.helpText,
+        placeholder: field.placeholder,
+        isActive: field.isActive,
+      }
+
+      onLibraryFieldCreated(reusable)
+
+      if (existingFieldIds.includes(reusable.id)) {
+        toast({
+          title: 'Field already on form',
+          description: 'This field is already added to the canvas.',
+        })
+      } else {
+        onAdd(canvasFieldFromReusable(reusable))
+      }
+
+      handleOpenChange(false)
+    } catch (error) {
+      const message =
+        error instanceof FormApiError ? error.message : 'Failed to create field'
+      toast({ title: 'Could not create field', description: message, variant: 'destructive' })
+    } finally {
+      setCreating(false)
+    }
   }
 
   const handleSelectReusable = (field: ReusableField) => {
-    onAdd(createFieldFromReusable(field))
+    if (existingFieldIds.includes(field.id)) {
+      toast({
+        title: 'Field already on form',
+        description: 'Each reusable field can only appear once on a template.',
+        variant: 'destructive',
+      })
+      return
+    }
+    onAdd(canvasFieldFromReusable(field))
     handleOpenChange(false)
   }
 
@@ -70,7 +145,7 @@ export function AddFieldButton({ type, onAdd }: AddFieldButtonProps) {
           <div className="p-3 space-y-2">
             <p className="text-sm font-medium">Add {FIELD_TYPE_LABELS[type]} field</p>
             <p className="text-xs text-muted-foreground">
-              Create a new field or reuse one from the library.
+              Create a new reusable field or pick one from the library.
             </p>
             <div className="flex flex-col gap-2 pt-1">
               <Button
@@ -107,6 +182,7 @@ export function AddFieldButton({ type, onAdd }: AddFieldButtonProps) {
               type="button"
               className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setMode('choose')}
+              disabled={creating}
             >
               ← Back
             </button>
@@ -118,21 +194,41 @@ export function AddFieldButton({ type, onAdd }: AddFieldButtonProps) {
                 onChange={(e) => setNewLabel(e.target.value)}
                 placeholder={FIELD_TYPE_LABELS[type]}
                 autoFocus
+                disabled={creating}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    handleCreate()
+                    void handleCreate()
                   }
                 }}
               />
             </div>
+            {needsOptions && (
+              <div className="space-y-1.5">
+                <Label htmlFor={`new-field-options-${type}`}>Options (comma-separated)</Label>
+                <Input
+                  id={`new-field-options-${type}`}
+                  value={optionsText}
+                  onChange={(e) => setOptionsText(e.target.value)}
+                  disabled={creating}
+                />
+              </div>
+            )}
             <Button
               type="button"
               size="sm"
               className="w-full bg-emerald-700 hover:bg-emerald-800"
-              onClick={handleCreate}
+              onClick={() => void handleCreate()}
+              disabled={creating}
             >
-              Add to form
+              {creating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                'Add to form'
+              )}
             </Button>
           </div>
         )}
@@ -148,19 +244,28 @@ export function AddFieldButton({ type, onAdd }: AddFieldButtonProps) {
             </button>
             <p className="text-sm font-medium">Reusable {FIELD_TYPE_LABELS[type]} fields</p>
             <div className="max-h-48 overflow-y-auto space-y-1">
-              {libraryMatches.map((field) => (
-                <button
-                  key={field.id}
-                  type="button"
-                  onClick={() => handleSelectReusable(field)}
-                  className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted transition-colors"
-                >
-                  <span className="font-medium">{field.label}</span>
-                  <Badge variant="secondary" className="ml-2 text-[10px]">
-                    {FIELD_TYPE_LABELS[field.type]}
-                  </Badge>
-                </button>
-              ))}
+              {libraryMatches.map((field) => {
+                const alreadyOnForm = existingFieldIds.includes(field.id)
+                return (
+                  <button
+                    key={field.id}
+                    type="button"
+                    onClick={() => handleSelectReusable(field)}
+                    disabled={alreadyOnForm}
+                    className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="font-medium">{field.label}</span>
+                    <Badge variant="secondary" className="ml-2 text-[10px]">
+                      {FIELD_TYPE_LABELS[field.type]}
+                    </Badge>
+                    {alreadyOnForm && (
+                      <span className="block text-[10px] text-muted-foreground mt-0.5">
+                        Already on this form
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
