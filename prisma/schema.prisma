@@ -44,7 +44,7 @@ model User {
   pushSubscriptions    PushSubscription[]
   auditLogs            AuditLog[]
   pageAccessLogs       PageAccessLog[]
-  createdFormTemplates FormTemplate[]     @relation("FormTemplateCreatedBy")
+  formTemplates        FormTemplate[]     @relation("FormTemplateCreatedBy")
   // NextAuth relations
   accounts             Account[]
   sessions             Session[]
@@ -256,7 +256,7 @@ model BusinessService {
   category    ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   packages    PackageService[]
   addOns      AdditionalService[]
-  formTemplates FormTemplateService[]
+  formTemplateService  FormTemplateService?
 
   @@index([categoryId, sortOrder])
   @@map("business_services")

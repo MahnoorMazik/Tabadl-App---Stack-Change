@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ClipboardList, Plus, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 import { Module, Action } from '@/lib/rbac'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
@@ -52,15 +53,13 @@ export default function FormTemplatesPage() {
           services: t.services ?? [],
         }))
       )
-    } catch (error) {
-      const message =
-        error instanceof FormApiError ? error.message : 'Failed to load form templates'
-      toast({ title: 'Load failed', description: message, variant: 'destructive' })
+    } catch {
+      // Silently show empty state — no toast needed when no templates exist yet
       setTemplates([])
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [])
 
   useEffect(() => {
     void loadTemplates()
@@ -119,16 +118,16 @@ export default function FormTemplatesPage() {
             </div>
           ) : templates.length === 0 ? (
             <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground mb-0">
                 No form templates yet. Create your first intake form.
               </p>
-              <Button
+              {/* <Button
                 className="bg-emerald-700 hover:bg-emerald-800"
                 onClick={() => router.push('/admin/services/forms/new')}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Form
-              </Button>
+              </Button> */}
             </div>
           ) : (
             <Table>
@@ -138,6 +137,7 @@ export default function FormTemplatesPage() {
                   <TableHead>Services</TableHead>
                   <TableHead className="text-center w-28">Fields</TableHead>
                   <TableHead className="w-28">Active</TableHead>
+                  <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -157,12 +157,17 @@ export default function FormTemplatesPage() {
                       {template.services.length === 0 ? (
                         <span className="text-sm text-muted-foreground">Unassigned</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {template.services.map((svc) => (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {template.services.slice(0, 3).map((svc) => (
                             <Badge key={svc.id} variant="secondary" className="font-normal">
                               {svc.name}
                             </Badge>
                           ))}
+                          {template.services.length > 3 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{template.services.length - 3}
+                            </span>
+                          )}
                         </div>
                       )}
                     </TableCell>
@@ -176,6 +181,14 @@ export default function FormTemplatesPage() {
                         onCheckedChange={(checked) => void toggleActive(template.id, checked)}
                         aria-label={`Toggle ${template.name} active`}
                       />
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        href={`/admin/services/forms/${template.id}`}
+                        className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
+                      >
+                        View
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}
