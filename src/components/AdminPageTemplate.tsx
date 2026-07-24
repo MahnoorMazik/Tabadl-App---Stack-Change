@@ -97,7 +97,6 @@ export function AdminPageTemplate({
   }, [hasPermission, router])
 
   const isChecking = loading || hasPermission === null || (needsPermissionCheck && permissionsLoading)
-
   if (isChecking) {
     return (
       <div className="flex items-center justify-center min-h-screen">

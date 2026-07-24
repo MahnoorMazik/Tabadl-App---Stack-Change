@@ -231,6 +231,10 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
           ? await formApi.updateTemplate(template.id, payload)
           : await formApi.createTemplate(payload)
 
+      if (!result?.template?.id) {
+        throw new Error('Save succeeded but template data was missing from the response')
+      }
+
       const saved = mapApiTemplateDetail(result.template)
 
       toast({
@@ -238,13 +242,13 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
         description: `"${saved.name}" saved with ${saved.fields.length} field${saved.fields.length === 1 ? '' : 's'}.`,
       })
 
-      // Navigate back to the forms list
-      // window.location.href = '/admin/services/forms'
-      // router.replace('/admin/services/forms')
+      // Client-side nav only — full page reload races permissions and can bounce to dashboard
+      router.push('/admin/services/forms')
     } catch (error) {
       const message =
         error instanceof FormApiError ? error.message : 'Failed to save form template'
       toast({ title: 'Save failed', description: message, variant: 'destructive' })
+    } finally {
       setSaving(false)
     }
   }
