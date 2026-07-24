@@ -67,7 +67,7 @@ export interface FormTemplateDetail {
 
 export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   TEXT: 'Text',
-  TEXTAREA: 'Long Text',
+  TEXTAREA: 'Multi line text',
   NUMBER: 'Number',
   EMAIL: 'Email',
   PHONE: 'Phone',

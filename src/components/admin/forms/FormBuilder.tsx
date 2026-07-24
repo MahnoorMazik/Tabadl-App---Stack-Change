@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   DndContext,
   closestCenter,
@@ -17,15 +16,14 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
-import { Save, AlertTriangle, Loader2 } from 'lucide-react'
+import { Save, Loader2 } from 'lucide-react'
 import {
   FormTemplateDetail,
   CanvasField,
@@ -39,6 +37,7 @@ import { AddFieldButton } from './AddFieldButton'
 import { SortableFieldRow } from './SortableFieldRow'
 import { FormPreview } from './FormPreview'
 import { formApi, FormApiError } from './api'
+import { useRouter } from 'next/navigation'
 
 interface FormBuilderProps {
   initialTemplate?: FormTemplateDetail
@@ -46,7 +45,6 @@ interface FormBuilderProps {
 }
 
 export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderProps) {
-  const router = useRouter()
   const { toast } = useToast()
   const [template, setTemplate] = useState<FormTemplateDetail>(
     () => initialTemplate ?? createEmptyFormTemplate()
@@ -56,6 +54,11 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
   const [libraryFields, setLibraryFields] = useState<ReusableField[]>([])
   const [loadingMeta, setLoadingMeta] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Baseline snapshot used to detect unsaved changes
+  const [baseline, setBaseline] = useState<string>(() =>
+    JSON.stringify(initialTemplate ?? createEmptyFormTemplate())
+  )
+  const router = useRouter()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -65,6 +68,7 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
   useEffect(() => {
     if (initialTemplate) {
       setTemplate(initialTemplate)
+      setBaseline(JSON.stringify(initialTemplate))
     }
   }, [initialTemplate])
 
@@ -125,9 +129,9 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, initialTemplate?.id])
 
+  const isDirty = JSON.stringify(template) !== baseline
   const nameError = showValidation && !template.name.trim()
   const fieldsError = showValidation && template.fields.length === 0
-  const servicesWarning = template.serviceIds.length === 0
 
   const setName = (name: string) => {
     setTemplate((prev) => ({ ...prev, name }))
@@ -228,21 +232,19 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
           : await formApi.createTemplate(payload)
 
       const saved = mapApiTemplateDetail(result.template)
-      setTemplate(saved)
 
       toast({
         title: mode === 'edit' ? 'Form updated' : 'Form created',
         description: `"${saved.name}" saved with ${saved.fields.length} field${saved.fields.length === 1 ? '' : 's'}.`,
       })
 
-      if (mode === 'create') {
-        router.replace(`/admin/services/forms/${saved.id}`)
-      }
+      // Navigate back to the forms list
+      // window.location.href = '/admin/services/forms'
+      // router.replace('/admin/services/forms')
     } catch (error) {
       const message =
         error instanceof FormApiError ? error.message : 'Failed to save form template'
       toast({ title: 'Save failed', description: message, variant: 'destructive' })
-    } finally {
       setSaving(false)
     }
   }
@@ -256,14 +258,16 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="space-y-5">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Form settings</CardTitle>
-            <CardDescription>Name and service assignment</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+      {/* ── Left column: single card with scrollable body + sticky save footer ── */}
+      <Card className="flex flex-col overflow-hidden py-0" style={{ height: 'calc(100vh - 140px)' }}>
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+
+          {/* Form settings */}
+          <div className="p-6 space-y-4 border-b">
+            <h2 className="text-xl font-semibold">Form settings</h2>
+
             <div className="space-y-1.5">
               <Label htmlFor="form-name">
                 Form name <span className="text-destructive">*</span>
@@ -325,43 +329,12 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
                   })}
                 </div>
               )}
-              {servicesWarning && (
-                <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <AlertDescription className="text-xs leading-relaxed">
-                    This form isn&apos;t linked to any service yet — clients won&apos;t see it until you assign it.
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
+          </div>
 
-            <Button
-              type="button"
-              className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800"
-              onClick={() => void handleSave()}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Form
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Add field</CardTitle>
-            <CardDescription>Choose a type, then create or reuse a field</CardDescription>
-          </CardHeader>
-          <CardContent>
+          {/* Add field */}
+          <div className="p-6 space-y-3 border-b">
+            <h2 className="text-xl font-semibold">Add field</h2>
             <div className="flex flex-wrap gap-2">
               {FIELD_TYPES.map((type) => (
                 <AddFieldButton
@@ -378,25 +351,16 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
                 />
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Form canvas</CardTitle>
-            <CardDescription>
-              {template.fields.length === 0
-                ? 'No fields yet — add one above'
-                : `${template.fields.length} field${template.fields.length === 1 ? '' : 's'} · drag to reorder`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
+          {/* Form canvas */}
+          <div className="p-6 space-y-3">
+            <h2 className="text-xl font-semibold">Form canvas</h2>
             {fieldsError && (
-              <p className="text-xs text-destructive mb-2">
+              <p className="text-xs text-destructive">
                 At least one field is required before saving.
               </p>
             )}
-
             {template.fields.length === 0 ? (
               <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
                 Your form fields will appear here.
@@ -424,15 +388,37 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
                 </SortableContext>
               </DndContext>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
 
+        {/* ── Fixed save footer — never scrolls ── */}
+        <div className="shrink-0 border-t bg-card px-6 py-4">
+          <Button
+            type="button"
+            className="w-full bg-emerald-700 hover:bg-emerald-800 h-11 text-base font-semibold"
+            onClick={() => void handleSave()}
+            disabled={saving || !isDirty}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Form
+              </>
+            )}
+          </Button>
+        </div>
+      </Card>
+
+      {/* ── Right column: live preview ── */}
       <div>
         <Card className="lg:sticky lg:top-4">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Live preview</CardTitle>
-            <CardDescription>How clients will see this form</CardDescription>
+            <CardTitle className="text-xl">Form Preview</CardTitle>
           </CardHeader>
           <CardContent>
             <FormPreview formName={template.name} fields={template.fields} />
