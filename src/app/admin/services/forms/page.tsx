@@ -15,8 +15,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ClipboardList, Plus, Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { ClipboardList, Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
 import { Module, Action } from '@/lib/rbac'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
@@ -36,6 +45,8 @@ export default function FormTemplatesPage() {
   const [templates, setTemplates] = useState<FormTemplateListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<FormTemplateListItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadTemplates = useCallback(async () => {
     setLoading(true)
@@ -85,6 +96,31 @@ export default function FormTemplatesPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await formApi.deleteTemplate(deleteTarget.id)
+      setTemplates((prev) => prev.filter((t) => t.id !== deleteTarget.id))
+      toast({
+        title: 'Form deleted',
+        description: `${deleteTarget.name} removed.`,
+      })
+      setDeleteTarget(null)
+    } catch (error) {
+      toast({
+        title: 'Delete failed',
+        description:
+          error instanceof FormApiError
+            ? error.message
+            : 'Could not delete form.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <AdminPageTemplate
       title="Form Templates"
@@ -122,13 +158,6 @@ export default function FormTemplatesPage() {
               <p className="text-sm text-muted-foreground mb-0">
                 No form templates yet. Create your first intake form.
               </p>
-              {/* <Button
-                className="bg-emerald-700 hover:bg-emerald-800"
-                onClick={() => router.push('/admin/services/forms/new')}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Form
-              </Button> */}
             </div>
           ) : (
             <Table>
@@ -139,16 +168,12 @@ export default function FormTemplatesPage() {
                   <TableHead>Services</TableHead>
                   <TableHead className="text-center w-28">Fields</TableHead>
                   <TableHead className="w-28">Active</TableHead>
-                  <TableHead className="w-20"></TableHead>
+                  <TableHead className="w-28 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {templates.map((template) => (
-                  <TableRow
-                    key={template.id}
-                    className="cursor-pointer"
-                    onClick={() => router.push(`/admin/services/forms/${template.id}`)}
-                  >
+                  <TableRow key={template.id}>
                     <TableCell className="font-medium">
                       {template.name}
                       <p className="text-xs text-muted-foreground font-normal mt-0.5">
@@ -183,7 +208,7 @@ export default function FormTemplatesPage() {
                     <TableCell className="text-center tabular-nums">
                       {template.fieldCount}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell>
                       <Switch
                         checked={template.isActive}
                         disabled={togglingId === template.id}
@@ -191,13 +216,31 @@ export default function FormTemplatesPage() {
                         aria-label={`Toggle ${template.name} active`}
                       />
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Link
-                        href={`/admin/services/forms/${template.id}`}
-                        className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
-                      >
-                        View
-                      </Link>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            router.push(`/admin/services/forms/${template.id}`)
+                          }
+                          aria-label={`Edit ${template.name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeleteTarget(template)}
+                          aria-label={`Delete ${template.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -206,6 +249,47 @@ export default function FormTemplatesPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete form?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove{' '}
+              <span className="font-medium">{deleteTarget?.name}</span>
+              {deleteTarget
+                ? ` (${deleteTarget.fieldCount} field${deleteTarget.fieldCount === 1 ? '' : 's'})`
+                : ''}
+              . This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault()
+                void handleDelete()
+              }}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminPageTemplate>
   )
 }
