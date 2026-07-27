@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -14,9 +14,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { validateEmail } from '@/lib/email-validation'
 import { normalizePhone } from '@/lib/phone-normalization'
 import Link from 'next/link'
-import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown } from 'lucide-react'
+import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown, CheckIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocale } from '@/contexts/LocaleContext'
+import axios from 'axios'
+import { toast } from '@/hooks/use-toast'
+import { Checkbox } from '@/components/ui/checkbox'
 
 // Helper function to get flag emoji from country code
 function getCountryFlag(code: string, name?: string): string {
@@ -24,7 +27,7 @@ function getCountryFlag(code: string, name?: string): string {
   const codeToISO: Record<string, string> = {
     '+966': 'SA', '+971': 'AE', '+973': 'BH', '+974': 'QA', '+965': 'KW', '+968': 'OM',
     '+967': 'YE', '+962': 'JO', '+961': 'LB', '+963': 'SY', '+964': 'IQ', '+20': 'EG',
-    '+212': 'MA', '+213': 'DZ', '+216': 'TN', '+218': 'LY', '+249': 'SD', 
+    '+212': 'MA', '+213': 'DZ', '+216': 'TN', '+218': 'LY', '+249': 'SD',
     '+1': 'US', // US/Canada - will need special handling
     '+44': 'GB', '+33': 'FR', '+49': 'DE', '+39': 'IT', '+34': 'ES', '+31': 'NL',
     '+32': 'BE', '+41': 'CH', '+43': 'AT', '+45': 'DK', '+46': 'SE', '+47': 'NO',
@@ -55,13 +58,13 @@ function getCountryFlag(code: string, name?: string): string {
     '+683': 'NU', '+685': 'WS', '+686': 'KI', '+687': 'NC', '+688': 'TV', '+689': 'PF',
     '+690': 'TK', '+691': 'FM', '+692': 'MH', '+970': 'PS'
   }
-  
+
   // Special handling for +1 (US/Canada)
   if (code === '+1' && name) {
     if (name.includes('Canada')) return '🇨🇦'
     return '🇺🇸'
   }
-  
+
   const iso = codeToISO[code] || 'SA'
   // Convert ISO country code to flag emoji
   try {
@@ -71,6 +74,14 @@ function getCountryFlag(code: string, name?: string): string {
     return ''
   }
 }
+interface Service {
+
+  _id: string;
+
+  name: string;
+  isActive: boolean;
+
+}
 
 export default function ClientSignupPage() {
   const [formData, setFormData] = useState({
@@ -78,10 +89,16 @@ export default function ClientSignupPage() {
     email: '',
     password: '',
     companyName: '',
+    services: '',
     phoneCountryCode: '+966', // Default to Saudi Arabia
     phone: '',
   })
   const [countryCodeOpen, setCountryCodeOpen] = useState(false)
+  const [services, setServices] = useState<Service[]>([]);
+
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+  // const [loading, setLoading] = useState(false);
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -93,25 +110,25 @@ export default function ClientSignupPage() {
     e.preventDefault()
     setError('')
     setEmailError('')
-    
+
     // Validate email before submitting
     const emailValidation = validateEmail(formData.email)
     if (!emailValidation.isValid) {
       setEmailError(emailValidation.error!)
       return
     }
-    
+
     // Validate phone number
     if (!formData.phone || formData.phone.trim() === '') {
       setError(t('auth.phoneRequired'))
       return
     }
-    
+
     if (formData.phone.length !== 10) {
       setError(t('auth.phoneInvalid'))
       return
     }
-    
+
     setLoading(true)
 
     try {
@@ -128,6 +145,31 @@ export default function ClientSignupPage() {
       setLoading(false)
     }
   }
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("/api/services/catalog");
+      const categoryServices: Service[] =
+        response.data.categories?.flatMap(
+          (category: { services?: Service[] }) => category.services ?? []
+        ) ?? [];
+      const additionalServices: Service[] =
+        response.data.additionalServices ?? [];
+      setServices([...categoryServices, ...additionalServices]);
+    } catch (error) {
+      console.error("Catalog API error:", error);
+      toast({
+        title: "Failed to load services",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -308,7 +350,7 @@ export default function ClientSignupPage() {
     { code: '+996', name: 'Kyrgyzstan', flag: getCountryFlag('+996') },
     { code: '+998', name: 'Uzbekistan', flag: getCountryFlag('+998') }
   ].filter(country => country.code !== '+972') // Exclude Israel (972)
-  
+
   // Remove duplicates based on code and sort
   const uniqueCountryCodes = Array.from(
     new Map(countryCodes.map(item => [item.code, item])).values()
@@ -341,7 +383,7 @@ export default function ClientSignupPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -383,6 +425,54 @@ export default function ClientSignupPage() {
                 required
                 disabled={loading}
               />
+            </div>
+            {/* service */}
+            <div className="mt-4 space-y-3">
+              <Label>Select Services</Label>
+
+              {loading && (
+                <p className="text-sm text-muted-foreground">
+                  Loading services...
+                </p>
+              )}
+
+              {!loading && services.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No services found.
+                </p>
+              )}
+
+              {services.map((service: any) => (
+                <div
+                  key={service.id || service._id}
+                  className="flex items-center gap-2"
+                >
+                  <Checkbox
+                    id={`service-${service.id || service._id}`}
+                    checked={selectedServices.includes(service.id || service._id)}
+                    onCheckedChange={(checked) => {
+                      const serviceId = service.id || service._id;
+
+                      setSelectedServices((prev) => {
+                        if (checked) {
+                          return prev.includes(serviceId)
+                            ? prev
+                            : [...prev, serviceId];
+                        }
+
+                        return prev.filter((id) => id !== serviceId);
+                      });
+                    }}
+                  />
+
+                  <Label
+                    htmlFor={`service-${service.id || service._id}`}
+                    className="cursor-pointer font-normal"
+                  >
+                    {service.name}
+                  </Label>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-2">
@@ -474,8 +564,8 @@ export default function ClientSignupPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-emerald-700 hover:bg-emerald-800 text-white"
               disabled={loading}
             >
