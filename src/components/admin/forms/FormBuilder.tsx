@@ -28,8 +28,9 @@ import {
   FormTemplateDetail,
   CanvasField,
   FIELD_TYPES,
-  BusinessServiceOption,
   ReusableField,
+  AreaOfInterestKey,
+  AREA_OF_INTEREST_OPTIONS,
   createEmptyFormTemplate,
   mapApiTemplateDetail,
 } from './types'
@@ -50,11 +51,9 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
     () => initialTemplate ?? createEmptyFormTemplate()
   )
   const [showValidation, setShowValidation] = useState(false)
-  const [services, setServices] = useState<BusinessServiceOption[]>([])
   const [libraryFields, setLibraryFields] = useState<ReusableField[]>([])
   const [loadingMeta, setLoadingMeta] = useState(true)
   const [saving, setSaving] = useState(false)
-  // Baseline snapshot used to detect unsaved changes
   const [baseline, setBaseline] = useState<string>(() =>
     JSON.stringify(initialTemplate ?? createEmptyFormTemplate())
   )
@@ -78,27 +77,8 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
     const loadMeta = async () => {
       setLoadingMeta(true)
       try {
-        const excludeId = mode === 'edit' && template.id ? template.id : undefined
-        const [servicesRes, fieldsRes] = await Promise.all([
-          formApi.availableServices(excludeId),
-          formApi.listFields(),
-        ])
+        const fieldsRes = await formApi.listFields()
         if (cancelled) return
-
-        setServices(
-          (servicesRes.services ?? []).map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            slug: s.slug,
-            alreadyAssigned: s.alreadyAssigned,
-            assignedTemplateId: s.assignedTemplateId,
-            assignedTemplateName: s.assignedTemplateName,
-            linkedLabel:
-              s.alreadyAssigned && s.assignedTemplateName
-                ? `On "${s.assignedTemplateName}"`
-                : undefined,
-          }))
-        )
 
         setLibraryFields(
           (fieldsRes.fields ?? []).map((f: any) => ({
@@ -125,40 +105,22 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
     return () => {
       cancelled = true
     }
-    // Only re-fetch services when edit template id is known
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, initialTemplate?.id])
+  }, [toast])
 
   const isDirty = JSON.stringify(template) !== baseline
   const nameError = showValidation && !template.name.trim()
+  const areaError = showValidation && !template.areaOfInterest
   const fieldsError = showValidation && template.fields.length === 0
 
   const setName = (name: string) => {
     setTemplate((prev) => ({ ...prev, name }))
   }
 
-  const toggleService = (serviceId: string) => {
-    const service = services.find((s) => s.id === serviceId)
-    if (service?.alreadyAssigned && !template.serviceIds.includes(serviceId)) {
-      toast({
-        title: 'Service already assigned',
-        description: service.assignedTemplateName
-          ? `This service is linked to "${service.assignedTemplateName}".`
-          : 'This service is already linked to another form.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    setTemplate((prev) => {
-      const selected = prev.serviceIds.includes(serviceId)
-      return {
-        ...prev,
-        serviceIds: selected
-          ? prev.serviceIds.filter((id) => id !== serviceId)
-          : [...prev.serviceIds, serviceId],
-      }
-    })
+  const setAreaOfInterest = (key: AreaOfInterestKey) => {
+    setTemplate((prev) => ({
+      ...prev,
+      areaOfInterest: key,
+    }))
   }
 
   const addField = useCallback((field: CanvasField) => {
@@ -202,6 +164,7 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
   const buildPayload = () => ({
     name: template.name.trim(),
     description: template.description,
+    areaOfInterest: template.areaOfInterest,
     isActive: template.isActive,
     fieldIds: template.fields.map((f, index) => ({
       fieldId: f.fieldId,
@@ -209,12 +172,12 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
       isRequired: f.required,
       labelOverride: f.labelOverride?.trim() || null,
     })),
-    serviceIds: template.serviceIds,
+    serviceIds: [],
   })
 
   const handleSave = async () => {
     setShowValidation(true)
-    if (!template.name.trim() || template.fields.length === 0) {
+    if (!template.name.trim() || !template.areaOfInterest || template.fields.length === 0) {
       toast({
         title: 'Cannot save form',
         description: 'Fix the validation errors before saving.',
@@ -242,7 +205,6 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
         description: `"${saved.name}" saved with ${saved.fields.length} field${saved.fields.length === 1 ? '' : 's'}.`,
       })
 
-      // Client-side nav only — full page reload races permissions and can bounce to dashboard
       router.push('/admin/services/forms')
     } catch (error) {
       const message =
@@ -263,12 +225,8 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
-      {/* ── Left column: single card with scrollable body + sticky save footer ── */}
       <Card className="flex flex-col overflow-hidden py-0" style={{ height: 'calc(100vh - 140px)' }}>
-        {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto min-h-0">
-
-          {/* Form settings */}
           <div className="p-6 space-y-4 border-b">
             <h2 className="text-xl font-semibold">Form settings</h2>
 
@@ -290,53 +248,47 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
             </div>
 
             <div className="space-y-2">
-              <Label>Assign to Services</Label>
-              {services.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No active business services found. Seed the catalog first.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                  {services.map((service) => {
-                    const checked = template.serviceIds.includes(service.id)
-                    const locked = Boolean(service.alreadyAssigned) && !checked
-                    return (
-                      <div
-                        key={service.id}
-                        className={`flex items-start gap-2 rounded-md border px-2.5 py-2 ${locked ? 'opacity-60' : ''}`}
-                      >
-                        <Checkbox
-                          id={`svc-${service.id}`}
-                          checked={checked}
-                          disabled={locked}
-                          onCheckedChange={() => toggleService(service.id)}
-                          className="mt-0.5"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <Label
-                            htmlFor={`svc-${service.id}`}
-                            className="font-normal cursor-pointer leading-snug"
-                          >
-                            {service.name}
-                          </Label>
-                          {service.linkedLabel && (
-                            <Badge
-                              variant="secondary"
-                              className="mt-1 text-[10px] font-normal text-muted-foreground"
-                            >
-                              {service.linkedLabel}
-                            </Badge>
-                          )}
-                        </div>
+              <Label>
+                Area of interest <span className="text-destructive">*</span>
+              </Label>
+              <div className="grid grid-cols-1 gap-2">
+                {AREA_OF_INTEREST_OPTIONS.map((option) => {
+                  const checked = template.areaOfInterest === option.key
+                  return (
+                    <div
+                      key={option.key}
+                      className="flex items-start gap-2 rounded-md border px-2.5 py-2"
+                    >
+                      <Checkbox
+                        id={`aoi-${option.key}`}
+                        checked={checked}
+                        onCheckedChange={() => setAreaOfInterest(option.key)}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Label
+                          htmlFor={`aoi-${option.key}`}
+                          className="font-normal cursor-pointer leading-snug"
+                        >
+                          {option.label}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {option.description}
+                        </p>
                       </div>
-                    )
-                  })}
-                </div>
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">
+                        {option.key}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+              {areaError && (
+                <p className="text-xs text-destructive">Area of interest is required.</p>
               )}
             </div>
           </div>
 
-          {/* Add field */}
           <div className="p-6 space-y-3 border-b">
             <h2 className="text-xl font-semibold">Add field</h2>
             <div className="flex flex-wrap gap-2">
@@ -357,7 +309,6 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
             </div>
           </div>
 
-          {/* Form canvas */}
           <div className="p-6 space-y-3">
             <h2 className="text-xl font-semibold">Form canvas</h2>
             {fieldsError && (
@@ -395,7 +346,6 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
           </div>
         </div>
 
-        {/* ── Fixed save footer — never scrolls ── */}
         <div className="shrink-0 border-t bg-card px-6 py-4">
           <Button
             type="button"
@@ -418,7 +368,6 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
         </div>
       </Card>
 
-      {/* ── Right column: live preview ── */}
       <div>
         <Card className="lg:sticky lg:top-4">
           <CardHeader className="pb-3">

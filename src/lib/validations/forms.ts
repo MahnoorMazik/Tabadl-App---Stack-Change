@@ -64,9 +64,14 @@ const templateFieldItemSchema = z.object({
   labelOverride: z.string().trim().max(200).optional().nullable(),
 })
 
+export const AREA_OF_INTEREST_KEYS = ['CR', 'PR', 'GR'] as const
+
 export const formTemplateSchema = z.object({
   name: z.string().trim().min(1, 'Form name is required').max(200),
   description: z.string().trim().max(2000).optional().nullable(),
+  areaOfInterest: z.enum(AREA_OF_INTEREST_KEYS, {
+    message: 'Area of interest is required',
+  }),
   isActive: z.boolean().optional(),
   fieldIds: z
     .array(templateFieldItemSchema)
@@ -77,6 +82,7 @@ export const formTemplateSchema = z.object({
 export const formTemplateUpdateSchema = z.object({
   name: z.string().trim().min(1, 'Form name is required').max(200).optional(),
   description: z.string().trim().max(2000).optional().nullable(),
+  areaOfInterest: z.enum(AREA_OF_INTEREST_KEYS).optional().nullable(),
   isActive: z.boolean().optional(),
   fieldIds: z
     .array(templateFieldItemSchema)

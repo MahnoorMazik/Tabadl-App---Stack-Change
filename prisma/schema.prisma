@@ -326,22 +326,24 @@ model FormField {
 }
 
 model FormTemplate {
-  id          String                @id @default(cuid())
-  name        String
-  description String?
-  isActive    Boolean               @default(true)
-  isDeleted   Boolean               @default(false)
-  deletedAt   DateTime?
-  createdById String
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  createdBy   User                  @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
-  fields      FormTemplateField[]
-  services    FormTemplateService[]
+  id              String                @id @default(cuid())
+  name            String
+  description     String?
+  areaOfInterest  AreaOfInterest?
+  isActive        Boolean               @default(true)
+  isDeleted       Boolean               @default(false)
+  deletedAt       DateTime?
+  createdById     String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  createdBy       User                  @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
+  fields          FormTemplateField[]
+  services        FormTemplateService[]
 
   @@index([isDeleted])
   @@index([isDeleted, updatedAt])
   @@index([createdById])
+  @@index([areaOfInterest])
   @@map("form_templates")
 }
 
@@ -970,4 +972,10 @@ enum FormFieldType {
   CHECKBOX
   RADIO
   FILE
+}
+
+enum AreaOfInterest {
+  CR
+  PR
+  GR
 }

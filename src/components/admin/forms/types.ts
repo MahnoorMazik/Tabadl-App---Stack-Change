@@ -11,6 +11,31 @@ export type FormFieldType =
   | 'RADIO'
   | 'FILE'
 
+/** Static area-of-interest keys stored on FormTemplate */
+export type AreaOfInterestKey = 'CR' | 'PR' | 'GR'
+
+export const AREA_OF_INTEREST_OPTIONS: Array<{
+  key: AreaOfInterestKey
+  label: string
+  description: string
+}> = [
+  {
+    key: 'CR',
+    label: 'Company Registration (CR)',
+    description: 'Set up an LLC in Saudi Arabia',
+  },
+  {
+    key: 'PR',
+    label: 'Premium Residency (PR)',
+    description: 'Investor, talent, entrepreneur & more',
+  },
+  {
+    key: 'GR',
+    label: 'General Services (GR)',
+    description: 'Browse the full service catalogue',
+  },
+]
+
 export interface BusinessServiceOption {
   id: string
   name: string
@@ -48,6 +73,7 @@ export interface FormTemplateListItem {
   id: string
   name: string
   description: string | null
+  areaOfInterest: AreaOfInterestKey | null
   isActive: boolean
   fieldCount: number
   updatedAt: string
@@ -59,6 +85,7 @@ export interface FormTemplateDetail {
   id: string
   name: string
   description: string | null
+  areaOfInterest: AreaOfInterestKey | null
   isActive: boolean
   serviceIds: string[]
   fields: CanvasField[]
@@ -96,6 +123,7 @@ export function createEmptyFormTemplate(): FormTemplateDetail {
     id: '',
     name: '',
     description: null,
+    areaOfInterest: null,
     serviceIds: [],
     fields: [],
     isActive: true,
@@ -123,6 +151,7 @@ export function mapApiTemplateDetail(template: {
   id: string
   name: string
   description: string | null
+  areaOfInterest?: AreaOfInterestKey | null
   isActive: boolean
   updatedAt: string
   services: Array<{ id: string; name: string; slug?: string }>
@@ -143,6 +172,7 @@ export function mapApiTemplateDetail(template: {
     id: template.id,
     name: template.name,
     description: template.description,
+    areaOfInterest: template.areaOfInterest ?? null,
     isActive: template.isActive,
     updatedAt: template.updatedAt,
     serviceIds: template.services.map((s) => s.id),

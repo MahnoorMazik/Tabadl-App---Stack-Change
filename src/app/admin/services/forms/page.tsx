@@ -46,6 +46,7 @@ export default function FormTemplatesPage() {
           id: t.id,
           name: t.name,
           description: t.description,
+          areaOfInterest: t.areaOfInterest ?? null,
           isActive: t.isActive,
           fieldCount: t.fieldCount ?? 0,
           updatedAt: t.updatedAt,
@@ -134,6 +135,7 @@ export default function FormTemplatesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Form name</TableHead>
+                  <TableHead className="w-24">Interest</TableHead>
                   <TableHead>Services</TableHead>
                   <TableHead className="text-center w-28">Fields</TableHead>
                   <TableHead className="w-28">Active</TableHead>
@@ -152,6 +154,13 @@ export default function FormTemplatesPage() {
                       <p className="text-xs text-muted-foreground font-normal mt-0.5">
                         Updated {formatUpdatedAt(template.updatedAt)}
                       </p>
+                    </TableCell>
+                    <TableCell>
+                      {template.areaOfInterest ? (
+                        <Badge variant="secondary">{template.areaOfInterest}</Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {template.services.length === 0 ? (

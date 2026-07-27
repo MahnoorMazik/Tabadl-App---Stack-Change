@@ -34,6 +34,7 @@ function mapTemplateDetail(template: NonNullable<Awaited<ReturnType<typeof getTe
     id: template.id,
     name: template.name,
     description: template.description,
+    areaOfInterest: template.areaOfInterest,
     isActive: template.isActive,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
@@ -132,6 +133,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (
       body.name === undefined &&
       body.description === undefined &&
+      body.areaOfInterest === undefined &&
       body.isActive === undefined &&
       body.fieldIds === undefined &&
       body.serviceIds === undefined
@@ -242,6 +244,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     await replaceTemplateRelations(id, {
       name: body.name,
       description: body.description,
+      areaOfInterest: body.areaOfInterest,
       isActive: body.isActive,
       fields: normalizedFields,
       serviceIds: uniqueServiceIds,

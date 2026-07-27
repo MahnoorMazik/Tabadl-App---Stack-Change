@@ -46,6 +46,7 @@ export const GET = withFormBuilderAuth(async (request) => {
       id: t.id,
       name: t.name,
       description: t.description,
+      areaOfInterest: t.areaOfInterest,
       isActive: t.isActive,
       fieldCount: t._count.fields,
       updatedAt: t.updatedAt,
@@ -166,6 +167,7 @@ export const POST = withFormBuilderAuth(async (request) => {
         data: {
           name: body.name,
           description: body.description ?? null,
+          areaOfInterest: body.areaOfInterest,
           isActive: body.isActive ?? true,
           createdById: request.user!.userId,
           fields: {
@@ -203,6 +205,7 @@ export const POST = withFormBuilderAuth(async (request) => {
             id: template.id,
             name: template.name,
             description: template.description,
+            areaOfInterest: template.areaOfInterest,
             isActive: template.isActive,
             fieldCount: template._count.fields,
             createdAt: template.createdAt,
