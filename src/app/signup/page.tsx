@@ -22,12 +22,12 @@ import { toast } from '@/hooks/use-toast'
 // import { Checkbox } from '@/components/ui/checkbox'
 // import { DropdownMenu } from '@/components/ui/dropdown-menu'
 import {
-DropdownMenu,
-DropdownMenuCheckboxItem,
-DropdownMenuContent,
-DropdownMenuLabel,
-DropdownMenuSeparator,
-DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 // import { Button } from "@/components/ui/button";
 
@@ -436,76 +436,76 @@ export default function ClientSignupPage() {
               />
             </div>
             {/* service */}
-           <div className="space-y-2">
-  <div className="flex items-center gap-2">
-    <BriefcaseBusiness className="h-4 w-4" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <BriefcaseBusiness className="h-4 w-4" />
 
-    <Label>Select Services</Label>
-  </div>
+                <Label>Select Services</Label>
+              </div>
 
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full justify-between font-normal"
-      >
-        <span>
-          {selectedServices.length > 0
-            ? `${selectedServices.length} service(s) selected`
-            : "Select services"}
-        </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between font-normal"
+                  >
+                    <span>
+                      {selectedServices.length > 0
+                        ? `${selectedServices.length} service(s) selected`
+                        : "Select services"}
+                    </span>
 
-        <ChevronDown className="h-4 w-4 opacity-50" />
-      </Button>
-    </DropdownMenuTrigger>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
 
-    <DropdownMenuContent
-      className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto"
-      align="start"
-    >
-      <DropdownMenuLabel>Services</DropdownMenuLabel>
+                <DropdownMenuContent
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto"
+                  align="start"
+                >
+                  <DropdownMenuLabel>Services</DropdownMenuLabel>
 
-      <DropdownMenuSeparator />
+                  <DropdownMenuSeparator />
 
-      {loading && (
-        <div className="px-2 py-2 text-sm text-muted-foreground">
-          Loading services...
-        </div>
-      )}
+                  {loading && (
+                    <div className="px-2 py-2 text-sm text-muted-foreground">
+                      Loading services...
+                    </div>
+                  )}
 
-      {!loading && services.length === 0 && (
-        <div className="px-2 py-2 text-sm text-muted-foreground">
-          No services found.
-        </div>
-      )}
+                  {!loading && services.length === 0 && (
+                    <div className="px-2 py-2 text-sm text-muted-foreground">
+                      No services found.
+                    </div>
+                  )}
 
-      {!loading &&
-        services.map((service: any) => {
-          const serviceId = service.id || service._id;
+                  {!loading &&
+                    services.map((service: any) => {
+                      const serviceId = service.id || service._id;
 
-          return (
-            <DropdownMenuCheckboxItem
-              key={serviceId}
-              checked={selectedServices.includes(serviceId)}
-              onSelect={(event) => event.preventDefault()}
-              onCheckedChange={(checked) => {
-                setSelectedServices((prev) =>
-                  checked
-                    ? prev.includes(serviceId)
-                      ? prev
-                      : [...prev, serviceId]
-                    : prev.filter((id) => id !== serviceId)
-                );
-              }}
-            >
-              {service.name}
-            </DropdownMenuCheckboxItem>
-          );
-        })}
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={serviceId}
+                          checked={selectedServices.includes(serviceId)}
+                          onSelect={(event) => event.preventDefault()}
+                          onCheckedChange={(checked) => {
+                            setSelectedServices((prev) =>
+                              checked
+                                ? prev.includes(serviceId)
+                                  ? prev
+                                  : [...prev, serviceId]
+                                : prev.filter((id) => id !== serviceId)
+                            );
+                          }}
+                        >
+                          {service.name}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
