@@ -12,7 +12,7 @@ import {
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard, CreditCard, Bot,
   ChevronDown, ChevronRight, Menu, Calculator, Receipt, 
   PieChart, TrendingDown, Building, Bell, Calendar, Eye, Upload,
-  AlertCircle, Clock, ListTodo, UserCircle, LogOut, Globe, Briefcase, Package, PlusCircle
+  AlertCircle, Clock, ListTodo, UserCircle, LogOut, Globe, Briefcase, Package, PlusCircle, Layers
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -124,6 +124,7 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
     { title: 'Packages', icon: Package, href: '/admin/services/packages', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Add-on Services', icon: PlusCircle, href: '/admin/services/add-ons', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Services Form', icon: ClipboardList, href: '/admin/services/forms', permission: `${Module.SERVICES}.${Action.VIEW}` },
+    { title: 'Wizards', icon: Layers, href: '/admin/services/wizards', permission: `${Module.SERVICES}.${Action.VIEW}` },
   ],
   [Module.DOCUMENTS]: [
     { title: 'Document Library', icon: FolderOpen, href: '/admin/documents', permission: `${Module.DOCUMENTS}.${Action.VIEW}` },

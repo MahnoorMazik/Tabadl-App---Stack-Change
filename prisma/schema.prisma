@@ -45,6 +45,7 @@ model User {
   auditLogs            AuditLog[]
   pageAccessLogs       PageAccessLog[]
   formTemplates        FormTemplate[]     @relation("FormTemplateCreatedBy")
+  applicationWizards   ApplicationWizard[] @relation("ApplicationWizardCreatedBy")
   // NextAuth relations
   accounts             Account[]
   sessions             Session[]
@@ -257,6 +258,7 @@ model BusinessService {
   packages    PackageService[]
   addOns      AdditionalService[]
   formTemplateService  FormTemplateService?
+  wizardServices       ApplicationWizardService[]
 
   @@index([categoryId, sortOrder])
   @@map("business_services")
@@ -339,6 +341,7 @@ model FormTemplate {
   createdBy       User                  @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
   fields          FormTemplateField[]
   services        FormTemplateService[]
+  wizardSteps     ApplicationWizardStep[]
 
   @@index([isDeleted])
   @@index([isDeleted, updatedAt])
@@ -377,6 +380,58 @@ model FormTemplateService {
   @@unique([serviceId])
   @@index([templateId])
   @@map("form_template_services")
+}
+
+model ApplicationWizard {
+  id             String                     @id @default(cuid())
+  name           String
+  areaOfInterest AreaOfInterest
+  isActive       Boolean                    @default(true)
+  isDeleted      Boolean                    @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  createdBy      User                       @relation("ApplicationWizardCreatedBy", fields: [createdById], references: [id])
+  steps          ApplicationWizardStep[]
+  services       ApplicationWizardService[]
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("application_wizards")
+}
+
+model ApplicationWizardStep {
+  id              String            @id @default(cuid())
+  wizardId        String
+  formTemplateId  String
+  sortOrder       Int               @default(0)
+  paymentRequired Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  wizard          ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate    FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+
+  @@unique([wizardId, formTemplateId])
+  @@index([wizardId, sortOrder])
+  @@index([formTemplateId])
+  @@map("application_wizard_steps")
+}
+
+model ApplicationWizardService {
+  id        String            @id @default(cuid())
+  wizardId  String
+  serviceId String
+  createdAt DateTime          @default(now())
+  wizard    ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  service   BusinessService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([wizardId, serviceId])
+  @@index([wizardId])
+  @@index([serviceId])
+  @@map("application_wizard_services")
 }
 
 model PaymentPhaseTemplate {

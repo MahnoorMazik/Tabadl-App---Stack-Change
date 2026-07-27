@@ -11,7 +11,7 @@ import {
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard,
   ChevronDown, ChevronRight, Menu, X, Globe, Tag, History, Activity, Bell, CreditCard, Bot,
-  Briefcase, Package, PlusCircle
+  Briefcase, Package, PlusCircle, Layers
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -111,6 +111,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         title: 'Services Form',
         icon: ClipboardList,
         href: '/admin/services/forms',
+        permission: `${Module.SERVICES}.${Action.VIEW}`
+      },
+      {
+        title: 'Wizards',
+        icon: Layers,
+        href: '/admin/services/wizards',
         permission: `${Module.SERVICES}.${Action.VIEW}`
       }
     ]
