@@ -14,12 +14,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { validateEmail } from '@/lib/email-validation'
 import { normalizePhone } from '@/lib/phone-normalization'
 import Link from 'next/link'
-import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown, CheckIcon, BriefcaseBusiness } from 'lucide-react'
+import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown, CheckIcon, BriefcaseBusiness, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocale } from '@/contexts/LocaleContext'
 import axios from 'axios'
 import { toast } from '@/hooks/use-toast'
-import { Checkbox } from '@/components/ui/checkbox'
+// import { Checkbox } from '@/components/ui/checkbox'
+// import { DropdownMenu } from '@/components/ui/dropdown-menu'
+import {
+DropdownMenu,
+DropdownMenuCheckboxItem,
+DropdownMenuContent,
+DropdownMenuLabel,
+DropdownMenuSeparator,
+DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+// import { Button } from "@/components/ui/button";
 
 // Helper function to get flag emoji from country code
 function getCountryFlag(code: string, name?: string): string {
@@ -426,56 +436,76 @@ export default function ClientSignupPage() {
               />
             </div>
             {/* service */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-3">
-                <BriefcaseBusiness className="h-4 w-4 " />
-                <Label className="flex items-center gap-2">Select Services</Label>
-              </div>
+           <div className="space-y-2">
+  <div className="flex items-center gap-2">
+    <BriefcaseBusiness className="h-4 w-4" />
 
-              {loading && (
-                <p className="text-sm text-grey-800">
-                  Loading services...
-                </p>
-              )}
+    <Label>Select Services</Label>
+  </div>
 
-              {!loading && services.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No services found.
-                </p>
-              )}
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full justify-between font-normal"
+      >
+        <span>
+          {selectedServices.length > 0
+            ? `${selectedServices.length} service(s) selected`
+            : "Select services"}
+        </span>
 
-              {services.map((service: any) => (
-                <div
-                  key={service.id || service._id}
-                  className="flex items-center gap-3 rounded-lg border p-3 w-full"
-                >
-                  <Checkbox
-                    id={`service-${service.id || service._id}`}
-                    checked={selectedServices.includes(service.id || service._id)}
-                    onCheckedChange={(checked) => {
-                      const serviceId = service.id || service._id;
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </Button>
+    </DropdownMenuTrigger>
 
-                      setSelectedServices((prev) => {
-                        if (checked) {
-                          return prev.includes(serviceId)
-                            ? prev
-                            : [...prev, serviceId];
-                        }
+    <DropdownMenuContent
+      className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto"
+      align="start"
+    >
+      <DropdownMenuLabel>Services</DropdownMenuLabel>
 
-                        return prev.filter((id) => id !== serviceId);
-                      });
-                    }}
-                  />
+      <DropdownMenuSeparator />
 
-                  <Label
-                    htmlFor={`service-${service.id || service._id}`}
-                    className="cursor-pointer font-normal flex-1"
-                  >
-                    {service.name}
-                  </Label>
-                </div>
-              ))}
-            </div>
+      {loading && (
+        <div className="px-2 py-2 text-sm text-muted-foreground">
+          Loading services...
+        </div>
+      )}
+
+      {!loading && services.length === 0 && (
+        <div className="px-2 py-2 text-sm text-muted-foreground">
+          No services found.
+        </div>
+      )}
+
+      {!loading &&
+        services.map((service: any) => {
+          const serviceId = service.id || service._id;
+
+          return (
+            <DropdownMenuCheckboxItem
+              key={serviceId}
+              checked={selectedServices.includes(serviceId)}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(checked) => {
+                setSelectedServices((prev) =>
+                  checked
+                    ? prev.includes(serviceId)
+                      ? prev
+                      : [...prev, serviceId]
+                    : prev.filter((id) => id !== serviceId)
+                );
+              }}
+            >
+              {service.name}
+            </DropdownMenuCheckboxItem>
+          );
+        })}
+    </DropdownMenuContent>
+  </DropdownMenu>
+</div>
 
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
