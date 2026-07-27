@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AdminPageTemplate } from '@/components/AdminPageTemplate'
 import { FormBuilder } from '@/components/admin/forms/FormBuilder'
@@ -17,7 +17,15 @@ import { formApi, FormApiError } from '@/components/admin/forms/api'
 
 export default function EditFormPage() {
   const params = useParams()
+  const router = useRouter()
   const id = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : ''
+
+  // Guard: if dynamic [id] ever catches the static "new" segment, send to create page
+  useEffect(() => {
+    if (id === 'new') {
+      router.replace('/admin/services/forms/new')
+    }
+  }, [id, router])
 
   const [template, setTemplate] = useState<FormTemplateDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -25,8 +33,8 @@ export default function EditFormPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!id) {
-      setNotFound(true)
+    if (!id || id === 'new') {
+      if (!id) setNotFound(true)
       setLoading(false)
       return
     }
@@ -59,6 +67,14 @@ export default function EditFormPage() {
       cancelled = true
     }
   }, [id])
+
+  if (id === 'new') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    )
+  }
 
   if (loading) {
     return (

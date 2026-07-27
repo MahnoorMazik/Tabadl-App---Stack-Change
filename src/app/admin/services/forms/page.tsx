@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ClipboardList, Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
+import Link from 'next/link'
 import { Module, Action } from '@/lib/rbac'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
@@ -132,10 +133,12 @@ export default function FormTemplatesPage() {
         <Button
           size="sm"
           className="bg-emerald-700 hover:bg-emerald-800"
-          onClick={() => router.push('/admin/services/forms/new')}
+          asChild
         >
-          <Plus className="h-4 w-4 mr-2" />
-          New Form
+          <Link href="/admin/services/forms/new">
+            <Plus className="h-4 w-4 mr-2" />
+            New Form
+          </Link>
         </Button>
       }
     >

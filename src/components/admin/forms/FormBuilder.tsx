@@ -32,7 +32,6 @@ import {
   AreaOfInterestKey,
   AREA_OF_INTEREST_OPTIONS,
   createEmptyFormTemplate,
-  mapApiTemplateDetail,
 } from './types'
 import { AddFieldButton } from './AddFieldButton'
 import { SortableFieldRow } from './SortableFieldRow'
@@ -194,18 +193,19 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
           ? await formApi.updateTemplate(template.id, payload)
           : await formApi.createTemplate(payload)
 
-      if (!result?.template?.id) {
-        throw new Error('Save succeeded but template data was missing from the response')
-      }
-
-      const saved = mapApiTemplateDetail(result.template)
+      const savedName =
+        result?.template?.name?.trim() || template.name.trim() || 'Form'
+      const savedFieldCount = Array.isArray(result?.template?.fields)
+        ? result.template.fields.length
+        : template.fields.length
 
       toast({
         title: mode === 'edit' ? 'Form updated' : 'Form created',
-        description: `"${saved.name}" saved with ${saved.fields.length} field${saved.fields.length === 1 ? '' : 's'}.`,
+        description: `"${savedName}" saved with ${savedFieldCount} field${savedFieldCount === 1 ? '' : 's'}.`,
       })
 
-      router.push('/admin/services/forms')
+      // Soft navigate — avoid full reload / permission race bouncing to dashboard
+      router.replace('/admin/services/forms')
     } catch (error) {
       const message =
         error instanceof FormApiError ? error.message : 'Failed to save form template'

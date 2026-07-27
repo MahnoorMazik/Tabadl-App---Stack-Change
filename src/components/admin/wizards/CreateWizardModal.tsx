@@ -165,10 +165,19 @@ export function CreateWizardModal({
   }, [open, reset, toast, editingWizard])
 
   const formsForArea = useMemo(() => {
-    if (!draft.areaOfInterest) return forms.filter((f) => f.isActive)
-    return forms.filter(
-      (f) => f.isActive && (f.areaOfInterest === draft.areaOfInterest || !f.areaOfInterest)
-    )
+    const activeForms = forms.filter((f) => f.isActive !== false)
+    if (!draft.areaOfInterest) return activeForms
+
+    const area = draft.areaOfInterest
+    const matched = activeForms.filter((f) => {
+      const formArea = f.areaOfInterest
+      if (!formArea) return true
+      return String(formArea).toUpperCase() === String(area).toUpperCase()
+    })
+
+    // If nothing matches the selected area, still show all active forms so the
+    // admin can pick one (e.g. older forms without area, or mismatch).
+    return matched.length > 0 ? matched : activeForms
   }, [forms, draft.areaOfInterest])
 
   const setupError =
@@ -252,7 +261,28 @@ export function CreateWizardModal({
       return
     }
     setShowValidation(false)
-    setModalStep(2)
+    // Refresh forms before step 2 so newly created GR/PR/CR templates appear
+    void (async () => {
+      try {
+        const formsRes = await formApi.listTemplates()
+        setForms(
+          (formsRes.templates ?? []).map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            areaOfInterest: t.areaOfInterest ?? null,
+            isActive: t.isActive !== false,
+            fieldCount: t.fieldCount ?? 0,
+            updatedAt: t.updatedAt,
+            services: t.services ?? [],
+          }))
+        )
+      } catch {
+        // Keep previously loaded forms
+      } finally {
+        setModalStep(2)
+      }
+    })()
   }
 
   const handleCreate = async () => {
