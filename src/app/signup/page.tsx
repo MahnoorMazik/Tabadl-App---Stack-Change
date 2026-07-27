@@ -19,16 +19,15 @@ import { cn } from '@/lib/utils'
 import { useLocale } from '@/contexts/LocaleContext'
 import axios from 'axios'
 import { toast } from '@/hooks/use-toast'
-// import { Checkbox } from '@/components/ui/checkbox'
-// import { DropdownMenu } from '@/components/ui/dropdown-menu'
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+
 // import { Button } from "@/components/ui/button";
 
 // Helper function to get flag emoji from country code
@@ -84,14 +83,14 @@ function getCountryFlag(code: string, name?: string): string {
     return ''
   }
 }
-interface Service {
+// interface Service {
 
-  _id: string;
+//   _id: string;
 
-  name: string;
-  isActive: boolean;
+//   name: string;
+//   isActive: boolean;
 
-}
+// }
 
 export default function ClientSignupPage() {
   const [formData, setFormData] = useState({
@@ -104,21 +103,40 @@ export default function ClientSignupPage() {
     phone: '',
   })
   const [countryCodeOpen, setCountryCodeOpen] = useState(false)
-  const [services, setServices] = useState<Service[]>([]);
+  // const [services, setServices] = useState<Service[]>([]);
+
+  const [servicesOpen, setServicesOpen] = useState(false);
 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+  const [servicesError, setServicesError] = useState("");
 
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [services] = useState([
+    { id: "1", name: "Company Registration" },
+    { id: "2", name: "Premium Residency" },
+    { id: "3", name: "General Services" },
+  ]);
   const router = useRouter()
   const { register } = useAuth()
   const { t } = useLocale()
-
+  const selectedServiceNames = services
+    .filter((service) => selectedServices.includes(service.id))
+    .map((service) => service.name);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setEmailError('')
+    setServicesError('')
+
+    // Validate services selection
+    if (selectedServices.length === 0) {
+      setServicesError('Please select at least one service')
+      return
+    }
 
     // Validate email before submitting
     const emailValidation = validateEmail(formData.email)
@@ -146,6 +164,7 @@ export default function ClientSignupPage() {
       await register({
         ...formData,
         phone: fullPhoneNumber, // Send combined phone number to API
+        areaofinterest: selectedServices, // Include area of interest
       }, 'client')
       router.push('/dashboard')
     } catch (err: any) {
@@ -154,31 +173,7 @@ export default function ClientSignupPage() {
       setLoading(false)
     }
   }
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("/api/services/catalog");
-      const categoryServices: Service[] =
-        response.data.categories?.flatMap(
-          (category: { services?: Service[] }) => category.services ?? []
-        ) ?? [];
-      const additionalServices: Service[] =
-        response.data.additionalServices ?? [];
-      setServices([...categoryServices, ...additionalServices]);
-    } catch (error) {
-      console.error("Catalog API error:", error);
-      toast({
-        title: "Failed to load services",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
+ 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -436,77 +431,147 @@ export default function ClientSignupPage() {
               />
             </div>
             {/* service */}
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <BriefcaseBusiness className="h-4 w-4" />
 
-                <Label>Select Services</Label>
+                <Label>
+                  Area of Interest
+                </Label>
               </div>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-between font-normal"
-                  >
-                    <span>
-                      {selectedServices.length > 0
-                        ? `${selectedServices.length} service(s) selected`
-                        : "Select services"}
-                    </span>
-
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent
-                  className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto"
-                  align="start"
-                >
-                  <DropdownMenuLabel>Services</DropdownMenuLabel>
-
-                  <DropdownMenuSeparator />
-
-                  {loading && (
-                    <div className="px-2 py-2 text-sm text-muted-foreground">
-                      Loading services...
-                    </div>
-                  )}
-
-                  {!loading && services.length === 0 && (
-                    <div className="px-2 py-2 text-sm text-muted-foreground">
-                      No services found.
-                    </div>
-                  )}
-
-                  {!loading &&
-                    services.map((service: any) => {
-                      const serviceId = service.id || service._id;
-
-                      return (
-                        <DropdownMenuCheckboxItem
-                          key={serviceId}
-                          checked={selectedServices.includes(serviceId)}
-                          onSelect={(event) => event.preventDefault()}
-                          onCheckedChange={(checked) => {
-                            setSelectedServices((prev) =>
-                              checked
-                                ? prev.includes(serviceId)
-                                  ? prev
-                                  : [...prev, serviceId]
-                                : prev.filter((id) => id !== serviceId)
-                            );
-                          }}
+              <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={servicesOpen}
+                          className={`w-full h-10 justify-between font-medium ${servicesError ? "border-red-500 border-2" : ""}`}
                         >
-                          {service.name}
-                        </DropdownMenuCheckboxItem>
-                      );
-                    })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                          <span className="truncate font-normal">
+                            {selectedServices.length > 0
+                              ? (() => {
+                                const visible = selectedServiceNames.slice(0, 1);
+                                const remaining = selectedServiceNames.length - 1;
+
+                                return (
+                                  visible.join(", ") +
+                                  (remaining > 0 ? ` +${remaining}` : "")
+                                );
+                              })()
+                              : "Select area of interest"}
+                          </span>
+
+                          <ChevronsUpDown className="h-4 w-4 shrink-0" />
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+
+                    {selectedServiceNames.length > 0 && (
+                      <TooltipContent
+                        side="top"
+                        align="start"
+                        className="max-w-xs"
+                      >
+                        <p className="mb-1 font-medium">
+                          {selectedServiceNames.length} selected area(s) of interest
+                        </p>
+
+                        <div className="space-y-1">
+                          {selectedServiceNames.map((serviceName: string) => (
+                            <div
+                              key={serviceName}
+                              className="flex items-center gap-2 text-xs"
+                            >
+                              <Check className="h-3 w-3 shrink-0" />
+                              <span>{serviceName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+
+                <PopoverContent
+                  align="start"
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                >
+                  <Command>
+                    <CommandInput placeholder="Search area of interest..." />
+
+                    <CommandList className="max-h-64">
+                      {loading ? (
+                        <div className="px-3 py-4 text-sm text-muted-foreground">
+                          Loading area of interest...
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>No area of interest found.</CommandEmpty>
+
+                          <CommandGroup>
+                            {services.map((service: any) => {
+                              const serviceId = String(service.id || service._id);
+
+                              const isSelected =
+                                selectedServices.includes(serviceId);
+
+                              return (
+                                <CommandItem
+                                  key={serviceId}
+                                  value={service.name}
+                                  className="flex cursor-pointer items-center gap-3"
+                                  onSelect={() => {
+                                    setSelectedServices((previousServices) => {
+                                      const updatedServices = isSelected
+                                        ? previousServices.filter(
+                                          (id) => id !== serviceId
+                                        )
+                                        : [...previousServices, serviceId];
+
+                                      if (updatedServices.length > 0) {
+                                        setServicesError("");
+                                      }
+
+                                      return updatedServices;
+                                    });
+                                  }}
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    tabIndex={-1}
+                                    aria-label={`Select ${service.name}`}
+                                    className="pointer-events-none "
+                                  />
+
+                                  <span className="flex-1">
+                                    {service.name}
+                                  </span>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {servicesError && (
+                <p className="text-sm text-red-500">
+                  {servicesError}
+                </p>
+              )}
             </div>
 
+
+            {/* End  */}
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />

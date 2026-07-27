@@ -37,6 +37,7 @@ interface RegisterData {
   name: string
   email: string
   password: string
+  areaofinterest: string[]
   companyName?: string
   phone?: string
 }
