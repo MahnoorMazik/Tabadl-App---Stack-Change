@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { validateEmail } from '@/lib/email-validation'
 import { normalizePhone } from '@/lib/phone-normalization'
 import Link from 'next/link'
-import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown, CheckIcon } from 'lucide-react'
+import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown, CheckIcon, BriefcaseBusiness } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocale } from '@/contexts/LocaleContext'
 import axios from 'axios'
@@ -427,11 +427,14 @@ export default function ClientSignupPage() {
               />
             </div>
             {/* service */}
-            <div className="mt-4 space-y-3">
-              <Label>Select Services</Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-3">
+                <BriefcaseBusiness className="h-4 w-4 " />
+                <Label className="flex items-center gap-2">Select Services</Label>
+              </div>
 
               {loading && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-grey-800">
                   Loading services...
                 </p>
               )}
@@ -445,7 +448,7 @@ export default function ClientSignupPage() {
               {services.map((service: any) => (
                 <div
                   key={service.id || service._id}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-3 rounded-lg border p-3 w-full"
                 >
                   <Checkbox
                     id={`service-${service.id || service._id}`}
@@ -467,7 +470,7 @@ export default function ClientSignupPage() {
 
                   <Label
                     htmlFor={`service-${service.id || service._id}`}
-                    className="cursor-pointer font-normal"
+                    className="cursor-pointer font-normal flex-1"
                   >
                     {service.name}
                   </Label>
