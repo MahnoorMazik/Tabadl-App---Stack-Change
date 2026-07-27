@@ -98,7 +98,6 @@ export default function ClientSignupPage() {
 
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-  // const [loading, setLoading] = useState(false);
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
