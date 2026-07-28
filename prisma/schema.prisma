@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
 model User {
@@ -44,6 +44,7 @@ model User {
   pushSubscriptions    PushSubscription[]
   auditLogs            AuditLog[]
   pageAccessLogs       PageAccessLog[]
+  formTemplates        FormTemplate[]     @relation("FormTemplateCreatedBy")
   // NextAuth relations
   accounts             Account[]
   sessions             Session[]
@@ -255,6 +256,7 @@ model BusinessService {
   category    ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   packages    PackageService[]
   addOns      AdditionalService[]
+  formTemplateService  FormTemplateService?
 
   @@index([categoryId, sortOrder])
   @@map("business_services")
@@ -304,6 +306,75 @@ model AdditionalService {
   service     BusinessService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@map("additional_services")
+}
+
+model FormField {
+  id             String              @id @default(cuid())
+  label          String
+  type           FormFieldType
+  options        String?
+  helpText       String?
+  placeholder    String?
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  templateFields FormTemplateField[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("form_fields")
+}
+
+model FormTemplate {
+  id          String                @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean               @default(true)
+  isDeleted   Boolean               @default(false)
+  deletedAt   DateTime?
+  createdById String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  createdBy   User                  @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
+  fields      FormTemplateField[]
+  services    FormTemplateService[]
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@map("form_templates")
+}
+
+model FormTemplateField {
+  id            String       @id @default(cuid())
+  templateId    String
+  fieldId       String
+  sortOrder     Int          @default(0)
+  isRequired    Boolean      @default(false)
+  labelOverride String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  template      FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  field         FormField    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, fieldId])
+  @@index([templateId, sortOrder])
+  @@index([fieldId])
+  @@map("form_template_fields")
+}
+
+model FormTemplateService {
+  id         String          @id @default(cuid())
+  templateId String
+  serviceId  String
+  createdAt  DateTime        @default(now())
+  template   FormTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  service    BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, serviceId])
+  @@unique([serviceId])
+  @@index([templateId])
+  @@map("form_template_services")
 }
 
 model PaymentPhaseTemplate {
@@ -886,4 +957,17 @@ enum LeadStatusType {
   WON
   LOST
   OTHER
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  EMAIL
+  PHONE
+  DATE
+  SELECT
+  CHECKBOX
+  RADIO
+  FILE
 }

@@ -106,6 +106,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: PlusCircle,
         href: '/admin/services/add-ons',
         permission: `${Module.SERVICES}.${Action.VIEW}`
+      },
+      {
+        title: 'Services Form',
+        icon: ClipboardList,
+        href: '/admin/services/forms',
+        permission: `${Module.SERVICES}.${Action.VIEW}`
       }
     ]
   },

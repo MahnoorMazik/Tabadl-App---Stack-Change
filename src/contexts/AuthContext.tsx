@@ -37,6 +37,7 @@ interface RegisterData {
   name: string
   email: string
   password: string
+  areaofinterest: string[]
   companyName?: string
   phone?: string
 }
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [clientProfile, setClientProfile] = useState<User['clientProfile']>(null)
   const [permissionsLoading, setPermissionsLoading] = useState(false)
+  const [permissionsReady, setPermissionsReady] = useState(false)
   const [profileLoading, setProfileLoading] = useState(false)
   const permissionsFetchedRef = useRef(false)
   const profileFetchedRef = useRef(false)
@@ -59,10 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch permissions on-demand; 401/404 = session invalid (e.g. DB reset, fresh deploy) → sign out
   const fetchPermissions = useCallback(async () => {
-    if (!session?.user || permissionsLoading || permissionsFetchedRef.current) return
-    
-    setPermissionsLoading(true)
+    if (!session?.user || permissionsFetchedRef.current) return
+
     permissionsFetchedRef.current = true
+    setPermissionsLoading(true)
     try {
       const response = await fetch('/api/auth/permissions')
       if (response.status === 401 || response.status === 404) {
@@ -73,18 +75,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await response.json()
         setPermissions(data.permissions || [])
       }
+      setPermissionsReady(true)
     } catch (error) {
       console.error('Error fetching permissions:', error)
       permissionsFetchedRef.current = false
     } finally {
       setPermissionsLoading(false)
     }
-  }, [session?.user, permissionsLoading])
+  }, [session?.user])
 
   // Fetch client profile on-demand (only for clients); 401/404 = session invalid → sign out
   const fetchClientProfile = useCallback(async () => {
     if (!session?.user || profileLoading || session.user.role !== UserRole.CLIENT || profileFetchedRef.current) return
-    
+
     setProfileLoading(true)
     profileFetchedRef.current = true
     try {
@@ -107,20 +110,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch permissions when user logs in (only once per session)
   useEffect(() => {
-    if (session?.user && !permissionsFetchedRef.current) {
+    if (session?.user && !permissionsReady) {
       setPermissionsLoading(true)
-      fetchPermissions()
+      void fetchPermissions()
       if (session.user.role === UserRole.CLIENT && !profileFetchedRef.current) {
-        fetchClientProfile()
+        void fetchClientProfile()
       }
     } else if (!session?.user) {
       setPermissions([])
       setClientProfile(null)
       permissionsFetchedRef.current = false
       profileFetchedRef.current = false
+      setPermissionsReady(false)
       setPermissionsLoading(false)
     }
-  }, [session?.user, fetchPermissions, fetchClientProfile])
+  }, [session?.user, permissionsReady, fetchPermissions, fetchClientProfile])
+
+  // True until the first permissions fetch finishes — prevents admin pages bouncing to dashboard
+  const effectivePermissionsLoading =
+    loading || (Boolean(session?.user) && !permissionsReady) || permissionsLoading
 
   const user: User | null = session?.user ? {
     id: session.user.id,
@@ -184,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register, 
       logout, 
       loading,
-      permissionsLoading,
+      permissionsLoading: effectivePermissionsLoading,
       update: handleUpdate
     }}>
       {children}
