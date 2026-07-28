@@ -196,7 +196,7 @@ export async function sendWhatsAppTemplateMessage({
 }
 
 
-// whsatpp twillio api 
+// whsatpp twillio api and it working 
 export function renderTemplate(content: string, vars: Record<string, any> = {}) {
   return String(content || '').replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (_, key) => {
     const parts = key.split('.')
