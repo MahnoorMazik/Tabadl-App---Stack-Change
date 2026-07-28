@@ -6,8 +6,6 @@ import { StaffType } from '@prisma/client'
 import { updateUserSchema } from '@/lib/validations/users'
 import { userDetailSelect, isCoreAdmin } from '@/lib/users/constants'
 import { softDeleteUserCascade } from '@/lib/soft-delete-cascade'
-import { normalizePhone } from '@/lib/phone-normalization'
-import { renderTemplate, sendWhatsAppTextMessage } from '@/lib/whatsapp'
 import { z } from 'zod'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -153,25 +151,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       updateData,
       request
     )
-
-    if (data.isActive !== undefined && data.isActive !== existingUser.isActive) {
-      const normalizedPhone = existingUser.phone ? normalizePhone(existingUser.phone) : null
-      if (normalizedPhone) {
-        try {
-          const template = process.env.WHATSAPP_STATUS_UPDATE_TEMPLATE ||
-            'Hello {{name}}, your account status has been updated to {{status}}.'
-          const message = renderTemplate(template, {
-            name: updatedUser.name ?? updatedUser.email,
-            status: updatedUser.isActive ? 'Active' : 'Inactive',
-          })
-          await sendWhatsAppTextMessage(normalizedPhone, message)
-        } catch (whatsappError) {
-          console.error('Failed to send WhatsApp status update:', whatsappError)
-        }
-      } else {
-        console.warn('User status changed but phone number is missing or invalid:', userId)
-      }
-    }
 
     return NextResponse.json({ user: updatedUser })
   } catch (error) {

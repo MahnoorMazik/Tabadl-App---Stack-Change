@@ -1,6 +1,4 @@
 import { db } from './db'
-import { normalizePhone } from './phone-normalization'
-import { sendWhatsAppNotificationToUser } from './whatsapp'
 import { Server } from 'socket.io'
 
 let io: Server | null = null
@@ -15,7 +13,6 @@ export function setSocketIO(socketIO: Server) {
 export function getSocketIO(): Server | null {
   return io
 }
-
 
 const DEFAULT_ENABLED_BY_EVENT: Record<NotificationEventType, boolean> = {
   LEAD_CREATION: false,
@@ -107,10 +104,6 @@ export async function notifyDocumentReview(documentId: string, uploaderId: strin
     uploaderId,
     'Document Review Complete',
     `Your document has been ${statusText}`
-  )
-  await sendWhatsAppNotificationToUser(
-    uploaderId,
-    `Your document has been ${statusText}.`
   )
 }
 
