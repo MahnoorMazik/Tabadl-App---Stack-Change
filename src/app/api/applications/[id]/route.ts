@@ -209,15 +209,13 @@ export async function PUT(
 
     // Create notification for user if status changed
     if (status && user.role === 'STAFF') {
-      const message = `Your ${application.type.replace('_', ' ').toLowerCase()} application has been ${status.toLowerCase()}`
       await db.notification.create({
         data: {
           userId: application.client.user.id,
           title: `Application ${status}`,
-          message,
+          message: `Your ${application.type.replace('_', ' ').toLowerCase()} application has been ${status.toLowerCase()}`,
         },
       })
-      await sendWhatsAppNotificationToUser(application.client.user.id, message)
     }
 
     return NextResponse.json({ application: updatedApplication })

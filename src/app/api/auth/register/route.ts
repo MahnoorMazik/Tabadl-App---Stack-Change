@@ -6,7 +6,6 @@ import { normalizePhone } from '@/lib/phone-normalization'
 import { z } from 'zod'
 import { UserRole } from '@prisma/client'
 import { ensureClientProfileRecords } from '@/lib/business-workflow/profile-completion'
-import { renderTemplate, sendWhatsAppTextMessage } from '@/lib/whatsapp'
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -123,22 +122,6 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       // Don't fail registration if email fails
       console.error('Failed to send welcome email:', emailError)
-    }
-
-    // Send WhatsApp thank-you message (non-blocking)
-    try {
-      const normalizedPhoneValue = phone ? normalizePhone(phone) : null
-      if (normalizedPhoneValue) {
-        const template = process.env.WHATSAPP_WELCOME_TEMPLATE || 'Hello {{name}}, thank you for registering with {{company}}. Your phone number is {{phone}}.'
-        const message = renderTemplate(template, {
-          name,
-          company: companyName || 'our company',
-          phone: normalizedPhoneValue,
-        })
-        await sendWhatsAppTextMessage(normalizedPhoneValue, message)
-      }
-    } catch (waError) {
-      console.error('Failed to send WhatsApp thank-you message:', waError)
     }
 
     // Return user data - NextAuth will handle the sign-in on the client side

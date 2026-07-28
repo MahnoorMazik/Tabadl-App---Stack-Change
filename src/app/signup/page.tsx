@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -14,21 +14,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { validateEmail } from '@/lib/email-validation'
 import { normalizePhone } from '@/lib/phone-normalization'
 import Link from 'next/link'
-import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown, CheckIcon, BriefcaseBusiness, ChevronDown } from 'lucide-react'
+import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocale } from '@/contexts/LocaleContext'
-import axios from 'axios'
-import { toast } from '@/hooks/use-toast'
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
-
-// import { Button } from "@/components/ui/button";
 
 // Helper function to get flag emoji from country code
 function getCountryFlag(code: string, name?: string): string {
@@ -36,7 +24,7 @@ function getCountryFlag(code: string, name?: string): string {
   const codeToISO: Record<string, string> = {
     '+966': 'SA', '+971': 'AE', '+973': 'BH', '+974': 'QA', '+965': 'KW', '+968': 'OM',
     '+967': 'YE', '+962': 'JO', '+961': 'LB', '+963': 'SY', '+964': 'IQ', '+20': 'EG',
-    '+212': 'MA', '+213': 'DZ', '+216': 'TN', '+218': 'LY', '+249': 'SD',
+    '+212': 'MA', '+213': 'DZ', '+216': 'TN', '+218': 'LY', '+249': 'SD', 
     '+1': 'US', // US/Canada - will need special handling
     '+44': 'GB', '+33': 'FR', '+49': 'DE', '+39': 'IT', '+34': 'ES', '+31': 'NL',
     '+32': 'BE', '+41': 'CH', '+43': 'AT', '+45': 'DK', '+46': 'SE', '+47': 'NO',
@@ -67,13 +55,13 @@ function getCountryFlag(code: string, name?: string): string {
     '+683': 'NU', '+685': 'WS', '+686': 'KI', '+687': 'NC', '+688': 'TV', '+689': 'PF',
     '+690': 'TK', '+691': 'FM', '+692': 'MH', '+970': 'PS'
   }
-
+  
   // Special handling for +1 (US/Canada)
   if (code === '+1' && name) {
     if (name.includes('Canada')) return '🇨🇦'
     return '🇺🇸'
   }
-
+  
   const iso = codeToISO[code] || 'SA'
   // Convert ISO country code to flag emoji
   try {
@@ -83,14 +71,6 @@ function getCountryFlag(code: string, name?: string): string {
     return ''
   }
 }
-// interface Service {
-
-//   _id: string;
-
-//   name: string;
-//   isActive: boolean;
-
-// }
 
 export default function ClientSignupPage() {
   const [formData, setFormData] = useState({
@@ -98,64 +78,40 @@ export default function ClientSignupPage() {
     email: '',
     password: '',
     companyName: '',
-    services: '',
     phoneCountryCode: '+966', // Default to Saudi Arabia
     phone: '',
   })
   const [countryCodeOpen, setCountryCodeOpen] = useState(false)
-  // const [services, setServices] = useState<Service[]>([]);
-
-  const [servicesOpen, setServicesOpen] = useState(false);
-
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-
-  const [servicesError, setServicesError] = useState("");
-
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const [services] = useState([
-    { id: "1", name: "Company Registration" },
-    { id: "2", name: "Premium Residency" },
-    { id: "3", name: "General Services" },
-  ]);
   const router = useRouter()
   const { register } = useAuth()
   const { t } = useLocale()
-  const selectedServiceNames = services
-    .filter((service) => selectedServices.includes(service.id))
-    .map((service) => service.name);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setEmailError('')
-    setServicesError('')
-
-    // Validate services selection
-    if (selectedServices.length === 0) {
-      setServicesError('Please select at least one service')
-      return
-    }
-
+    
     // Validate email before submitting
     const emailValidation = validateEmail(formData.email)
     if (!emailValidation.isValid) {
       setEmailError(emailValidation.error!)
       return
     }
-
+    
     // Validate phone number
     if (!formData.phone || formData.phone.trim() === '') {
       setError(t('auth.phoneRequired'))
       return
     }
-
+    
     if (formData.phone.length !== 10) {
       setError(t('auth.phoneInvalid'))
       return
     }
-
+    
     setLoading(true)
 
     try {
@@ -164,7 +120,6 @@ export default function ClientSignupPage() {
       await register({
         ...formData,
         phone: fullPhoneNumber, // Send combined phone number to API
-        areaofinterest: selectedServices, // Include area of interest
       }, 'client')
       router.push('/dashboard')
     } catch (err: any) {
@@ -173,7 +128,6 @@ export default function ClientSignupPage() {
       setLoading(false)
     }
   }
- 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -354,7 +308,7 @@ export default function ClientSignupPage() {
     { code: '+996', name: 'Kyrgyzstan', flag: getCountryFlag('+996') },
     { code: '+998', name: 'Uzbekistan', flag: getCountryFlag('+998') }
   ].filter(country => country.code !== '+972') // Exclude Israel (972)
-
+  
   // Remove duplicates based on code and sort
   const uniqueCountryCodes = Array.from(
     new Map(countryCodes.map(item => [item.code, item])).values()
@@ -387,7 +341,7 @@ export default function ClientSignupPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
+            
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -430,148 +384,7 @@ export default function ClientSignupPage() {
                 disabled={loading}
               />
             </div>
-            {/* service */}
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <BriefcaseBusiness className="h-4 w-4" />
-
-                <Label>
-                  Area of Interest
-                </Label>
-              </div>
-
-              <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={servicesOpen}
-                          className={`w-full h-10 justify-between font-medium ${servicesError ? "border-red-500 border-2" : ""}`}
-                        >
-                          <span className="truncate font-normal">
-                            {selectedServices.length > 0
-                              ? (() => {
-                                const visible = selectedServiceNames.slice(0, 1);
-                                const remaining = selectedServiceNames.length - 1;
-
-                                return (
-                                  visible.join(", ") +
-                                  (remaining > 0 ? ` +${remaining}` : "")
-                                );
-                              })()
-                              : "Select area of interest"}
-                          </span>
-
-                          <ChevronsUpDown className="h-4 w-4 shrink-0" />
-                        </Button>
-                      </PopoverTrigger>
-                    </TooltipTrigger>
-
-                    {selectedServiceNames.length > 0 && (
-                      <TooltipContent
-                        side="top"
-                        align="start"
-                        className="max-w-xs"
-                      >
-                        <p className="mb-1 font-medium">
-                          {selectedServiceNames.length} selected area(s) of interest
-                        </p>
-
-                        <div className="space-y-1">
-                          {selectedServiceNames.map((serviceName: string) => (
-                            <div
-                              key={serviceName}
-                              className="flex items-center gap-2 text-xs"
-                            >
-                              <Check className="h-3 w-3 shrink-0" />
-                              <span>{serviceName}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-
-                <PopoverContent
-                  align="start"
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                >
-                  <Command>
-                    <CommandInput placeholder="Search area of interest..." />
-
-                    <CommandList className="max-h-64">
-                      {loading ? (
-                        <div className="px-3 py-4 text-sm text-muted-foreground">
-                          Loading area of interest...
-                        </div>
-                      ) : (
-                        <>
-                          <CommandEmpty>No area of interest found.</CommandEmpty>
-
-                          <CommandGroup>
-                            {services.map((service: any) => {
-                              const serviceId = String(service.id || service._id);
-
-                              const isSelected =
-                                selectedServices.includes(serviceId);
-
-                              return (
-                                <CommandItem
-                                  key={serviceId}
-                                  value={service.name}
-                                  className="flex cursor-pointer items-center gap-3"
-                                  onSelect={() => {
-                                    setSelectedServices((previousServices) => {
-                                      const updatedServices = isSelected
-                                        ? previousServices.filter(
-                                          (id) => id !== serviceId
-                                        )
-                                        : [...previousServices, serviceId];
-
-                                      if (updatedServices.length > 0) {
-                                        setServicesError("");
-                                      }
-
-                                      return updatedServices;
-                                    });
-                                  }}
-                                >
-                                  <Checkbox
-                                    checked={isSelected}
-                                    tabIndex={-1}
-                                    aria-label={`Select ${service.name}`}
-                                    className="pointer-events-none "
-                                  />
-
-                                  <span className="flex-1">
-                                    {service.name}
-                                  </span>
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </>
-                      )}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-
-              {servicesError && (
-                <p className="text-sm text-red-500">
-                  {servicesError}
-                </p>
-              )}
-            </div>
-
-
-            {/* End  */}
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
@@ -661,8 +474,8 @@ export default function ClientSignupPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button
-              type="submit"
+            <Button 
+              type="submit" 
               className="w-full bg-emerald-700 hover:bg-emerald-800 text-white"
               disabled={loading}
             >

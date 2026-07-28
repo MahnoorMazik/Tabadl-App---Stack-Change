@@ -216,23 +216,6 @@ export const POST = withAuth(async (request) => {
       },
     })
 
-    await db.notification.create({
-      data: {
-        userId: user.userId,
-        title: 'Document Uploaded',
-        message: 'Your document has been uploaded successfully and is awaiting review.',
-      },
-    })
-
-   try {
-  await sendWhatsAppNotificationToUser(
-    user.userId,
-    'Your document has been uploaded successfully and is awaiting review.'
-  )
-} catch (error) {
-  console.error('WhatsApp notification failed:', error)
-}
-
     return addCorsHeaders(createSuccessResponse(
       { document },
       201,
