@@ -224,7 +224,7 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
               <Button
                 variant="ghost"
                 className={cn(
-                  "w-full justify-between h-auto p-3 text-left hover:bg-accent",
+                  "w-full justify-between h-auto p-3 text-left hover:bg-accent rounded-lg",
                   isCollapsed && "justify-center p-2"
                 )}
               >
@@ -274,8 +274,8 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
         <Button
           variant={isItemActive ? "secondary" : "ghost"}
           className={cn(
-            "w-full justify-between h-auto p-3 text-left hover:bg-accent",
-            isItemActive && "bg-accent",
+            "w-full justify-between h-auto p-3 text-left hover:bg-accent rounded-lg",
+            isItemActive && "bg-accent rounded-lg",
             isCollapsed && "justify-center p-2"
           )}
         >
@@ -331,9 +331,9 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
         </div>
       </div>
 
-      {/* Navigation */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-2">
+      {/* Navigation — padding on inner content so active bg right corners stay visible */}
+      <ScrollArea className="flex-1">
+        <div className="p-4 pe-3 space-y-2">
           {sidebarItems.map((item) => renderSidebarItem(item))}
         </div>
       </ScrollArea>

@@ -117,7 +117,6 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
   ],
   [Module.APPLICATIONS]: [
     { title: 'All Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
-    { title: 'Tasks', icon: CheckCircle, href: '/admin/applications/tasks', permission: `${Module.TASKS}.${Action.VIEW}` }
   ],
   [Module.SERVICES]: [
     { title: 'Services Catalog', icon: Briefcase, href: '/admin/services', permission: `${Module.SERVICES}.${Action.VIEW}` },
@@ -265,8 +264,8 @@ export function DynamicSidebar({ className, isCollapsed = false, onToggle }: Dyn
 
     const accessibleModules = permissionChecker.getAccessibleModules()
     
-    // Hide applications, financials, reports, and documents modules
-    const hiddenModules = [Module.APPLICATIONS, Module.FINANCIAL, Module.REPORTS, Module.DOCUMENTS]
+    // Hide financials, reports, and documents modules (Applications is visible)
+    const hiddenModules = [Module.FINANCIAL, Module.REPORTS, Module.DOCUMENTS]
     const filteredModules = accessibleModules.filter(module => !hiddenModules.includes(module))
     
     return filteredModules
