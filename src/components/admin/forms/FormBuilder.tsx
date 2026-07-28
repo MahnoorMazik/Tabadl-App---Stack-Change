@@ -32,6 +32,7 @@ import {
   AreaOfInterestKey,
   AREA_OF_INTEREST_OPTIONS,
   createEmptyFormTemplate,
+  mapApiTemplateDetail,
 } from './types'
 import { AddFieldButton } from './AddFieldButton'
 import { SortableFieldRow } from './SortableFieldRow'
@@ -42,9 +43,20 @@ import { useRouter } from 'next/navigation'
 interface FormBuilderProps {
   initialTemplate?: FormTemplateDetail
   mode?: 'create' | 'edit'
+  onSaved?: (template: FormTemplateDetail) => void
+  inline?: boolean
+  hideAreaOfInterest?: boolean
+  forcedAreaOfInterest?: AreaOfInterestKey | null
 }
 
-export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderProps) {
+export function FormBuilder({
+  initialTemplate,
+  mode = 'create',
+  onSaved,
+  inline = false,
+  hideAreaOfInterest = false,
+  forcedAreaOfInterest = null,
+}: FormBuilderProps) {
   const { toast } = useToast()
   const [template, setTemplate] = useState<FormTemplateDetail>(
     () => initialTemplate ?? createEmptyFormTemplate()
@@ -108,7 +120,8 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
 
   const isDirty = JSON.stringify(template) !== baseline
   const nameError = showValidation && !template.name.trim()
-  const areaError = showValidation && !template.areaOfInterest
+  const effectiveArea = forcedAreaOfInterest ?? template.areaOfInterest
+  const areaError = showValidation && !effectiveArea
   const fieldsError = showValidation && template.fields.length === 0
 
   const setName = (name: string) => {
@@ -163,7 +176,7 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
   const buildPayload = () => ({
     name: template.name.trim(),
     description: template.description,
-    areaOfInterest: template.areaOfInterest,
+    areaOfInterest: effectiveArea,
     isActive: template.isActive,
     fieldIds: template.fields.map((f, index) => ({
       fieldId: f.fieldId,
@@ -176,7 +189,7 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
 
   const handleSave = async () => {
     setShowValidation(true)
-    if (!template.name.trim() || !template.areaOfInterest || template.fields.length === 0) {
+    if (!template.name.trim() || !effectiveArea || template.fields.length === 0) {
       toast({
         title: 'Cannot save form',
         description: 'Fix the validation errors before saving.',
@@ -198,14 +211,19 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
       const savedFieldCount = Array.isArray(result?.template?.fields)
         ? result.template.fields.length
         : template.fields.length
+      const savedTemplate =
+        result?.template ? mapApiTemplateDetail(result.template) : template
 
       toast({
         title: mode === 'edit' ? 'Form updated' : 'Form created',
         description: `"${savedName}" saved with ${savedFieldCount} field${savedFieldCount === 1 ? '' : 's'}.`,
       })
 
-      // Soft navigate — avoid full reload / permission race bouncing to dashboard
-      router.replace('/admin/services/forms')
+      onSaved?.(savedTemplate)
+      if (!onSaved) {
+        // Soft navigate — avoid full reload / permission race bouncing to dashboard
+        router.replace('/admin/services/forms')
+      }
     } catch (error) {
       const message =
         error instanceof FormApiError ? error.message : 'Failed to save form template'
@@ -225,7 +243,10 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
-      <Card className="flex flex-col overflow-hidden py-0" style={{ height: 'calc(100vh - 140px)' }}>
+      <Card
+        className="flex flex-col overflow-hidden py-0"
+        style={{ height: inline ? 'auto' : 'calc(100vh - 140px)' }}
+      >
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="p-6 space-y-4 border-b">
             <h2 className="text-xl font-semibold">Form settings</h2>
@@ -247,46 +268,48 @@ export function FormBuilder({ initialTemplate, mode = 'create' }: FormBuilderPro
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>
-                Area of interest <span className="text-destructive">*</span>
-              </Label>
-              <div className="grid grid-cols-1 gap-2">
-                {AREA_OF_INTEREST_OPTIONS.map((option) => {
-                  const checked = template.areaOfInterest === option.key
-                  return (
-                    <div
-                      key={option.key}
-                      className="flex items-start gap-2 rounded-md border px-2.5 py-2"
-                    >
-                      <Checkbox
-                        id={`aoi-${option.key}`}
-                        checked={checked}
-                        onCheckedChange={() => setAreaOfInterest(option.key)}
-                        className="mt-0.5"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <Label
-                          htmlFor={`aoi-${option.key}`}
-                          className="font-normal cursor-pointer leading-snug"
-                        >
-                          {option.label}
-                        </Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {option.description}
-                        </p>
+            {!hideAreaOfInterest && (
+              <div className="space-y-2">
+                <Label>
+                  Area of interest <span className="text-destructive">*</span>
+                </Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {AREA_OF_INTEREST_OPTIONS.map((option) => {
+                    const checked = template.areaOfInterest === option.key
+                    return (
+                      <div
+                        key={option.key}
+                        className="flex items-start gap-2 rounded-md border px-2.5 py-2"
+                      >
+                        <Checkbox
+                          id={`aoi-${option.key}`}
+                          checked={checked}
+                          onCheckedChange={() => setAreaOfInterest(option.key)}
+                          className="mt-0.5"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <Label
+                            htmlFor={`aoi-${option.key}`}
+                            className="font-normal cursor-pointer leading-snug"
+                          >
+                            {option.label}
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {option.description}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">
+                          {option.key}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        {option.key}
-                      </Badge>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+                {areaError && (
+                  <p className="text-xs text-destructive">Area of interest is required.</p>
+                )}
               </div>
-              {areaError && (
-                <p className="text-xs text-destructive">Area of interest is required.</p>
-              )}
-            </div>
+            )}
           </div>
 
           <div className="p-6 space-y-3 border-b">

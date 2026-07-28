@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { GripVertical, Trash2 } from 'lucide-react'
+import { GripVertical, Trash2, Sparkles, FileText } from 'lucide-react'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { WizardStepDraft } from './types'
 
@@ -53,15 +53,15 @@ export function SortableWizardStep({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-md border p-3 space-y-3 bg-card ${
-        isDragging ? 'opacity-80 shadow-md z-10' : ''
+      className={`rounded-md border border-emerald-200/70 p-3 space-y-3 bg-card ${
+        isDragging ? 'opacity-80 shadow-md z-10 ring-1 ring-emerald-300' : ''
       }`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 min-w-0">
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground p-1 -ml-1 shrink-0"
+            className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-emerald-700 p-1 -ml-1 shrink-0 rounded-sm hover:bg-emerald-50"
             aria-label={`Drag to reorder step ${index + 1}`}
             {...attributes}
             {...listeners}
@@ -90,7 +90,7 @@ export function SortableWizardStep({
           value={step.formTemplateId || undefined}
           onValueChange={(value) => onUpdate(step.id, { formTemplateId: value })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="border-emerald-200 focus:ring-emerald-500">
             <SelectValue placeholder="Select a form template" />
           </SelectTrigger>
           <SelectContent>
@@ -113,9 +113,19 @@ export function SortableWizardStep({
             )}
           </SelectContent>
         </Select>
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+            <FileText className="h-3 w-3" />
+            {step.fieldCount ?? 0} fields
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700">
+            <Sparkles className="h-3 w-3" />
+            {step.source === 'new' ? 'newly created' : 'from library'}
+          </span>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+      <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50/40 px-3 py-2">
         <div>
           <Label
             htmlFor={`payment-${step.id}`}

@@ -30,6 +30,8 @@ import { CreateWizardModal } from '@/components/admin/wizards/CreateWizardModal'
 import { WizardPreviewModal } from '@/components/admin/wizards/WizardPreviewModal'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import { WizardListItem, mapApiWizard } from '@/components/admin/wizards/types'
+import { Switch } from '@/components/ui/switch'
+import { formApi } from '@/components/admin/forms/api'
 
 function formatDate(value: string) {
   try {
@@ -49,12 +51,20 @@ export default function WizardsPage() {
   const [previewWizard, setPreviewWizard] = useState<WizardListItem | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<WizardListItem | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [formAreaById, setFormAreaById] = useState<Record<string, string>>({})
 
   const loadWizards = useCallback(async () => {
     setLoading(true)
     try {
       const res = await wizardApi.list()
       setWizards((res.wizards ?? []).map(mapApiWizard))
+      const formsRes = await formApi.listTemplates()
+      const index: Record<string, string> = {}
+      for (const form of formsRes.templates ?? []) {
+        index[form.id] = form.areaOfInterest ?? ''
+      }
+      setFormAreaById(index)
     } catch (error) {
       toast({
         title: 'Failed to load wizards',
@@ -118,6 +128,31 @@ export default function WizardsPage() {
     }
   }
 
+  const toggleActive = async (wizard: WizardListItem, isActive: boolean) => {
+    setTogglingId(wizard.id)
+    try {
+      const res = await wizardApi.update(wizard.id, { isActive })
+      const updated = mapApiWizard(res.wizard)
+      setWizards((prev) => prev.map((w) => (w.id === wizard.id ? updated : w)))
+    } catch (error) {
+      toast({
+        title: 'Update failed',
+        description:
+          error instanceof WizardApiError ? error.message : 'Could not update wizard status.',
+        variant: 'destructive',
+      })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  const coverBadgeClass = (aoi: string) => {
+    if (aoi === 'CR') return 'bg-blue-50 text-blue-700 border-blue-200'
+    if (aoi === 'PR') return 'bg-violet-50 text-violet-700 border-violet-200'
+    if (aoi === 'GR') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    return ''
+  }
+
   return (
     <AdminPageTemplate
       title="Wizards"
@@ -136,7 +171,24 @@ export default function WizardsPage() {
         </Button>
       }
     >
-      <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total wizards</CardDescription>
+            <CardTitle className="text-2xl">{wizards.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-2xl">
+              {wizards.filter((w) => (w as any).isActive ?? true).length}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="mt-4">
         <CardHeader>
           <CardTitle>Application wizards</CardTitle>
           <CardDescription>
@@ -170,57 +222,50 @@ export default function WizardsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Interest</TableHead>
-                  <TableHead>Services</TableHead>
+                  <TableHead>Covers</TableHead>
                   <TableHead>Steps</TableHead>
-                  <TableHead className="w-32">Created</TableHead>
+                  <TableHead>Auto-matched</TableHead>
+                  <TableHead className="w-24">Active</TableHead>
+                  <TableHead className="w-24">Created</TableHead>
                   <TableHead className="w-36 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {wizards.map((wizard) => (
-                  <TableRow key={wizard.id}>
-                    <TableCell className="font-medium max-w-[12rem]">
+                  <TableRow key={wizard.id} className="hover:bg-muted/30">
+                    <TableCell className="font-medium max-w-48">
                       <span className="truncate block">{wizard.name}</span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{wizard.areaOfInterest}</Badge>
-                    </TableCell>
-                    <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {wizard.serviceNames.slice(0, 3).map((name) => (
-                          <Badge key={name} variant="outline" className="font-normal">
-                            {name}
+                        {Array.from(
+                          new Set(
+                            wizard.steps
+                              .map((s) => formAreaById[s.formTemplateId] || wizard.areaOfInterest)
+                              .filter(Boolean)
+                          )
+                        ).map((aoi) => (
+                          <Badge key={aoi} variant="outline" className={coverBadgeClass(aoi)}>
+                            {aoi}
                           </Badge>
                         ))}
-                        {wizard.serviceNames.length > 3 && (
-                          <span className="text-xs text-muted-foreground">
-                            +{wizard.serviceNames.length - 3}
-                          </span>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-1">
-                        {wizard.steps.map((step, index) => (
-                          <div
-                            key={step.id}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <span className="text-muted-foreground w-12 shrink-0">
-                              Step {index + 1}
-                            </span>
-                            <span className="truncate">{step.formName}</span>
-                            {step.paymentRequired && (
-                              <Badge variant="secondary" className="text-[10px] shrink-0">
-                                Payment
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                      <span className="text-sm">{wizard.steps.length} step{wizard.steps.length === 1 ? '' : 's'}</span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground">0 auto-matched</span>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={(wizard as any).isActive ?? true}
+                        disabled={togglingId === wizard.id}
+                        onCheckedChange={(checked) => void toggleActive(wizard, checked)}
+                        aria-label={`Toggle ${wizard.name} active`}
+                      />
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {formatDate(wizard.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -229,7 +274,7 @@ export default function WizardsPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 border"
                           onClick={() => openPreview(wizard)}
                           aria-label="Preview wizard"
                         >
@@ -239,7 +284,7 @@ export default function WizardsPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 border"
                           onClick={() => openEdit(wizard)}
                           aria-label="Edit wizard"
                         >
@@ -249,7 +294,7 @@ export default function WizardsPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          className="h-8 w-8 border text-muted-foreground hover:text-destructive"
                           onClick={() => setDeleteTarget(wizard)}
                           aria-label="Delete wizard"
                         >
