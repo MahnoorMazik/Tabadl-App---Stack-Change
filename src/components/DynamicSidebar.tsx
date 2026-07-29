@@ -122,7 +122,6 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
     { title: 'Services Catalog', icon: Briefcase, href: '/admin/services', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Packages', icon: Package, href: '/admin/services/packages', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Add-on Services', icon: PlusCircle, href: '/admin/services/add-ons', permission: `${Module.SERVICES}.${Action.VIEW}` },
-    { title: 'Form Templates', icon: ClipboardList, href: '/admin/services/forms', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Wizards', icon: Layers, href: '/admin/services/wizards', permission: `${Module.SERVICES}.${Action.VIEW}` },
   ],
   [Module.DOCUMENTS]: [

@@ -7,6 +7,9 @@ export interface WizardStepDraft {
   id: string
   formTemplateId: string
   paymentRequired: boolean
+  source?: 'library' | 'new'
+  fieldCount?: number
+  formName?: string
 }
 
 export interface WizardDraft {
@@ -20,6 +23,7 @@ export interface WizardListItem {
   id: string
   name: string
   areaOfInterest: AreaOfInterestKey
+  isActive?: boolean
   serviceIds: string[]
   serviceNames: string[]
   steps: Array<{
@@ -36,13 +40,7 @@ export function createEmptyWizardDraft(): WizardDraft {
     name: '',
     areaOfInterest: null,
     serviceIds: [],
-    steps: [
-      {
-        id: `step-${Date.now()}`,
-        formTemplateId: '',
-        paymentRequired: false,
-      },
-    ],
+    steps: [],
   }
 }
 
@@ -59,6 +57,7 @@ export function mapApiWizard(wizard: {
   id: string
   name: string
   areaOfInterest: AreaOfInterestKey
+  isActive?: boolean
   serviceIds?: string[]
   serviceNames?: string[]
   services?: Array<{ id: string; name: string }>
@@ -79,6 +78,7 @@ export function mapApiWizard(wizard: {
     id: wizard.id,
     name: wizard.name,
     areaOfInterest: wizard.areaOfInterest,
+    isActive: wizard.isActive ?? true,
     serviceIds,
     serviceNames,
     steps: wizard.steps.map((step) => ({

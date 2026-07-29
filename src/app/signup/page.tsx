@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmailInput } from '@/components/ui/email-input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import Link from 'next/link'
 import { Building2, User, Lock, Phone, Building, AlertCircle, Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLocale } from '@/contexts/LocaleContext'
+import { AREA_OF_INTEREST_OPTIONS } from '@/components/admin/forms/types'
 
 // Helper function to get flag emoji from country code
 function getCountryFlag(code: string, name?: string): string {
@@ -85,6 +87,7 @@ export default function ClientSignupPage() {
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([])
   const router = useRouter()
   const { register } = useAuth()
   const { t } = useLocale()
@@ -121,6 +124,20 @@ export default function ClientSignupPage() {
         ...formData,
         phone: fullPhoneNumber, // Send combined phone number to API
       }, 'client')
+
+      // Best-effort: append selected interests after signup/login.
+      for (const interest of selectedInterests) {
+        try {
+          await fetch('/api/client/application/interests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ areaOfInterest: interest }),
+          })
+        } catch {
+          // Keep signup success; interests can be added later from application page.
+        }
+      }
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || t('auth.registrationFailed'))
@@ -452,6 +469,38 @@ export default function ClientSignupPage() {
                 />
               </div>
               <p className="text-xs text-gray-500 dark:text-muted-foreground">{t('auth.phonePlaceholder')}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                {t('auth.interests') || 'Area of Interest'}
+              </Label>
+              <div className="grid gap-2">
+                {AREA_OF_INTEREST_OPTIONS.map((option) => {
+                  const checked = selectedInterests.includes(option.key)
+                  return (
+                    <div key={option.key} className="flex items-start gap-2 rounded-md border px-2.5 py-2">
+                      <Checkbox
+                        id={`signup-aoi-${option.key}`}
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                          const next = value === true
+                            ? [...selectedInterests, option.key]
+                            : selectedInterests.filter((k) => k !== option.key)
+                          setSelectedInterests(next)
+                        }}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Label htmlFor={`signup-aoi-${option.key}`} className="font-normal cursor-pointer leading-snug">
+                          {option.label}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">{option.description}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             <div className="space-y-2">
