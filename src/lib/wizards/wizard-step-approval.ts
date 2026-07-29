@@ -1,5 +1,19 @@
-import { WizardStepApprovalStatus } from '@prisma/client'
+import { WizardStepApprovalStatus, AreaOfInterest } from '@prisma/client'
 import { db } from '@/lib/db'
+import { fetchMergedStepsForArea } from '@/lib/wizards/merged-area-wizard'
+import {
+  canClientAccessStepIndex,
+  findUnapprovedRequiredStepIndex,
+} from '@/lib/wizards/wizard-step-approval-rules'
+
+export {
+  canClientAccessStepIndex,
+  firstBlockingApprovalStepBefore,
+  approvalAdvanceBlockedReason,
+  findUnapprovedRequiredStepIndex,
+  maxAccessibleStepIndex,
+} from '@/lib/wizards/wizard-step-approval-rules'
+export type { StepApprovalGate } from '@/lib/wizards/wizard-step-approval-rules'
 
 export type StepApprovalStatus = WizardStepApprovalStatus | null
 
@@ -112,4 +126,59 @@ export async function setStepApproval(params: {
       rejectionNote: params.rejectionNote ?? null,
     },
   })
+}
+
+export async function assertClientStepIndexAllowed(params: {
+  applicationId: string
+  areaOfInterest: AreaOfInterest
+  targetStepIndex: number
+}) {
+  const mergedSteps = await fetchMergedStepsForArea(params.areaOfInterest)
+  if (params.targetStepIndex <= 0) return { ok: true as const }
+
+  const reviews = await db.wizardApplicationStepReview.findMany({
+    where: { applicationId: params.applicationId },
+    select: { wizardStepId: true, status: true },
+  })
+  const statusByStepId = new Map(reviews.map((r) => [r.wizardStepId, r.status]))
+
+  const gates = mergedSteps.map((s) => ({
+    approvalRequired: s.approvalRequired,
+    approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
+  }))
+
+  if (canClientAccessStepIndex(gates, params.targetStepIndex)) {
+    return { ok: true as const }
+  }
+
+  return {
+    ok: false as const,
+    message:
+      'Complete and get admin approval on earlier steps before opening this step.',
+  }
+}
+
+export async function assertAllRequiredApprovalsForSubmit(params: {
+  applicationId: string
+  areaOfInterest: AreaOfInterest
+}) {
+  const mergedSteps = await fetchMergedStepsForArea(params.areaOfInterest)
+  const reviews = await db.wizardApplicationStepReview.findMany({
+    where: { applicationId: params.applicationId },
+    select: { wizardStepId: true, status: true },
+  })
+  const statusByStepId = new Map(reviews.map((r) => [r.wizardStepId, r.status]))
+
+  const gates = mergedSteps.map((s) => ({
+    approvalRequired: s.approvalRequired,
+    approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
+  }))
+
+  const idx = findUnapprovedRequiredStepIndex(gates)
+  if (idx === null) return { ok: true as const }
+
+  return {
+    ok: false as const,
+    message: `Step ${idx + 1} requires admin approval before you can submit the application.`,
+  }
 }

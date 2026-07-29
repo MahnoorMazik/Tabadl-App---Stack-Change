@@ -16,6 +16,7 @@ import {
   mapWizardApplicationDetail,
 } from '@/lib/wizards/wizard-application-utils'
 import { countMergedStepsForArea } from '@/lib/wizards/merged-area-wizard'
+import { assertAllRequiredApprovalsForSubmit } from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -68,6 +69,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (app.status !== WizardApplicationStatus.DRAFT) {
       return addCorsHeaders(
         createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'Application already submitted', 400, {
+          requestId,
+        })
+      )
+    }
+
+    const approvalCheck = await assertAllRequiredApprovalsForSubmit({
+      applicationId: id,
+      areaOfInterest: app.areaOfInterest,
+    })
+    if (!approvalCheck.ok) {
+      return addCorsHeaders(
+        createErrorResponse(ErrorCodes.VALIDATION_ERROR, approvalCheck.message, 400, {
           requestId,
         })
       )

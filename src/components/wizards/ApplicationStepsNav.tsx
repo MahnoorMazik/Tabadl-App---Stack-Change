@@ -29,6 +29,8 @@ type ApplicationStepsNavProps = {
   completedCount?: number
   className?: string
   searchThreshold?: number
+  /** When omitted, all steps are selectable (admin). */
+  isStepAccessible?: (index: number) => boolean
 }
 
 function StepNode({
@@ -78,6 +80,7 @@ export function ApplicationStepsNav({
   completedCount,
   className,
   searchThreshold = 8,
+  isStepAccessible,
 }: ApplicationStepsNavProps) {
   const [query, setQuery] = useState('')
   const activeRef = useRef<HTMLButtonElement>(null)
@@ -105,6 +108,8 @@ export function ApplicationStepsNav({
 
   if (total === 0) return null
 
+  const canSelect = (index: number) => isStepAccessible?.(index) ?? true
+
   const progressPct = total > 0 ? Math.round((filled / total) * 100) : 0
 
   const renderStepList = () => (
@@ -117,6 +122,7 @@ export function ApplicationStepsNav({
         filtered.map(({ step, index }, i) => {
           const active = index === stepIndex
           const isLastInList = i === filtered.length - 1
+          const accessible = canSelect(index)
 
           return (
             <li key={step.id} className="relative pl-10 pr-1 pb-0.5 last:pb-0">
@@ -135,12 +141,17 @@ export function ApplicationStepsNav({
               <button
                 ref={active ? activeRef : undefined}
                 type="button"
-                onClick={() => onStepSelect(index)}
+                disabled={!accessible}
+                onClick={() => {
+                  if (accessible) onStepSelect(index)
+                }}
                 className={cn(
                   'group w-full rounded-lg py-2 pl-2 pr-2 text-left transition-colors',
+                  !accessible && 'opacity-50 cursor-not-allowed',
+                  accessible && !active && 'hover:bg-muted/50',
                   active
                     ? 'bg-emerald-50/90 ring-1 ring-inset ring-emerald-200/80'
-                    : 'hover:bg-muted/50'
+                    : ''
                 )}
               >
                 <span className="min-w-0 block">
@@ -163,6 +174,11 @@ export function ApplicationStepsNav({
                   {step.paymentRequired && (
                     <span className="inline-block mt-1 text-[10px] font-medium text-amber-800 bg-amber-100/80 border border-amber-200/60 rounded px-1.5 py-px">
                       Payment
+                    </span>
+                  )}
+                  {!accessible && (
+                    <span className="inline-block mt-1 text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
+                      Locked
                     </span>
                   )}
                 </span>
@@ -198,7 +214,12 @@ export function ApplicationStepsNav({
             <SelectContent className="max-h-64">
               {(query.trim() ? filtered : steps.map((step, i) => ({ step, index: i }))).map(
                 ({ step, index: i }) => (
-                  <SelectItem key={step.id} value={String(i)} className="text-xs">
+                  <SelectItem
+                    key={step.id}
+                    value={String(i)}
+                    className="text-xs"
+                    disabled={!canSelect(i)}
+                  >
                     Step {i + 1}: {step.formName}
                     {step.filled ? ' ✓' : ''}
                   </SelectItem>
@@ -222,8 +243,10 @@ export function ApplicationStepsNav({
             variant="outline"
             size="icon"
             className="h-9 w-9 shrink-0"
-            disabled={stepIndex >= total - 1}
-            onClick={() => onStepSelect(stepIndex + 1)}
+            disabled={stepIndex >= total - 1 || !canSelect(stepIndex + 1)}
+            onClick={() => {
+              if (canSelect(stepIndex + 1)) onStepSelect(stepIndex + 1)
+            }}
             aria-label="Next step"
           >
             <ChevronRight className="h-4 w-4" />

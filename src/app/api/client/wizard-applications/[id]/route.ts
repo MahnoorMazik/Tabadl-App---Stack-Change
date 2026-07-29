@@ -22,6 +22,7 @@ import { isWizardStepInArea } from '@/lib/wizards/merged-area-wizard'
 import {
   assertClientMayEditStepAnswers,
   syncStepReviewAfterClientSave,
+  assertClientStepIndexAllowed,
 } from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -194,6 +195,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           requestId,
         })
       )
+    }
+
+    if (typeof parsed.data.currentStepIndex === 'number') {
+      const indexCheck = await assertClientStepIndexAllowed({
+        applicationId: id,
+        areaOfInterest: app.areaOfInterest,
+        targetStepIndex: parsed.data.currentStepIndex,
+      })
+      if (!indexCheck.ok) {
+        return addCorsHeaders(
+          createErrorResponse(ErrorCodes.VALIDATION_ERROR, indexCheck.message, 400, {
+            requestId,
+          })
+        )
+      }
     }
 
     await upsertStepAnswers({
