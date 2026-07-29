@@ -24,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   Layers,
   Plus,
@@ -39,16 +41,14 @@ import { Module, Action } from '@/lib/rbac'
 import { useToast } from '@/hooks/use-toast'
 import { CreateWizardModal } from '@/components/admin/wizards/CreateWizardModal'
 import { WizardPreviewModal } from '@/components/admin/wizards/WizardPreviewModal'
-import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import { WizardListItem, mapApiWizard } from '@/components/admin/wizards/types'
-import { formApi } from '@/components/admin/forms/api'
+import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 
 const PAGE_SIZE = 10
 
 const AOI_LABELS: Record<string, string> = {
   CR: 'Company Registration',
   PR: 'Premium Residency',
-  GR: 'General Services',
 }
 
 function formatDate(value: string) {
@@ -69,8 +69,11 @@ export default function WizardsPage() {
   const [previewWizard, setPreviewWizard] = useState<WizardListItem | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<WizardListItem | null>(null)
+  const [activateTarget, setActivateTarget] = useState<{
+    wizard: WizardListItem
+    replaces: WizardListItem
+  } | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
-  const [formAreaById, setFormAreaById] = useState<Record<string, string>>({})
 
   // Search & pagination state
   const [search, setSearch] = useState('')
@@ -81,12 +84,6 @@ export default function WizardsPage() {
     try {
       const res = await wizardApi.list()
       setWizards((res.wizards ?? []).map(mapApiWizard))
-      const formsRes = await formApi.listTemplates()
-      const index: Record<string, string> = {}
-      for (const form of formsRes.templates ?? []) {
-        index[form.id] = form.areaOfInterest ?? ''
-      }
-      setFormAreaById(index)
     } catch (error) {
       toast({
         title: 'Failed to load wizards',
@@ -155,12 +152,17 @@ export default function WizardsPage() {
     }
   }
 
-  const toggleActive = async (wizard: WizardListItem, isActive: boolean) => {
+  const applyActiveChange = async (wizard: WizardListItem, isActive: boolean) => {
     setTogglingId(wizard.id)
     try {
-      const res = await wizardApi.update(wizard.id, { isActive })
-      const updated = mapApiWizard(res.wizard)
-      setWizards((prev) => prev.map((w) => (w.id === wizard.id ? updated : w)))
+      await wizardApi.update(wizard.id, { isActive })
+      await loadWizards()
+      toast({
+        title: isActive ? 'Wizard activated' : 'Wizard deactivated',
+        description: isActive
+          ? `${wizard.name} is now live for ${AOI_LABELS[wizard.areaOfInterest] ?? wizard.areaOfInterest}. Other ${wizard.areaOfInterest} wizards were deactivated.`
+          : `${wizard.name} is no longer shown to clients.`,
+      })
     } catch (error) {
       toast({
         title: 'Update failed',
@@ -170,7 +172,29 @@ export default function WizardsPage() {
       })
     } finally {
       setTogglingId(null)
+      setActivateTarget(null)
     }
+  }
+
+  const requestActiveChange = (wizard: WizardListItem, isActive: boolean) => {
+    if (!isActive) {
+      void applyActiveChange(wizard, false)
+      return
+    }
+
+    const otherActive = wizards.find(
+      (w) =>
+        w.id !== wizard.id &&
+        w.isActive === true &&
+        w.areaOfInterest === wizard.areaOfInterest
+    )
+
+    if (otherActive) {
+      setActivateTarget({ wizard, replaces: otherActive })
+      return
+    }
+
+    void applyActiveChange(wizard, true)
   }
 
   // Filtered list
@@ -192,7 +216,7 @@ export default function WizardsPage() {
   return (
     <AdminPageTemplate
       title="Wizards"
-      description="Configure application step flows by area of interest and services"
+      description="CR and PR each have their own live wizard. Only one active wizard per service (CR or PR), not shared between both."
       icon={<Layers className="h-5 w-5 text-emerald-600" />}
       showConstruction={false}
       requiredPermission={`${Module.SERVICES}.${Action.VIEW}`}
@@ -217,7 +241,7 @@ export default function WizardsPage() {
                   ? 'Loading…'
                   : filtered.length === 0
                     ? search ? 'No results found' : 'No wizards yet'
-                    : `${filtered.length} wizard${filtered.length === 1 ? '' : 's'}${search ? ' found' : ''}`}
+                    : `${filtered.length} wizard${filtered.length === 1 ? '' : 's'}${search ? ' found' : ''}. One live wizard per service — CR and PR can each have their own active form.`}
               </CardDescription>
             </div>
             {/* Search */}
@@ -261,37 +285,61 @@ export default function WizardsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Services</TableHead>
+                    <TableHead>Service</TableHead>
                     <TableHead>Steps</TableHead>
+                    <TableHead className="w-[120px]">Client live</TableHead>
                     <TableHead className="w-24">Created</TableHead>
                     <TableHead className="w-36 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginated.map((wizard) => (
+                  {paginated.map((wizard) => {
+                    const isLive = wizard.isActive === true
+                    const busy = togglingId === wizard.id
+                    return (
                     <TableRow key={wizard.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium max-w-48">
-                        <span className="truncate block">{wizard.name}</span>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="truncate block">{wizard.name}</span>
+                          {isLive && (
+                            <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
+                              Live for clients
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {Array.from(
-                            new Set(
-                              wizard.steps
-                                .map((s) => formAreaById[s.formTemplateId] || wizard.areaOfInterest)
-                                .filter(Boolean)
-                            )
-                          ).map((aoi) => (
-                            <span key={aoi} className="text-sm">
-                              {AOI_LABELS[aoi] ?? aoi}
-                            </span>
-                          ))}
-                        </div>
+                        <Badge variant="secondary" className="font-normal">
+                          {wizard.areaOfInterest} · {AOI_LABELS[wizard.areaOfInterest] ?? wizard.areaOfInterest}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
                           {wizard.steps.length} step{wizard.steps.length === 1 ? '' : 's'}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`wizard-active-${wizard.id}`}
+                            checked={isLive}
+                            disabled={busy}
+                            onCheckedChange={(checked) => requestActiveChange(wizard, checked)}
+                            aria-label={`${isLive ? 'Deactivate' : 'Activate'} ${wizard.name}`}
+                          />
+                          <Label
+                            htmlFor={`wizard-active-${wizard.id}`}
+                            className="text-xs text-muted-foreground cursor-pointer"
+                          >
+                            {busy ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : isLive ? (
+                              'Active'
+                            ) : (
+                              'Inactive'
+                            )}
+                          </Label>
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {formatDate(wizard.createdAt)}
@@ -331,7 +379,8 @@ export default function WizardsPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
 
@@ -403,6 +452,50 @@ export default function WizardsPage() {
         onOpenChange={setPreviewOpen}
         wizard={previewWizard}
       />
+
+      <AlertDialog
+        open={Boolean(activateTarget)}
+        onOpenChange={(open) => {
+          if (!open && !togglingId) setActivateTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Switch live wizard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Only one wizard can be live for clients at a time (CR or PR). Activating{' '}
+              <span className="font-medium">
+                {activateTarget?.wizard.name} ({activateTarget?.wizard.areaOfInterest})
+              </span>{' '}
+              will deactivate{' '}
+              <span className="font-medium">
+                {activateTarget?.replaces.name} ({activateTarget?.replaces.areaOfInterest})
+              </span>
+              .
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(togglingId)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-700 hover:bg-emerald-800"
+              onClick={(e) => {
+                e.preventDefault()
+                if (activateTarget) void applyActiveChange(activateTarget.wizard, true)
+              }}
+              disabled={Boolean(togglingId)}
+            >
+              {togglingId ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Activating…
+                </>
+              ) : (
+                'Activate wizard'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={Boolean(deleteTarget)}

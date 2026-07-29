@@ -17,6 +17,7 @@ import {
   mapWizardDetail,
   prepareWizardSteps,
 } from '@/lib/wizards/wizard-utils'
+import { deactivateOtherWizardsInArea } from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
 
@@ -157,7 +158,7 @@ export const POST = withFormBuilderAuth(async (request) => {
       data: {
         name: body.name,
         areaOfInterest: body.areaOfInterest,
-        isActive: body.isActive ?? true,
+        isActive: body.isActive ?? false,
         createdById: request.user!.userId,
         steps: {
           create: prepared.steps.map((step) => ({
@@ -195,6 +196,10 @@ export const POST = withFormBuilderAuth(async (request) => {
         },
       },
     })
+
+    if (wizard.isActive) {
+      await deactivateOtherWizardsInArea(wizard.id, wizard.areaOfInterest)
+    }
 
     return addCorsHeaders(
       createSuccessResponse(

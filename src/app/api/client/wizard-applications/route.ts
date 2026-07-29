@@ -19,9 +19,7 @@ import {
   mapWizardApplicationDetail,
 } from '@/lib/wizards/wizard-application-utils'
 import {
-  countMergedStepsByAreas,
   getAnchorWizardForArea,
-  mergedApplicationDisplayName,
 } from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
@@ -29,7 +27,7 @@ export const OPTIONS = () => handleCorsPreflight()
 const startSchema = z
   .object({
     wizardId: z.string().min(1).optional(),
-    areaOfInterest: z.enum(['CR', 'PR', 'GR']).optional(),
+    areaOfInterest: z.enum(['CR', 'PR']).optional(),
   })
   .refine((data) => data.wizardId || data.areaOfInterest, {
     message: 'Provide areaOfInterest or wizardId',
@@ -93,15 +91,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const stepCounts = await countMergedStepsByAreas(
-      applications.map((app) => app.areaOfInterest)
-    )
-
     const mapped = applications.map((app) => {
       const answeredSteps = new Set(
         app.answers.filter((a) => a.value || a.fileUrl).map((a) => a.wizardStepId)
       )
-      const totalSteps = stepCounts[app.areaOfInterest] ?? 0
+      const totalSteps = app.wizard.steps.length
       return {
         id: app.id,
         applicationNumber: app.applicationNumber,
@@ -114,7 +108,7 @@ export async function GET(request: NextRequest) {
         adminNotes: app.adminNotes,
         wizard: {
           id: app.wizard.id,
-          name: mergedApplicationDisplayName(app.areaOfInterest),
+          name: app.wizard.name,
           areaOfInterest: app.wizard.areaOfInterest,
         },
         progress: {

@@ -18,7 +18,7 @@ import {
   mapWizardApplicationDetail,
   upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
-import { isWizardStepInArea } from '@/lib/wizards/merged-area-wizard'
+import { isWizardStepInWizard } from '@/lib/wizards/merged-area-wizard'
 import {
   assertClientMayEditStepAnswers,
   syncStepReviewAfterClientSave,
@@ -167,9 +167,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return zodErrorResponse(parsed.error, requestId)
     }
 
-    const stepValid = await isWizardStepInArea(
+    const stepValid = await isWizardStepInWizard(
       parsed.data.wizardStepId,
-      app.areaOfInterest
+      app.wizardId
     )
     if (!stepValid) {
       return addCorsHeaders(
@@ -200,7 +200,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (typeof parsed.data.currentStepIndex === 'number') {
       const indexCheck = await assertClientStepIndexAllowed({
         applicationId: id,
-        areaOfInterest: app.areaOfInterest,
         targetStepIndex: parsed.data.currentStepIndex,
       })
       if (!indexCheck.ok) {

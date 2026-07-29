@@ -19,72 +19,8 @@ export type MergedWizardStep = Awaited<
   ReturnType<typeof fetchMergedStepsForArea>
 >[number]
 
-/** All active wizard steps for an area, in admin creation order then step sort order. */
-export async function fetchMergedStepsForArea(areaOfInterest: AreaOfInterest) {
-  const wizards = await db.applicationWizard.findMany({
-    where: {
-      areaOfInterest,
-      isDeleted: false,
-      isActive: true,
-    },
-    orderBy: { createdAt: 'asc' },
-    include: {
-      steps: {
-        orderBy: { sortOrder: 'asc' },
-        include: stepFormInclude,
-      },
-    },
-  })
-
-  return wizards.flatMap((wizard) =>
-    wizard.steps.map((step) => ({
-      ...step,
-      sourceWizardId: wizard.id,
-      sourceWizardName: wizard.name,
-    }))
-  )
-}
-
-export async function countMergedStepsForArea(areaOfInterest: AreaOfInterest) {
-  return db.applicationWizardStep.count({
-    where: {
-      wizard: {
-        areaOfInterest,
-        isDeleted: false,
-        isActive: true,
-      },
-    },
-  })
-}
-
-/** Count merged steps per area in one query (for list views). */
-export async function countMergedStepsByAreas(areas: AreaOfInterest[]) {
-  const unique = [...new Set(areas)]
-  if (unique.length === 0) return {} as Record<AreaOfInterest, number>
-
-  const rows = await db.applicationWizardStep.findMany({
-    where: {
-      wizard: {
-        areaOfInterest: { in: unique },
-        isDeleted: false,
-        isActive: true,
-      },
-    },
-    select: {
-      id: true,
-      wizard: { select: { areaOfInterest: true } },
-    },
-  })
-
-  const counts = {} as Record<string, number>
-  for (const area of unique) counts[area] = 0
-  for (const row of rows) {
-    counts[row.wizard.areaOfInterest] = (counts[row.wizard.areaOfInterest] ?? 0) + 1
-  }
-  return counts as Record<AreaOfInterest, number>
-}
-
-export async function getAnchorWizardForArea(areaOfInterest: AreaOfInterest) {
+/** The single client-facing active wizard for an area (most recently updated if multiple). */
+export async function fetchActiveWizardForArea(areaOfInterest: AreaOfInterest) {
   return db.applicationWizard.findFirst({
     where: {
       areaOfInterest,
@@ -92,24 +28,65 @@ export async function getAnchorWizardForArea(areaOfInterest: AreaOfInterest) {
       isActive: true,
       steps: { some: {} },
     },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true, name: true, areaOfInterest: true },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      steps: {
+        orderBy: { sortOrder: 'asc' },
+        include: stepFormInclude,
+      },
+    },
   })
+}
+
+/** Steps for the active wizard only (not merged across wizards). */
+export async function fetchMergedStepsForArea(areaOfInterest: AreaOfInterest) {
+  const wizard = await fetchActiveWizardForArea(areaOfInterest)
+  if (!wizard) return []
+
+  return wizard.steps.map((step) => ({
+    ...step,
+    sourceWizardId: wizard.id,
+    sourceWizardName: wizard.name,
+  }))
+}
+
+export async function countMergedStepsForArea(areaOfInterest: AreaOfInterest) {
+  const wizard = await fetchActiveWizardForArea(areaOfInterest)
+  return wizard?.steps.length ?? 0
+}
+
+/** Active wizard step counts per area (for availability checks). */
+export async function countMergedStepsByAreas(areas: AreaOfInterest[]) {
+  const unique = [...new Set(areas)]
+  const counts = {} as Record<string, number>
+  for (const area of unique) {
+    counts[area] = await countMergedStepsForArea(area)
+  }
+  return counts as Record<AreaOfInterest, number>
+}
+
+export async function getAnchorWizardForArea(areaOfInterest: AreaOfInterest) {
+  const wizard = await fetchActiveWizardForArea(areaOfInterest)
+  if (!wizard) return null
+  return {
+    id: wizard.id,
+    name: wizard.name,
+    areaOfInterest: wizard.areaOfInterest,
+  }
 }
 
 export async function isWizardStepInArea(
   wizardStepId: string,
   areaOfInterest: AreaOfInterest
 ) {
+  const wizard = await fetchActiveWizardForArea(areaOfInterest)
+  if (!wizard) return false
+  return wizard.steps.some((s) => s.id === wizardStepId)
+}
+
+export async function isWizardStepInWizard(wizardStepId: string, wizardId: string) {
   const step = await db.applicationWizardStep.findFirst({
-    where: {
-      id: wizardStepId,
-      wizard: {
-        areaOfInterest,
-        isDeleted: false,
-        isActive: true,
-      },
-    },
+    where: { id: wizardStepId, wizardId },
     select: { id: true },
   })
   return Boolean(step)
@@ -119,8 +96,22 @@ export function mergedApplicationDisplayName(areaOfInterest: string) {
   const labels: Record<string, string> = {
     CR: 'Company Registration (CR)',
     PR: 'Premium Residency (PR)',
-    GR: 'General Services (GR)',
   }
   const label = labels[areaOfInterest] ?? areaOfInterest
-  return `${label} — full application`
+  return `${label} — application`
+}
+
+/** When a wizard is activated, deactivate other wizards in the same service (CR or PR). */
+export async function deactivateOtherWizardsInArea(
+  wizardId: string,
+  areaOfInterest: AreaOfInterest
+) {
+  await db.applicationWizard.updateMany({
+    where: {
+      areaOfInterest,
+      isDeleted: false,
+      id: { not: wizardId },
+    },
+    data: { isActive: false },
+  })
 }

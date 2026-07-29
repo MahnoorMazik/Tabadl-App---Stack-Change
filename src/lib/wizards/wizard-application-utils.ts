@@ -1,9 +1,5 @@
 import { db } from '@/lib/db'
 import { mapFormField } from '@/lib/validations/forms'
-import {
-  fetchMergedStepsForArea,
-  mergedApplicationDisplayName,
-} from '@/lib/wizards/merged-area-wizard'
 
 export async function getClientForUser(userId: string) {
   return db.client.findFirst({
@@ -111,13 +107,11 @@ export async function getWizardApplicationDetail(id: string) {
 export async function mapWizardApplicationDetail(
   app: NonNullable<Awaited<ReturnType<typeof getWizardApplicationDetail>>>
 ) {
-  const mergedSteps = await fetchMergedStepsForArea(app.areaOfInterest)
-
   const reviewByStepId = new Map(
     app.stepReviews.map((r) => [r.wizardStepId, r])
   )
 
-  const steps = mergedSteps.map((step, index) => {
+  const steps = app.wizard.steps.map((step, index) => {
     const stepAnswers = app.answers.filter((a) => a.wizardStepId === step.id)
     const review = reviewByStepId.get(step.id)
     const answersByField: Record<string, { value: string | null; fileUrl: string | null }> = {}
@@ -139,7 +133,7 @@ export async function mapWizardApplicationDetail(
       formTemplateId: step.formTemplateId,
       formName: step.formTemplate.name,
       formDescription: step.formTemplate.description,
-      sourceWizardName: step.sourceWizardName,
+      sourceWizardName: app.wizard.name,
       fields: step.formTemplate.fields.map((tf) => ({
         id: tf.id,
         fieldId: tf.fieldId,
@@ -174,7 +168,7 @@ export async function mapWizardApplicationDetail(
     assignedTo: app.assignedTo,
     wizard: {
       id: app.wizard.id,
-      name: mergedApplicationDisplayName(app.areaOfInterest),
+      name: app.wizard.name,
       areaOfInterest: app.wizard.areaOfInterest,
       isActive: app.wizard.isActive,
     },

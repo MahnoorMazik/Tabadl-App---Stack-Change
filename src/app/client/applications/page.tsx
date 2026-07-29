@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tooltip,
@@ -28,7 +27,6 @@ import {
   FileText,
   Loader2,
   ArrowRight,
-  Play,
   Plus,
   ListChecks,
 } from 'lucide-react'
@@ -37,21 +35,7 @@ import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
-
-type MergedFlow = {
-  areaOfInterest: AreaOfInterestKey
-  title: string
-  totalSteps: number
-  wizardCount: number
-  steps: Array<{
-    index: number
-    id: string
-    formName: string
-    fieldCount: number
-    paymentRequired: boolean
-    sourceWizardName?: string
-  }>
-}
+import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
 
 type ApplicationItem = {
   id: string
@@ -64,6 +48,8 @@ type ApplicationItem = {
   wizard: { id: string; name: string; areaOfInterest: string }
   progress: { totalSteps: number; completedSteps: number; currentStepIndex: number }
 }
+
+const LAUNCH_MIN_MS = 1400
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -92,12 +78,13 @@ export default function ClientApplicationsPage() {
     closeMobileSidebar,
   } = useMobileSidebar()
   const [activeTab, setActiveTab] = useState<'new' | 'applied'>('new')
-  const [selectedArea, setSelectedArea] = useState<AreaOfInterestKey | null>(null)
-  const [mergedFlow, setMergedFlow] = useState<MergedFlow | null>(null)
   const [applications, setApplications] = useState<ApplicationItem[]>([])
-  const [loadingWizards, setLoadingWizards] = useState(false)
   const [loadingApps, setLoadingApps] = useState(true)
-  const [startingArea, setStartingArea] = useState<AreaOfInterestKey | null>(null)
+  const [launch, setLaunch] = useState<{
+    area: AreaOfInterestKey
+    label: string
+    continuing: boolean
+  } | null>(null)
 
   const fetchApplications = useCallback(async (silent = false) => {
     if (!silent) setLoadingApps(true)
@@ -134,56 +121,52 @@ export default function ClientApplicationsPage() {
     return () => clearInterval(timer)
   }, [authLoading, user, fetchApplications])
 
-  useEffect(() => {
-    if (!selectedArea) {
-      setMergedFlow(null)
-      return
-    }
-    let cancelled = false
-    const load = async () => {
-      setLoadingWizards(true)
-      try {
-        const res = await axios.get(`/api/client/wizards?areaOfInterest=${selectedArea}`)
-        if (!cancelled) setMergedFlow(res.data?.data?.merged ?? null)
-      } catch {
-        if (!cancelled) {
-          setMergedFlow(null)
+  const draftForArea = (area: AreaOfInterestKey) =>
+    applications.find((a) => a.areaOfInterest === area && a.status === 'DRAFT')
+
+  const beginApplication = async (area: AreaOfInterestKey, label: string) => {
+    if (launch) return
+
+    const draft = draftForArea(area)
+    setLaunch({ area, label, continuing: Boolean(draft) })
+
+    const minWait = new Promise((resolve) => setTimeout(resolve, LAUNCH_MIN_MS))
+
+    try {
+      let appId: string
+
+      if (draft) {
+        appId = draft.id
+      } else {
+        const check = await axios.get(`/api/client/wizards?areaOfInterest=${area}`)
+        const flow = check.data?.data?.merged
+        if (!flow?.totalSteps) {
           toast({
-            title: 'Could not load application flow',
-            description: 'Please try again.',
+            title: 'No application available',
+            description: `There is no active form for ${label} yet. Please check back later.`,
             variant: 'destructive',
           })
+          setLaunch(null)
+          return
         }
-      } finally {
-        if (!cancelled) setLoadingWizards(false)
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [selectedArea, toast])
 
-  const draftForSelectedArea = selectedArea
-    ? applications.find((a) => a.areaOfInterest === selectedArea && a.status === 'DRAFT')
-    : undefined
-
-  const startApplicationForArea = async (area: AreaOfInterestKey) => {
-    setStartingArea(area)
-    try {
-      const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
-      const app = res.data?.data?.application
-      if (app?.id) {
-        router.push(`/client/applications/${app.id}`)
+        const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
+        const app = res.data?.data?.application
+        if (!app?.id) {
+          throw new Error('Could not start application')
+        }
+        appId = app.id
       }
+
+      await minWait
+      router.push(`/client/applications/${appId}`)
     } catch (error: any) {
       toast({
-        title: 'Could not start application',
+        title: 'Could not open application',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
-    } finally {
-      setStartingArea(null)
+      setLaunch(null)
     }
   }
 
@@ -198,6 +181,12 @@ export default function ClientApplicationsPage() {
       description="Start a new application or track ones you already applied"
       icon={<ClipboardList className="h-5 w-5 text-emerald-600" />}
     >
+      <ApplicationLaunchOverlay
+        open={Boolean(launch)}
+        areaLabel={launch?.label}
+        mode={launch?.continuing ? 'continue' : 'start'}
+      />
+
       {authLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -246,117 +235,59 @@ export default function ClientApplicationsPage() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Tab 1: Start new */}
             <TabsContent value="new" className="mt-0">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Start a new application</CardTitle>
                   <CardDescription>
-                    Choose your area of interest — all forms for that service run in one continuous
-                    wizard.
+                    Choose your area of interest — we&apos;ll open the active application wizard
+                    for that service right away.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2 sm:grid-cols-3">
+                <CardContent className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     {AREA_OF_INTEREST_OPTIONS.map((option) => {
-                      const active = selectedArea === option.key
+                      const draft = draftForArea(option.key)
+                      const isLaunching = launch?.area === option.key
                       return (
                         <button
                           key={option.key}
                           type="button"
-                          onClick={() => setSelectedArea(option.key)}
+                          disabled={Boolean(launch)}
+                          onClick={() => void beginApplication(option.key, option.label)}
                           className={cn(
-                            'rounded-lg border bg-white dark:bg-card p-3 text-left transition',
-                            active
-                              ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-emerald-500/30'
-                              : 'hover:bg-muted/50'
+                            'group relative rounded-xl border bg-white dark:bg-card p-4 text-left transition-all',
+                            'hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/10',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+                            isLaunching && 'border-emerald-500 ring-2 ring-emerald-500/30',
+                            launch && !isLaunching && 'opacity-60 pointer-events-none'
                           )}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-sm">{option.label}</span>
+                            <span className="font-semibold text-sm">{option.label}</span>
                             <Badge variant="secondary" className="text-[10px]">
                               {option.key}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                            {option.description}
+                          </p>
+                          <p className="mt-3 text-xs font-medium text-emerald-700 group-hover:text-emerald-800">
+                            {draft ? 'Continue draft →' : 'Start application →'}
+                          </p>
+                          {draft && (
+                            <Badge className="mt-2 text-[10px] bg-amber-100 text-amber-900 border-amber-200 w-fit">
+                              Draft in progress
+                            </Badge>
+                          )}
                         </button>
                       )
                     })}
                   </div>
-
-                  {selectedArea && (
-                    <div className="space-y-3 pt-1">
-                      {loadingWizards ? (
-                        <div className="flex justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
-                        </div>
-                      ) : !mergedFlow || mergedFlow.totalSteps === 0 ? (
-                        <Alert>
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            No forms available for {selectedArea} yet. Please check back later.
-                          </AlertDescription>
-                        </Alert>
-                      ) : (
-                        <div className="rounded-lg border bg-white dark:bg-card p-4 space-y-4">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm">{mergedFlow.title}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {mergedFlow.totalSteps} form step
-                                {mergedFlow.totalSteps === 1 ? '' : 's'} in one flow
-                                {mergedFlow.wizardCount > 1
-                                  ? ` (combined from ${mergedFlow.wizardCount} admin setups)`
-                                  : ''}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              className="bg-emerald-700 hover:bg-emerald-800 shrink-0"
-                              onClick={() => {
-                                if (draftForSelectedArea) {
-                                  router.push(`/client/applications/${draftForSelectedArea.id}`)
-                                  return
-                                }
-                                void startApplicationForArea(selectedArea)
-                              }}
-                              disabled={startingArea === selectedArea}
-                            >
-                              {startingArea === selectedArea ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <Play className="h-4 w-4 mr-2" />
-                              )}
-                              {draftForSelectedArea ? 'Continue application' : 'Start application'}
-                            </Button>
-                          </div>
-                          <ol className="space-y-1.5 text-sm border-t pt-3 max-h-56 overflow-y-auto">
-                            {mergedFlow.steps.map((step) => (
-                              <li
-                                key={step.id}
-                                className="flex items-center gap-2 text-muted-foreground"
-                              >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs font-medium">
-                                  {step.index}
-                                </span>
-                                <span className="text-foreground truncate">{step.formName}</span>
-                                {step.paymentRequired && (
-                                  <Badge variant="outline" className="text-[10px] shrink-0">
-                                    Payment
-                                  </Badge>
-                                )}
-                              </li>
-                            ))}
-                          </ol>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Tab 2: Applied */}
             <TabsContent value="applied" className="mt-0">
               <Card>
                 <CardHeader>

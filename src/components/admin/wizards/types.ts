@@ -82,7 +82,7 @@ export function mapApiWizard(wizard: {
     id: wizard.id,
     name: wizard.name,
     areaOfInterest: wizard.areaOfInterest,
-    isActive: wizard.isActive ?? true,
+    isActive: wizard.isActive ?? false,
     serviceIds,
     serviceNames,
     steps: wizard.steps.map((step) => ({

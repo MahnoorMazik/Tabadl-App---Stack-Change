@@ -1,10 +1,36 @@
-import { WizardStepApprovalStatus, AreaOfInterest } from '@prisma/client'
+import { WizardStepApprovalStatus } from '@prisma/client'
 import { db } from '@/lib/db'
-import { fetchMergedStepsForArea } from '@/lib/wizards/merged-area-wizard'
 import {
   canClientAccessStepIndex,
   findUnapprovedRequiredStepIndex,
 } from '@/lib/wizards/wizard-step-approval-rules'
+
+async function getApprovalGatesForApplication(applicationId: string) {
+  const app = await db.wizardApplication.findFirst({
+    where: { id: applicationId, isDeleted: false },
+    select: {
+      wizard: {
+        select: {
+          steps: {
+            orderBy: { sortOrder: 'asc' as const },
+            select: { id: true, approvalRequired: true },
+          },
+        },
+      },
+      stepReviews: { select: { wizardStepId: true, status: true } },
+    },
+  })
+  if (!app) return []
+
+  const statusByStepId = new Map(
+    app.stepReviews.map((r) => [r.wizardStepId, r.status])
+  )
+
+  return app.wizard.steps.map((s) => ({
+    approvalRequired: s.approvalRequired,
+    approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
+  }))
+}
 
 export {
   canClientAccessStepIndex,
@@ -130,22 +156,10 @@ export async function setStepApproval(params: {
 
 export async function assertClientStepIndexAllowed(params: {
   applicationId: string
-  areaOfInterest: AreaOfInterest
   targetStepIndex: number
 }) {
-  const mergedSteps = await fetchMergedStepsForArea(params.areaOfInterest)
-  if (params.targetStepIndex <= 0) return { ok: true as const }
-
-  const reviews = await db.wizardApplicationStepReview.findMany({
-    where: { applicationId: params.applicationId },
-    select: { wizardStepId: true, status: true },
-  })
-  const statusByStepId = new Map(reviews.map((r) => [r.wizardStepId, r.status]))
-
-  const gates = mergedSteps.map((s) => ({
-    approvalRequired: s.approvalRequired,
-    approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
-  }))
+  const gates = await getApprovalGatesForApplication(params.applicationId)
+  if (params.targetStepIndex <= 0 || gates.length === 0) return { ok: true as const }
 
   if (canClientAccessStepIndex(gates, params.targetStepIndex)) {
     return { ok: true as const }
@@ -160,20 +174,8 @@ export async function assertClientStepIndexAllowed(params: {
 
 export async function assertAllRequiredApprovalsForSubmit(params: {
   applicationId: string
-  areaOfInterest: AreaOfInterest
 }) {
-  const mergedSteps = await fetchMergedStepsForArea(params.areaOfInterest)
-  const reviews = await db.wizardApplicationStepReview.findMany({
-    where: { applicationId: params.applicationId },
-    select: { wizardStepId: true, status: true },
-  })
-  const statusByStepId = new Map(reviews.map((r) => [r.wizardStepId, r.status]))
-
-  const gates = mergedSteps.map((s) => ({
-    approvalRequired: s.approvalRequired,
-    approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
-  }))
-
+  const gates = await getApprovalGatesForApplication(params.applicationId)
   const idx = findUnapprovedRequiredStepIndex(gates)
   if (idx === null) return { ok: true as const }
 
