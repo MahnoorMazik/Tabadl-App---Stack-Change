@@ -381,15 +381,6 @@ interface FormPreviewProps {
 export function FormPreview({ formName, fields }: FormPreviewProps) {
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-base font-semibold text-slate-500">
-          Form Name: <span>{formName.trim() || 'Untitled Form'}</span>
-        </h3>
-        {/* <p className="text-xs text-muted-foreground mt-0.5">
-          Live preview · interactive — test validations here
-        </p> */}
-      </div>
-
       {fields.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
           Add fields to see a preview of the client form.

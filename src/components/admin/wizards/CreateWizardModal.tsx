@@ -45,6 +45,7 @@ import {
   AREA_OF_INTEREST_OPTIONS,
   AreaOfInterestKey,
   FormTemplateListItem,
+  mapApiTemplateDetail,
 } from '@/components/admin/forms/types'
 import {
   WizardDraft,
@@ -98,6 +99,8 @@ export function CreateWizardModal({
   const [pickerTab, setPickerTab] = useState<'existing' | 'quick'>('existing')
   const [formSearch, setFormSearch] = useState('')
   const [builderOpen, setBuilderOpen] = useState(false)
+  const [editingFormTemplate, setEditingFormTemplate] = useState<any>(null)
+  const [loadingTemplate, setLoadingTemplate] = useState(false)
   const [quickName, setQuickName] = useState('')
   const [quickFields, setQuickFields] = useState<
     Array<{ id: string; type: 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'PHONE' | 'SELECT'; label: string; options: string }>
@@ -118,6 +121,7 @@ export function CreateWizardModal({
     setSaving(false)
     setPickerOpen(false)
     setBuilderOpen(false)
+    setEditingFormTemplate(null)
     setQuickName('')
     setQuickFields([])
     setFormSearch('')
@@ -244,6 +248,28 @@ export function CreateWizardModal({
         steps: prev.steps.filter((s) => s.id !== stepId),
       }
     })
+  }
+
+  // Open the Template Builder to edit an existing form — open Sheet immediately, load async
+  const handleEditForm = async (formTemplateId: string) => {
+    // Open the sheet right away with a loading spinner inside FormBuilder
+    setEditingFormTemplate(null)
+    setLoadingTemplate(true)
+    setBuilderOpen(true)
+    try {
+      const res = await formApi.getTemplate(formTemplateId)
+      const mapped = mapApiTemplateDetail(res.template)
+      setEditingFormTemplate(mapped)
+    } catch (error) {
+      setBuilderOpen(false)
+      toast({
+        title: 'Could not load form',
+        description: 'Failed to load form template for editing.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingTemplate(false)
+    }
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -445,23 +471,23 @@ export function CreateWizardModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border-border bg-linear-to-b from-muted/40 via-background to-background">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto border-border bg-linear-to-b from-muted/40 via-background to-background">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? 'Edit Application Steps' : 'Create Application Steps'}
           </DialogTitle>
-          <DialogDescription>
+          {/* <DialogDescription>
             {modalStep === 1
               ? 'Basics'
               : 'Steps'}
-          </DialogDescription>
-          <div className="flex items-center gap-2 pt-2 rounded-md border border-border bg-muted/40 px-2.5 py-2">
+          </DialogDescription> */}
+          {/* <div className="flex items-center gap-2 pt-2 rounded-md border border-border bg-muted/40 px-2.5 py-2">
             <div className={`h-2.5 w-2.5 rounded-full ${modalStep === 1 ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
             <span className={`text-xs ${modalStep === 1 ? 'text-foreground' : 'text-muted-foreground'}`}>Basics</span>
             <div className="h-px flex-1 bg-border" />
             <div className={`h-2.5 w-2.5 rounded-full ${modalStep === 2 ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
             <span className={`text-xs ${modalStep === 2 ? 'text-foreground' : 'text-muted-foreground'}`}>Steps</span>
-          </div>
+          </div> */}
         </DialogHeader>
 
         {loading ? (
@@ -472,7 +498,7 @@ export function CreateWizardModal({
           <div className="space-y-5 py-2">
             <div className="space-y-2 rounded-lg border border-border p-3.5 bg-muted/30 shadow-sm">
               <Label htmlFor="wizard-name">
-                Wizard name <span className="text-destructive">*</span>
+                Wizard Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="wizard-name"
@@ -490,7 +516,7 @@ export function CreateWizardModal({
 
             <div className="space-y-2 rounded-lg border border-border p-3.5 bg-muted/30 shadow-sm">
               <Label>
-                Area of interest <span className="text-destructive">*</span>
+                Add Services <span className="text-destructive">*</span>
               </Label>
               <div className="grid grid-cols-1 gap-2">
                 {AREA_OF_INTEREST_OPTIONS.map((option) => {
@@ -536,92 +562,91 @@ export function CreateWizardModal({
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground rounded-md border border-border bg-muted/40 p-2.5">
-              <div className="flex items-center gap-2">
-              <Badge variant="secondary">{draft.areaOfInterest}</Badge>
-                <span>{draft.steps.length} step{draft.steps.length === 1 ? '' : 's'}</span>
-              </div>
-              <span className="text-xs">Reorder with drag handle</span>
-            </div>
-
             {stepsError && (
               <p className="text-xs text-destructive">
-                Each step must have a form selected.
+                Please create a form using the Template Builder first.
               </p>
             )}
 
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={draft.steps.map((s) => s.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-3">
-                  {draft.steps.map((step, index) => (
-                    <SortableWizardStep
-                      key={step.id}
-                      step={step}
-                      index={index}
-                      canRemove={draft.steps.length > 1}
-                      formsForArea={formsForArea}
-                      usedFormIds={usedFormIds}
-                      onUpdate={updateStep}
-                      onRemove={removeStep}
-                    />
-                  ))}
+            {draft.steps.length === 0 ? (
+              /* ── No steps yet: prompt user to use Template Builder ── */
+              <div className="rounded-lg border border-dashed border-border p-8 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No steps added yet. Create a form using the Template Builder — it will automatically appear as a step.
+                </p>
+                <Button
+                  type="button"
+                  className="bg-primary hover:bg-primary/90 cursor-pointer"
+                  onClick={() => setBuilderOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-1" />Add step
+                </Button>
+              </div>
+            ) : (
+              /* ── Steps exist: show them with disabled form name, no dropdown ── */
+              <>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    className="bg-primary hover:bg-primary/90 cursor-pointer"
+                    onClick={() => setBuilderOpen(true)}
+                  >
+                   <Plus className="h-4 w-4 mr-1" />Add step
+                  </Button>
                 </div>
-              </SortableContext>
-            </DndContext>
 
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Button
-                type="button"
-                size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm px-4 font-medium"
-                onClick={() => setPickerOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add step
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm px-4 font-medium"
-                onClick={() => setBuilderOpen(true)}
-              >
-                Open full form builder
-              </Button>
-            </div>
-            <Button type="button" variant="ghost" size="sm" onClick={addStep}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add empty step
-            </Button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={draft.steps.map((s) => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {draft.steps.map((step, index) => (
+                        <SortableWizardStep
+                          key={step.id}
+                          step={step}
+                          index={index}
+                          canRemove={draft.steps.length > 1}
+                          formsForArea={formsForArea}
+                          usedFormIds={usedFormIds}
+                          onUpdate={updateStep}
+                          onRemove={removeStep}
+                          onEditForm={handleEditForm}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </>
+            )}
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className={`gap-2 ${modalStep === 2 ? 'sm:justify-between' : 'sm:justify-end'}`}>
           {modalStep === 2 ? (
             <>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => {
                   setShowValidation(false)
                   setModalStep(1)
                 }}
                 disabled={saving}
+                className="flex items-center gap-2 cursor-pointer"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <Button
                 type="button"
-                className="bg-primary hover:bg-primary/90"
+                className="bg-primary hover:bg-primary/90 cursor-pointer"
                 onClick={handleCreate}
-                disabled={saving || loading}
+                disabled={saving || loading || draft.steps.length === 0}
               >
                 {saving ? (
                   <>
@@ -629,16 +654,16 @@ export function CreateWizardModal({
                     {isEdit ? 'Saving…' : 'Creating…'}
                   </>
                 ) : isEdit ? (
-                  'Save changes'
+                  'Save Changes'
                 ) : (
-                  'Create wizard'
+                  'Create Wizard'
                 )}
               </Button>
             </>
           ) : (
             <Button
               type="button"
-              className="bg-primary hover:bg-primary/90"
+              className="bg-primary hover:bg-primary/90 cursor-pointer"
               onClick={handleNext}
               disabled={loading}
             >
@@ -756,15 +781,33 @@ export function CreateWizardModal({
           </Tabs>
         </DialogContent>
       </Dialog>
-      <Sheet open={builderOpen} onOpenChange={setBuilderOpen}>
-        <SheetContent side="right" className="w-[95vw] sm:max-w-none">
+      <Sheet open={builderOpen} onOpenChange={(open) => {
+        setBuilderOpen(open)
+        if (!open) setEditingFormTemplate(null)
+      }}>
+        <SheetContent side="right" className="w-[60vw] sm:max-w-none gap-0">
           <SheetHeader>
-            <SheetTitle>Full form builder</SheetTitle>
-            <SheetDescription>Create a complete form, then it will be appended as a step.</SheetDescription>
+            <SheetTitle className='text-xl'>
+              {editingFormTemplate ? 'Edit Form' : loadingTemplate ? 'Loading…' : 'Template Builder'}
+            </SheetTitle>
+            <SheetDescription>
+              {editingFormTemplate
+                ? 'Update this form — changes will be reflected in the step.'
+                : loadingTemplate
+                  ? 'Fetching form details…'
+                  : 'Create a complete form, then it will be appended as a step.'}
+            </SheetDescription>
           </SheetHeader>
-          <div className="p-4 overflow-auto">
+          <div className="p-4 overflow-hidden pt-2">
+            {loadingTemplate && !editingFormTemplate ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              </div>
+            ) : (
             <FormBuilder
-              mode="create"
+              key={editingFormTemplate?.id ?? 'create'}
+              mode={editingFormTemplate ? 'edit' : 'create'}
+              initialTemplate={editingFormTemplate ?? undefined}
               inline
               hideAreaOfInterest
               forcedAreaOfInterest={draft.areaOfInterest}
@@ -779,11 +822,30 @@ export function CreateWizardModal({
                   updatedAt: saved.updatedAt,
                   services: [],
                 }
-                setForms((prev) => [newForm, ...prev])
-                addFormAsStep(newForm, 'new')
+                setForms((prev) => {
+                  const exists = prev.some((f) => f.id === newForm.id)
+                  return exists
+                    ? prev.map((f) => (f.id === newForm.id ? newForm : f))
+                    : [newForm, ...prev]
+                })
+                if (editingFormTemplate) {
+                  // Update the existing step's formName
+                  setDraft((prev) => ({
+                    ...prev,
+                    steps: prev.steps.map((s) =>
+                      s.formTemplateId === saved.id
+                        ? { ...s, formName: saved.name } as any
+                        : s
+                    ),
+                  }))
+                } else {
+                  addFormAsStep(newForm, 'new')
+                }
                 setBuilderOpen(false)
+                setEditingFormTemplate(null)
               }}
             />
+            )}
           </div>
         </SheetContent>
       </Sheet>

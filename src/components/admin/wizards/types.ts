@@ -40,13 +40,7 @@ export function createEmptyWizardDraft(): WizardDraft {
     name: '',
     areaOfInterest: null,
     serviceIds: [],
-    steps: [
-      {
-        id: `step-${Date.now()}`,
-        formTemplateId: '',
-        paymentRequired: false,
-      },
-    ],
+    steps: [],
   }
 }
 
