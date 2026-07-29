@@ -76,6 +76,7 @@ function draftFromWizard(wizard: WizardListItem): WizardDraft {
       id: step.id,
       formTemplateId: step.formTemplateId,
       paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
     })),
   }
 }
@@ -342,6 +343,7 @@ export function CreateWizardModal({
       steps: draft.steps.map((step, index) => ({
         formTemplateId: step.formTemplateId,
         paymentRequired: step.paymentRequired,
+        approvalRequired: step.approvalRequired,
         sortOrder: index,
       })),
     }

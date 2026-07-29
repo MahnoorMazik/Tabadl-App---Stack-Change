@@ -24,6 +24,7 @@ export const OPTIONS = () => handleCorsPreflight()
 const addStepSchema = z.object({
   formTemplateId: z.string().min(1),
   paymentRequired: z.boolean().optional().default(false),
+  approvalRequired: z.boolean().optional().default(false),
 })
 
 /** POST — append a form step to this application's wizard (next step) */
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         wizardId: app.wizardId,
         formTemplateId: parsed.data.formTemplateId,
         paymentRequired: parsed.data.paymentRequired ?? false,
+        approvalRequired: parsed.data.approvalRequired ?? false,
         sortOrder: nextOrder,
       },
     })

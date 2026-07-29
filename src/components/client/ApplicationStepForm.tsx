@@ -14,8 +14,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ArrowLeft, ArrowRight, Check, Save } from 'lucide-react'
+import { Loader2, ArrowLeft, ArrowRight, Check, Save, Clock, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export interface StepField {
   fieldId: string
@@ -34,6 +35,9 @@ export interface ApplicationStepFormProps {
   stepIndex: number
   totalSteps: number
   paymentRequired?: boolean
+  approvalRequired?: boolean
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+  rejectionNote?: string | null
   isLastStep?: boolean
   readOnly?: boolean
   saving?: boolean
@@ -46,6 +50,8 @@ export interface ApplicationStepFormProps {
   showSubmit?: boolean
   /** Stronger visual treatment for the form canvas */
   engaging?: boolean
+  /** Extra controls in the step header (e.g. admin approve/reject) */
+  headerActions?: React.ReactNode
 }
 
 export function ApplicationStepForm({
@@ -54,6 +60,9 @@ export function ApplicationStepForm({
   stepIndex,
   totalSteps,
   paymentRequired,
+  approvalRequired,
+  approvalStatus,
+  rejectionNote,
   isLastStep,
   readOnly = false,
   saving = false,
@@ -64,6 +73,7 @@ export function ApplicationStepForm({
   saveExitLabel = 'Save & exit',
   showSubmit = true,
   engaging = false,
+  headerActions,
 }: ApplicationStepFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -130,7 +140,16 @@ export function ApplicationStepForm({
               Step {stepIndex + 1} of {totalSteps}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {approvalRequired && (
+              <Badge
+                variant="outline"
+                className="text-[10px] border-sky-200 bg-sky-50 text-sky-800"
+              >
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Admin approval
+              </Badge>
+            )}
             {paymentRequired && (
               <Badge className="text-[10px] bg-violet-100 text-violet-800 hover:bg-violet-100 border border-violet-200">
                 Payment after this step
@@ -148,6 +167,7 @@ export function ApplicationStepForm({
                 Saved
               </span>
             )}
+            {headerActions}
           </div>
         </div>
         {engaging && (
@@ -159,6 +179,37 @@ export function ApplicationStepForm({
           </div>
         )}
       </div>
+
+      {approvalRequired && approvalStatus === 'PENDING' && readOnly && (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+          <Clock className="h-4 w-4" />
+          <AlertTitle className="text-sm font-semibold">Pending approval from admin</AlertTitle>
+          <AlertDescription className="text-xs text-amber-900/90">
+            Your answers are saved and locked until an admin reviews this step.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {approvalRequired && approvalStatus === 'APPROVED' && readOnly && (
+        <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
+          <Check className="h-4 w-4" />
+          <AlertTitle className="text-sm font-semibold">Step approved</AlertTitle>
+          <AlertDescription className="text-xs text-emerald-900/90">
+            This step was approved by admin. Fields stay locked so approved data cannot be changed.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {approvalRequired && approvalStatus === 'REJECTED' && (
+        <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-950 [&>svg]:text-red-600">
+          <AlertTitle className="text-sm font-semibold">Changes requested</AlertTitle>
+          <AlertDescription className="text-xs">
+            {rejectionNote?.trim()
+              ? rejectionNote
+              : 'Admin rejected this step. Update the fields and save again for review.'}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className={cn('space-y-3', engaging && 'space-y-4')}>
         {fields.map((field, idx) => (

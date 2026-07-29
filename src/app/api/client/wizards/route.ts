@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
         formName: step.formTemplate.name,
         fieldCount: step.formTemplate.fields.length,
         paymentRequired: step.paymentRequired,
+        approvalRequired: step.approvalRequired,
         sourceWizardName: step.sourceWizardName,
       })),
     }

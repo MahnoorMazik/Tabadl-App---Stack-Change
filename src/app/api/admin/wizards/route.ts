@@ -65,6 +65,7 @@ export const GET = withFormBuilderAuth(async (request) => {
         formTemplateId: step.formTemplateId,
         formName: step.formTemplate.name,
         paymentRequired: step.paymentRequired,
+        approvalRequired: step.approvalRequired,
         sortOrder: step.sortOrder,
       })),
     }))
@@ -163,6 +164,7 @@ export const POST = withFormBuilderAuth(async (request) => {
             formTemplateId: step.formTemplateId,
             sortOrder: step.sortOrder,
             paymentRequired: step.paymentRequired,
+            approvalRequired: step.approvalRequired,
           })),
         },
         services: {

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ApplicationStepForm } from '@/components/client/ApplicationStepForm'
+import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import {
   ArrowLeft,
   Loader2,
@@ -39,6 +40,9 @@ type AppDetail = {
     index: number
     formName: string
     paymentRequired: boolean
+    approvalRequired?: boolean
+    approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+    rejectionNote?: string | null
     fields: Array<{
       fieldId: string
       label: string
@@ -128,6 +132,15 @@ export default function ClientApplicationFillPage() {
 
   const currentStep = app?.steps[stepIndex]
 
+  const stepHasSavedAnswers = (step: AppDetail['steps'][number]) =>
+    step.fields.some((f) => f.answer?.value || f.answer?.fileUrl)
+
+  const isStepLockedForClient = (step: AppDetail['steps'][number]) => {
+    if (!step.approvalRequired) return false
+    if (!stepHasSavedAnswers(step)) return false
+    return step.approvalStatus === 'PENDING' || step.approvalStatus === 'APPROVED'
+  }
+
   const buildAnswersPayload = (answers: Record<string, string>) =>
     Object.entries(answers).map(([fieldId, value]) => ({
       fieldId,
@@ -185,6 +198,14 @@ export default function ClientApplicationFillPage() {
     }
   }
 
+  const stepNavItems =
+    app?.steps.map((step) => ({
+      id: step.id,
+      formName: step.formName,
+      paymentRequired: step.paymentRequired,
+      filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
+    })) ?? []
+
   return (
     <MobileLayout
       isSidebarCollapsed={isSidebarCollapsed}
@@ -208,15 +229,18 @@ export default function ClientApplicationFillPage() {
         </div>
       ) : (
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-5 items-start">
-            <div className="flex-1 min-w-0 space-y-4 w-full">
+          <div className="flex flex-col xl:flex-row gap-5 items-start">
+            <div className="flex-1 min-w-0 w-full space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={app.status} />
                 <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
                   {app.areaOfInterest}
                 </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {app.progress.completedSteps}/{app.progress.totalSteps} steps filled
+                </span>
                 {app.updatedAt && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground ml-auto">
                     Updated {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
                   </span>
                 )}
@@ -237,22 +261,16 @@ export default function ClientApplicationFillPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {app.steps.map((step, i) => (
-                  <button
-                    key={step.id}
-                    type="button"
-                    onClick={() => setStepIndex(i)}
-                    className={cn(
-                      'h-2.5 rounded-full transition-all',
-                      i === stepIndex ? 'w-10 bg-emerald-600' : 'w-2.5 bg-muted-foreground/25',
-                      i < stepIndex && 'bg-emerald-500/60'
-                    )}
-                    aria-label={`Go to step ${i + 1}`}
-                  />
-                ))}
-              </div>
+              <div className="flex flex-col lg:flex-row gap-4 items-start">
+                <ApplicationStepsNav
+                  steps={stepNavItems}
+                  stepIndex={stepIndex}
+                  onStepSelect={setStepIndex}
+                  completedCount={app.progress.completedSteps}
+                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20"
+                />
 
+                <div className="flex-1 min-w-0 w-full">
               <Card className="border-emerald-100 shadow-md overflow-hidden">
                 <div className="h-1.5 bg-linear-to-r from-emerald-500 via-teal-500 to-sky-500" />
                 <CardContent className="pt-5 pb-6">
@@ -263,8 +281,11 @@ export default function ClientApplicationFillPage() {
                       stepIndex={stepIndex}
                       totalSteps={app.steps.length}
                       paymentRequired={currentStep.paymentRequired}
+                      approvalRequired={currentStep.approvalRequired}
+                      approvalStatus={currentStep.approvalStatus ?? null}
+                      rejectionNote={currentStep.rejectionNote}
                       isLastStep={stepIndex >= app.steps.length - 1}
-                      readOnly={submitted}
+                      readOnly={submitted || isStepLockedForClient(currentStep)}
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
@@ -280,6 +301,8 @@ export default function ClientApplicationFillPage() {
                   )}
                 </CardContent>
               </Card>
+                </div>
+              </div>
             </div>
 
             {/* Sticky note — admin updates */}

@@ -19,6 +19,10 @@ import {
   upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
 import { isWizardStepInArea } from '@/lib/wizards/merged-area-wizard'
+import {
+  assertClientMayEditStepAnswers,
+  syncStepReviewAfterClientSave,
+} from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -174,12 +178,37 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       )
     }
 
+    const wizardStep = await db.applicationWizardStep.findFirst({
+      where: { id: parsed.data.wizardStepId },
+      select: { approvalRequired: true },
+    })
+
+    const editCheck = await assertClientMayEditStepAnswers({
+      applicationId: id,
+      wizardStepId: parsed.data.wizardStepId,
+      approvalRequired: wizardStep?.approvalRequired ?? false,
+    })
+    if (!editCheck.ok) {
+      return addCorsHeaders(
+        createErrorResponse(ErrorCodes.VALIDATION_ERROR, editCheck.message, 400, {
+          requestId,
+        })
+      )
+    }
+
     await upsertStepAnswers({
       applicationId: id,
       wizardStepId: parsed.data.wizardStepId,
       answers: parsed.data.answers,
       updatedById: authResult.user.userId,
       currentStepIndex: parsed.data.currentStepIndex,
+    })
+
+    await syncStepReviewAfterClientSave({
+      applicationId: id,
+      wizardStepId: parsed.data.wizardStepId,
+      approvalRequired: wizardStep?.approvalRequired ?? false,
+      answers: parsed.data.answers,
     })
 
     const detail = await getWizardApplicationDetail(id)

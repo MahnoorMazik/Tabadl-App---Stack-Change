@@ -28,6 +28,7 @@ model User {
   assignedApplications Application[]      @relation("ApplicationAssignedTo")
   assignedWizardApplications WizardApplication[] @relation("WizardApplicationAssignedTo")
   wizardAnswerUpdates  WizardApplicationAnswer[] @relation("WizardAnswerUpdatedBy")
+  wizardStepReviews    WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
   clientProfile        Client?
   reviewedDocs         Document[]         @relation("DocumentReviewer")
   uploadedDocs         Document[]         @relation("DocumentUploader")
@@ -413,12 +414,14 @@ model ApplicationWizardStep {
   wizardId        String
   formTemplateId  String
   sortOrder       Int               @default(0)
-  paymentRequired Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  wizard          ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
-  formTemplate    FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
-  answers         WizardApplicationAnswer[]
+  paymentRequired  Boolean           @default(false)
+  approvalRequired Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+  answers          WizardApplicationAnswer[]
+  stepReviews      WizardApplicationStepReview[]
 
   @@unique([wizardId, formTemplateId])
   @@index([wizardId, sortOrder])
@@ -445,6 +448,7 @@ model WizardApplication {
   wizard            ApplicationWizard       @relation(fields: [wizardId], references: [id], onDelete: Restrict)
   assignedTo        User?                   @relation("WizardApplicationAssignedTo", fields: [assignedToId], references: [id])
   answers           WizardApplicationAnswer[]
+  stepReviews       WizardApplicationStepReview[]
 
   @@index([isDeleted])
   @@index([clientId, isDeleted])
@@ -474,6 +478,27 @@ model WizardApplicationAnswer {
   @@index([wizardStepId])
   @@index([fieldId])
   @@map("wizard_application_answers")
+}
+
+model WizardApplicationStepReview {
+  id            String                    @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  status        WizardStepApprovalStatus  @default(PENDING)
+  rejectionNote String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  application   WizardApplication         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  wizardStep    ApplicationWizardStep     @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  reviewedBy    User?                     @relation("WizardStepReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([applicationId, wizardStepId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@index([status])
+  @@map("wizard_application_step_reviews")
 }
 
 model ApplicationWizardService {
@@ -1015,6 +1040,12 @@ enum ApplicationStatus {
   APPROVED
   REJECTED
   COMPLETED
+}
+
+enum WizardStepApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum WizardApplicationStatus {

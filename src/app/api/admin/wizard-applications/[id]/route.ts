@@ -18,6 +18,7 @@ import {
   upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
 import { isWizardStepInArea } from '@/lib/wizards/merged-area-wizard'
+import { setStepApproval } from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -46,6 +47,13 @@ const patchSchema = z.object({
         fileUrl: z.string().nullable().optional(),
       })
     )
+    .optional(),
+  stepApproval: z
+    .object({
+      wizardStepId: z.string().min(1),
+      status: z.enum(['APPROVED', 'REJECTED']),
+      rejectionNote: z.string().max(2000).nullable().optional(),
+    })
     .optional(),
 })
 
@@ -147,6 +155,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = patchSchema.safeParse(body)
     if (!parsed.success) {
       return zodErrorResponse(parsed.error, requestId)
+    }
+
+    if (parsed.data.stepApproval) {
+      const stepOk = await isWizardStepInArea(
+        parsed.data.stepApproval.wizardStepId,
+        existing.areaOfInterest
+      )
+      if (!stepOk) {
+        return addCorsHeaders(
+          createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'Invalid wizard step', 400, {
+            requestId,
+          })
+        )
+      }
+      await setStepApproval({
+        applicationId: id,
+        wizardStepId: parsed.data.stepApproval.wizardStepId,
+        status: parsed.data.stepApproval.status,
+        reviewedById: authResult.user.userId,
+        rejectionNote: parsed.data.stepApproval.rejectionNote,
+      })
     }
 
     if (parsed.data.wizardStepId && parsed.data.answers) {

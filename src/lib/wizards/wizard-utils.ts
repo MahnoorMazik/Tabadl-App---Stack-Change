@@ -91,6 +91,7 @@ export function mapWizardDetail(
       formTemplateId: step.formTemplateId,
       formName: step.formTemplate.name,
       paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
       sortOrder: step.sortOrder,
     })),
   }
@@ -107,6 +108,7 @@ export async function replaceWizardRelations(
       formTemplateId: string
       sortOrder: number
       paymentRequired: boolean
+      approvalRequired: boolean
     }>
   }
 ) {
@@ -138,6 +140,7 @@ export async function replaceWizardRelations(
           formTemplateId: step.formTemplateId,
           sortOrder: step.sortOrder,
           paymentRequired: step.paymentRequired,
+          approvalRequired: step.approvalRequired,
         })),
       })
     }

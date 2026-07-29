@@ -4,6 +4,7 @@ import { AREA_OF_INTEREST_KEYS } from '@/lib/validations/forms'
 const wizardStepSchema = z.object({
   formTemplateId: z.string().min(1, 'Form template is required'),
   paymentRequired: z.boolean().optional().default(false),
+  approvalRequired: z.boolean().optional().default(false),
   sortOrder: z.number().int().min(0).optional(),
 })
 
@@ -65,5 +66,6 @@ export function normalizeWizardSteps(steps: ApplicationWizardStepInput[]) {
       formTemplateId: step.formTemplateId,
       sortOrder: index,
       paymentRequired: step.paymentRequired ?? false,
+      approvalRequired: step.approvalRequired ?? false,
     }))
 }

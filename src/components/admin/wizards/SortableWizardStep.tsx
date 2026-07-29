@@ -93,7 +93,6 @@ export function SortableWizardStep({
 
           {/* Payment required */}
           <div className="flex items-center gap-2">
-            {/* <CreditCard className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> */}
             <Label
               htmlFor={`payment-${step.id}`}
               className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
@@ -105,6 +104,22 @@ export function SortableWizardStep({
               checked={step.paymentRequired}
               onCheckedChange={(checked) =>
                 onUpdate(step.id, { paymentRequired: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label
+              htmlFor={`approval-${step.id}`}
+              className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
+            >
+              Approval required
+            </Label>
+            <Switch
+              id={`approval-${step.id}`}
+              checked={step.approvalRequired}
+              onCheckedChange={(checked) =>
+                onUpdate(step.id, { approvalRequired: checked })
               }
             />
           </div>

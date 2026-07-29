@@ -51,6 +51,9 @@ type AppDetail = {
     formName: string
     formTemplateId?: string
     paymentRequired: boolean
+    approvalRequired?: boolean
+    approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+    rejectionNote?: string | null
     fields: Array<{
       fieldId: string
       label: string
@@ -89,6 +92,7 @@ export default function AdminApplicationDetailPage() {
   const [addFormId, setAddFormId] = useState<string>('')
   const [addPayment, setAddPayment] = useState(false)
   const [addingStep, setAddingStep] = useState(false)
+  const [reviewSaving, setReviewSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -233,6 +237,32 @@ export default function AdminApplicationDetailPage() {
     }
   }
 
+  const reviewStep = async (status: 'APPROVED' | 'REJECTED') => {
+    if (!app || !currentStep) return
+    setReviewSaving(true)
+    try {
+      const res = await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
+        stepApproval: { wizardStepId: currentStep.id, status },
+      })
+      setApp(res.data?.data?.application as AppDetail)
+      toast({
+        title: status === 'APPROVED' ? 'Step approved' : 'Step rejected',
+        description:
+          status === 'APPROVED'
+            ? 'The client cannot change approved answers on this step.'
+            : 'The client can edit this step and save again for review.',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Could not update step review',
+        description: error.response?.data?.error?.message || error.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setReviewSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <AdminPageTemplate
@@ -263,6 +293,13 @@ export default function AdminApplicationDetailPage() {
     paymentRequired: step.paymentRequired,
     filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
   }))
+
+  const currentStepHasSaved =
+    currentStep?.fields.some((f) => f.answer?.value || f.answer?.fileUrl) ?? false
+  const showStepReviewActions =
+    Boolean(currentStep?.approvalRequired) &&
+    currentStepHasSaved &&
+    currentStep?.approvalStatus === 'PENDING'
 
   return (
     <AdminPageTemplate
@@ -365,11 +402,54 @@ export default function AdminApplicationDetailPage() {
                   stepIndex={stepIndex}
                   totalSteps={app.steps.length}
                   paymentRequired={currentStep.paymentRequired}
+                  approvalRequired={currentStep.approvalRequired}
+                  approvalStatus={currentStep.approvalStatus ?? null}
+                  rejectionNote={currentStep.rejectionNote}
                   isLastStep={stepIndex >= app.steps.length - 1}
                   saving={saving}
                   saveIndicator={saveIndicator}
                   engaging
                   saveExitLabel="Save"
+                  headerActions={
+                    <>
+                      {currentStep.approvalStatus === 'APPROVED' && (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                          Approved
+                        </Badge>
+                      )}
+                      {currentStep.approvalStatus === 'REJECTED' && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          Rejected
+                        </Badge>
+                      )}
+                      {showStepReviewActions && (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={reviewSaving || saving}
+                            onClick={() => void reviewStep('REJECTED')}
+                          >
+                            Reject
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="bg-emerald-700 hover:bg-emerald-800"
+                            disabled={reviewSaving || saving}
+                            onClick={() => void reviewStep('APPROVED')}
+                          >
+                            {reviewSaving ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              'Approve'
+                            )}
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  }
                   onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
                   onSave={async (answers, opts) => {
                     await saveAnswers(answers)

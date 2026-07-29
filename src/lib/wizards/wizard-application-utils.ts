@@ -98,6 +98,7 @@ const applicationInclude = {
     select: { id: true, name: true, email: true },
   },
   answers: true,
+  stepReviews: true,
 } as const
 
 export async function getWizardApplicationDetail(id: string) {
@@ -112,8 +113,13 @@ export async function mapWizardApplicationDetail(
 ) {
   const mergedSteps = await fetchMergedStepsForArea(app.areaOfInterest)
 
+  const reviewByStepId = new Map(
+    app.stepReviews.map((r) => [r.wizardStepId, r])
+  )
+
   const steps = mergedSteps.map((step, index) => {
     const stepAnswers = app.answers.filter((a) => a.wizardStepId === step.id)
+    const review = reviewByStepId.get(step.id)
     const answersByField: Record<string, { value: string | null; fileUrl: string | null }> = {}
     for (const answer of stepAnswers) {
       answersByField[answer.fieldId] = {
@@ -126,6 +132,9 @@ export async function mapWizardApplicationDetail(
       id: step.id,
       sortOrder: step.sortOrder,
       paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
+      approvalStatus: review?.status ?? null,
+      rejectionNote: review?.rejectionNote ?? null,
       index,
       formTemplateId: step.formTemplateId,
       formName: step.formTemplate.name,
