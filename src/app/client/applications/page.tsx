@@ -38,12 +38,19 @@ import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
 
-type WizardItem = {
-  id: string
-  name: string
+type MergedFlow = {
   areaOfInterest: AreaOfInterestKey
-  stepCount: number
-  steps: Array<{ id: string; formName: string; fieldCount: number; paymentRequired: boolean }>
+  title: string
+  totalSteps: number
+  wizardCount: number
+  steps: Array<{
+    index: number
+    id: string
+    formName: string
+    fieldCount: number
+    paymentRequired: boolean
+    sourceWizardName?: string
+  }>
 }
 
 type ApplicationItem = {
@@ -86,11 +93,11 @@ export default function ClientApplicationsPage() {
   } = useMobileSidebar()
   const [activeTab, setActiveTab] = useState<'new' | 'applied'>('new')
   const [selectedArea, setSelectedArea] = useState<AreaOfInterestKey | null>(null)
-  const [wizards, setWizards] = useState<WizardItem[]>([])
+  const [mergedFlow, setMergedFlow] = useState<MergedFlow | null>(null)
   const [applications, setApplications] = useState<ApplicationItem[]>([])
   const [loadingWizards, setLoadingWizards] = useState(false)
   const [loadingApps, setLoadingApps] = useState(true)
-  const [startingId, setStartingId] = useState<string | null>(null)
+  const [startingArea, setStartingArea] = useState<AreaOfInterestKey | null>(null)
 
   const fetchApplications = useCallback(async (silent = false) => {
     if (!silent) setLoadingApps(true)
@@ -129,7 +136,7 @@ export default function ClientApplicationsPage() {
 
   useEffect(() => {
     if (!selectedArea) {
-      setWizards([])
+      setMergedFlow(null)
       return
     }
     let cancelled = false
@@ -137,12 +144,12 @@ export default function ClientApplicationsPage() {
       setLoadingWizards(true)
       try {
         const res = await axios.get(`/api/client/wizards?areaOfInterest=${selectedArea}`)
-        if (!cancelled) setWizards(res.data?.data?.wizards ?? [])
+        if (!cancelled) setMergedFlow(res.data?.data?.merged ?? null)
       } catch {
         if (!cancelled) {
-          setWizards([])
+          setMergedFlow(null)
           toast({
-            title: 'Could not load wizards',
+            title: 'Could not load application flow',
             description: 'Please try again.',
             variant: 'destructive',
           })
@@ -157,10 +164,14 @@ export default function ClientApplicationsPage() {
     }
   }, [selectedArea, toast])
 
-  const startWizard = async (wizardId: string) => {
-    setStartingId(wizardId)
+  const draftForSelectedArea = selectedArea
+    ? applications.find((a) => a.areaOfInterest === selectedArea && a.status === 'DRAFT')
+    : undefined
+
+  const startApplicationForArea = async (area: AreaOfInterestKey) => {
+    setStartingArea(area)
     try {
-      const res = await axios.post('/api/client/wizard-applications', { wizardId })
+      const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
       const app = res.data?.data?.application
       if (app?.id) {
         router.push(`/client/applications/${app.id}`)
@@ -172,7 +183,7 @@ export default function ClientApplicationsPage() {
         variant: 'destructive',
       })
     } finally {
-      setStartingId(null)
+      setStartingArea(null)
     }
   }
 
@@ -241,7 +252,8 @@ export default function ClientApplicationsPage() {
                 <CardHeader>
                   <CardTitle className="text-base">Start a new application</CardTitle>
                   <CardDescription>
-                    Choose your area of interest — matching forms set up by admin will appear below.
+                    Choose your area of interest — all forms for that service run in one continuous
+                    wizard.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -273,50 +285,69 @@ export default function ClientApplicationsPage() {
                   </div>
 
                   {selectedArea && (
-                    <div className="space-y-2 pt-1">
-                      <p className="text-sm font-medium">Available applications</p>
+                    <div className="space-y-3 pt-1">
                       {loadingWizards ? (
                         <div className="flex justify-center py-8">
                           <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
                         </div>
-                      ) : wizards.length === 0 ? (
+                      ) : !mergedFlow || mergedFlow.totalSteps === 0 ? (
                         <Alert>
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription>
-                            No wizards available for {selectedArea} yet. Please check back later.
+                            No forms available for {selectedArea} yet. Please check back later.
                           </AlertDescription>
                         </Alert>
                       ) : (
-                        <div className="grid gap-2">
-                          {wizards.map((wizard) => (
-                            <div
-                              key={wizard.id}
-                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white dark:bg-card p-3"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm">{wizard.name}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {wizard.stepCount} step{wizard.stepCount === 1 ? '' : 's'}
-                                  {wizard.steps[0]
-                                    ? ` · starts with “${wizard.steps[0].formName}”`
-                                    : ''}
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                className="bg-emerald-700 hover:bg-emerald-800"
-                                onClick={() => startWizard(wizard.id)}
-                                disabled={startingId === wizard.id}
-                              >
-                                {startingId === wizard.id ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <Play className="h-4 w-4 mr-2" />
-                                )}
-                                Open & fill
-                              </Button>
+                        <div className="rounded-lg border bg-white dark:bg-card p-4 space-y-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm">{mergedFlow.title}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {mergedFlow.totalSteps} form step
+                                {mergedFlow.totalSteps === 1 ? '' : 's'} in one flow
+                                {mergedFlow.wizardCount > 1
+                                  ? ` (combined from ${mergedFlow.wizardCount} admin setups)`
+                                  : ''}
+                              </p>
                             </div>
-                          ))}
+                            <Button
+                              size="sm"
+                              className="bg-emerald-700 hover:bg-emerald-800 shrink-0"
+                              onClick={() => {
+                                if (draftForSelectedArea) {
+                                  router.push(`/client/applications/${draftForSelectedArea.id}`)
+                                  return
+                                }
+                                void startApplicationForArea(selectedArea)
+                              }}
+                              disabled={startingArea === selectedArea}
+                            >
+                              {startingArea === selectedArea ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Play className="h-4 w-4 mr-2" />
+                              )}
+                              {draftForSelectedArea ? 'Continue application' : 'Start application'}
+                            </Button>
+                          </div>
+                          <ol className="space-y-1.5 text-sm border-t pt-3 max-h-56 overflow-y-auto">
+                            {mergedFlow.steps.map((step) => (
+                              <li
+                                key={step.id}
+                                className="flex items-center gap-2 text-muted-foreground"
+                              >
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs font-medium">
+                                  {step.index}
+                                </span>
+                                <span className="text-foreground truncate">{step.formName}</span>
+                                {step.paymentRequired && (
+                                  <Badge variant="outline" className="text-[10px] shrink-0">
+                                    Payment
+                                  </Badge>
+                                )}
+                              </li>
+                            ))}
+                          </ol>
                         </div>
                       )}
                     </div>

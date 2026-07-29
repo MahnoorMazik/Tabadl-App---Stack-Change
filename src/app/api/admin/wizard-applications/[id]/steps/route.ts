@@ -123,7 +123,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const detail = await getWizardApplicationDetail(id)
     return addCorsHeaders(
       createSuccessResponse(
-        { application: mapWizardApplicationDetail(detail!) },
+        { application: await mapWizardApplicationDetail(detail!) },
         201,
         { requestId, message: 'Step added' }
       )

@@ -18,6 +18,7 @@ import {
   mapWizardApplicationDetail,
   upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
+import { isWizardStepInArea } from '@/lib/wizards/merged-area-wizard'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const detail = await getWizardApplicationDetail(id)
     return addCorsHeaders(
       createSuccessResponse(
-        { application: mapWizardApplicationDetail(detail!) },
+        { application: await mapWizardApplicationDetail(detail!) },
         200,
         { requestId, message: 'Application retrieved' }
       )
@@ -161,13 +162,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return zodErrorResponse(parsed.error, requestId)
     }
 
-    const stepBelongs = await db.applicationWizardStep.findFirst({
-      where: {
-        id: parsed.data.wizardStepId,
-        wizardId: app.wizardId,
-      },
-    })
-    if (!stepBelongs) {
+    const stepValid = await isWizardStepInArea(
+      parsed.data.wizardStepId,
+      app.areaOfInterest
+    )
+    if (!stepValid) {
       return addCorsHeaders(
         createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'Invalid wizard step', 400, {
           requestId,
@@ -186,7 +185,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const detail = await getWizardApplicationDetail(id)
     return addCorsHeaders(
       createSuccessResponse(
-        { application: mapWizardApplicationDetail(detail!) },
+        { application: await mapWizardApplicationDetail(detail!) },
         200,
         { requestId, message: 'Progress saved' }
       )

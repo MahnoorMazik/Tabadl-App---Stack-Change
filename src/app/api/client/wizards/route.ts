@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server'
 import { AreaOfInterest, UserRole } from '@prisma/client'
-import { db } from '@/lib/db'
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -11,10 +10,14 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 import { requireAuth } from '@/lib/rbac-middleware'
+import {
+  fetchMergedStepsForArea,
+  mergedApplicationDisplayName,
+} from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
 
-/** GET /api/client/wizards?areaOfInterest=CR — active wizards for clients */
+/** GET /api/client/wizards?areaOfInterest=CR — merged flow for one service area */
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request)
 
@@ -46,54 +49,46 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const area = searchParams.get('areaOfInterest')?.toUpperCase()
 
-    const where: Record<string, unknown> = {
-      isDeleted: false,
-      isActive: true,
+    if (!area || !['CR', 'PR', 'GR'].includes(area)) {
+      return addCorsHeaders(
+        createErrorResponse(
+          ErrorCodes.VALIDATION_ERROR,
+          'areaOfInterest query (CR, PR, or GR) is required',
+          400,
+          { requestId }
+        )
+      )
     }
 
-    if (area && ['CR', 'PR', 'GR'].includes(area)) {
-      where.areaOfInterest = area as AreaOfInterest
+    const areaOfInterest = area as AreaOfInterest
+    const mergedSteps = await fetchMergedStepsForArea(areaOfInterest)
+
+    const wizardIds = new Set<string>()
+    for (const step of mergedSteps) {
+      wizardIds.add(step.sourceWizardId)
     }
 
-    const wizards = await db.applicationWizard.findMany({
-      where,
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        steps: {
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            formTemplate: {
-              select: {
-                id: true,
-                name: true,
-                _count: { select: { fields: true } },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    const mapped = wizards.map((wizard) => ({
-      id: wizard.id,
-      name: wizard.name,
-      areaOfInterest: wizard.areaOfInterest,
-      stepCount: wizard.steps.length,
-      steps: wizard.steps.map((step) => ({
+    const merged = {
+      areaOfInterest,
+      title: mergedApplicationDisplayName(areaOfInterest),
+      totalSteps: mergedSteps.length,
+      wizardCount: wizardIds.size,
+      steps: mergedSteps.map((step, index) => ({
+        index: index + 1,
         id: step.id,
         formTemplateId: step.formTemplateId,
         formName: step.formTemplate.name,
-        fieldCount: step.formTemplate._count.fields,
+        fieldCount: step.formTemplate.fields.length,
         paymentRequired: step.paymentRequired,
-        sortOrder: step.sortOrder,
+        sourceWizardName: step.sourceWizardName,
       })),
-    }))
+    }
 
     return addCorsHeaders(
       createSuccessResponse(
-        { wizards: mapped },
+        { merged },
         200,
-        { requestId, message: 'Wizards retrieved successfully' }
+        { requestId, message: 'Merged application flow retrieved' }
       )
     )
   } catch (error: unknown) {

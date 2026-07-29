@@ -18,12 +18,22 @@ import {
   getWizardApplicationDetail,
   mapWizardApplicationDetail,
 } from '@/lib/wizards/wizard-application-utils'
+import {
+  countMergedStepsByAreas,
+  getAnchorWizardForArea,
+  mergedApplicationDisplayName,
+} from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
 
-const startSchema = z.object({
-  wizardId: z.string().min(1),
-})
+const startSchema = z
+  .object({
+    wizardId: z.string().min(1).optional(),
+    areaOfInterest: z.enum(['CR', 'PR', 'GR']).optional(),
+  })
+  .refine((data) => data.wizardId || data.areaOfInterest, {
+    message: 'Provide areaOfInterest or wizardId',
+  })
 
 /** GET /api/client/wizard-applications — all my started + submitted applications */
 export async function GET(request: NextRequest) {
@@ -83,10 +93,15 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const stepCounts = await countMergedStepsByAreas(
+      applications.map((app) => app.areaOfInterest)
+    )
+
     const mapped = applications.map((app) => {
       const answeredSteps = new Set(
         app.answers.filter((a) => a.value || a.fileUrl).map((a) => a.wizardStepId)
       )
+      const totalSteps = stepCounts[app.areaOfInterest] ?? 0
       return {
         id: app.id,
         applicationNumber: app.applicationNumber,
@@ -99,11 +114,11 @@ export async function GET(request: NextRequest) {
         adminNotes: app.adminNotes,
         wizard: {
           id: app.wizard.id,
-          name: app.wizard.name,
+          name: mergedApplicationDisplayName(app.areaOfInterest),
           areaOfInterest: app.wizard.areaOfInterest,
         },
         progress: {
-          totalSteps: app.wizard.steps.length,
+          totalSteps,
           completedSteps: answeredSteps.size,
           currentStepIndex: app.currentStepIndex,
         },
@@ -169,38 +184,54 @@ export async function POST(request: NextRequest) {
       return zodErrorResponse(parsed.error, requestId)
     }
 
-    const wizard = await db.applicationWizard.findFirst({
-      where: {
-        id: parsed.data.wizardId,
-        isDeleted: false,
-        isActive: true,
-      },
-      include: {
-        steps: { orderBy: { sortOrder: 'asc' }, select: { id: true } },
-      },
-    })
+    let wizard: { id: string; areaOfInterest: AreaOfInterest } | null = null
 
-    if (!wizard) {
-      return addCorsHeaders(
-        createErrorResponse(ErrorCodes.NOT_FOUND_ERROR, 'Wizard not found or inactive', 404, {
-          requestId,
-        })
-      )
+    if (parsed.data.areaOfInterest) {
+      const area = parsed.data.areaOfInterest as AreaOfInterest
+      const anchor = await getAnchorWizardForArea(area)
+      if (!anchor) {
+        return addCorsHeaders(
+          createErrorResponse(
+            ErrorCodes.NOT_FOUND_ERROR,
+            'No forms available for this service yet',
+            404,
+            { requestId }
+          )
+        )
+      }
+      wizard = { id: anchor.id, areaOfInterest: anchor.areaOfInterest }
+    } else {
+      const found = await db.applicationWizard.findFirst({
+        where: {
+          id: parsed.data.wizardId!,
+          isDeleted: false,
+          isActive: true,
+        },
+        include: {
+          steps: { orderBy: { sortOrder: 'asc' }, select: { id: true } },
+        },
+      })
+      if (!found) {
+        return addCorsHeaders(
+          createErrorResponse(ErrorCodes.NOT_FOUND_ERROR, 'Wizard not found or inactive', 404, {
+            requestId,
+          })
+        )
+      }
+      if (found.steps.length === 0) {
+        return addCorsHeaders(
+          createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'Wizard has no steps', 400, {
+            requestId,
+          })
+        )
+      }
+      wizard = { id: found.id, areaOfInterest: found.areaOfInterest as AreaOfInterest }
     }
 
-    if (wizard.steps.length === 0) {
-      return addCorsHeaders(
-        createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'Wizard has no steps', 400, {
-          requestId,
-        })
-      )
-    }
-
-    // Resume in-progress draft only; submitted apps stay listed separately
     const existingDraft = await db.wizardApplication.findFirst({
       where: {
         clientId: access.client.id,
-        wizardId: wizard.id,
+        areaOfInterest: wizard.areaOfInterest,
         isDeleted: false,
         status: WizardApplicationStatus.DRAFT,
       },
@@ -211,7 +242,7 @@ export async function POST(request: NextRequest) {
       const detail = await getWizardApplicationDetail(existingDraft.id)
       return addCorsHeaders(
         createSuccessResponse(
-          { application: mapWizardApplicationDetail(detail!) },
+          { application: await mapWizardApplicationDetail(detail!) },
           200,
           { requestId, message: 'Existing application resumed' }
         )
@@ -223,7 +254,7 @@ export async function POST(request: NextRequest) {
         applicationNumber: generateWizardApplicationNumber(),
         clientId: access.client.id,
         wizardId: wizard.id,
-        areaOfInterest: wizard.areaOfInterest as AreaOfInterest,
+        areaOfInterest: wizard.areaOfInterest,
         status: WizardApplicationStatus.DRAFT,
         currentStepIndex: 0,
       },
@@ -233,7 +264,7 @@ export async function POST(request: NextRequest) {
 
     return addCorsHeaders(
       createSuccessResponse(
-        { application: mapWizardApplicationDetail(detail!) },
+        { application: await mapWizardApplicationDetail(detail!) },
         201,
         { requestId, message: 'Application started' }
       )

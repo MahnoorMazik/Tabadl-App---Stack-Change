@@ -10,6 +10,10 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 import { requireAuth } from '@/lib/rbac-middleware'
+import {
+  countMergedStepsByAreas,
+  mergedApplicationDisplayName,
+} from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
 
@@ -95,10 +99,15 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const stepCounts = await countMergedStepsByAreas(
+      applications.map((app) => app.areaOfInterest)
+    )
+
     const mapped = applications.map((app) => {
       const answeredSteps = new Set(
         app.answers.filter((a) => a.value || a.fileUrl).map((a) => a.wizardStepId)
       )
+      const totalSteps = stepCounts[app.areaOfInterest] ?? 0
       return {
         id: app.id,
         applicationNumber: app.applicationNumber,
@@ -113,11 +122,11 @@ export async function GET(request: NextRequest) {
         assignedTo: app.assignedTo,
         wizard: {
           id: app.wizard.id,
-          name: app.wizard.name,
+          name: mergedApplicationDisplayName(app.areaOfInterest),
           areaOfInterest: app.wizard.areaOfInterest,
         },
         progress: {
-          totalSteps: app.wizard.steps.length,
+          totalSteps,
           completedSteps: answeredSteps.size,
           currentStepIndex: app.currentStepIndex,
         },

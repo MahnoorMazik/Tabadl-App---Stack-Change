@@ -15,6 +15,7 @@ import {
   getWizardApplicationDetail,
   mapWizardApplicationDetail,
 } from '@/lib/wizards/wizard-application-utils'
+import { countMergedStepsForArea } from '@/lib/wizards/merged-area-wizard'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -54,9 +55,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const app = await db.wizardApplication.findFirst({
       where: { id, clientId: access.client.id, isDeleted: false },
-      include: {
-        wizard: { include: { steps: true } },
-      },
     })
 
     if (!app) {
@@ -75,19 +73,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
+    const totalSteps = await countMergedStepsForArea(app.areaOfInterest)
+
     await db.wizardApplication.update({
       where: { id },
       data: {
         status: WizardApplicationStatus.PENDING,
         submittedAt: new Date(),
-        currentStepIndex: Math.max(0, app.wizard.steps.length - 1),
+        currentStepIndex: Math.max(0, totalSteps - 1),
       },
     })
 
     const detail = await getWizardApplicationDetail(id)
     return addCorsHeaders(
       createSuccessResponse(
-        { application: mapWizardApplicationDetail(detail!) },
+        { application: await mapWizardApplicationDetail(detail!) },
         200,
         { requestId, message: 'Application submitted — status is now Pending' }
       )

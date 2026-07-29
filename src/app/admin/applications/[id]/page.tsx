@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import {
   wizardStatusSelectTriggerClasses,
 } from '@/lib/wizards/wizard-status'
+import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 
 type AppDetail = {
   id: string
@@ -256,6 +257,13 @@ export default function AdminApplicationDetailPage() {
   )
   const availableForms = forms.filter((f) => !existingTemplateIds.has(f.id))
 
+  const stepNavItems = app.steps.map((step) => ({
+    id: step.id,
+    formName: step.formName,
+    paymentRequired: step.paymentRequired,
+    filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
+  }))
+
   return (
     <AdminPageTemplate
       title={app.wizard.name}
@@ -271,7 +279,7 @@ export default function AdminApplicationDetailPage() {
         </Button>
       }
     >
-      <div className="flex flex-col xl:flex-row gap-5 items-start max-w-6xl">
+      <div className="flex flex-col xl:flex-row gap-5 items-start max-w-7xl">
         <div className="flex-1 min-w-0 space-y-4 w-full">
           {/* Overview */}
           <Card>
@@ -338,83 +346,17 @@ export default function AdminApplicationDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Steps */}
-          <div className="flex flex-wrap gap-2 items-center">
-            {app.steps.map((step, i) => {
-              const filled = step.fields.some((f) => f.answer?.value || f.answer?.fileUrl)
-              return (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => setStepIndex(i)}
-                  className={cn(
-                    'rounded-md border px-3 py-1.5 text-sm transition',
-                    i === stepIndex
-                      ? 'border-emerald-400 bg-emerald-50 font-medium text-emerald-900'
-                      : 'hover:bg-muted/50'
-                  )}
-                >
-                  Step {i + 1}: {step.formName}
-                  {filled && (
-                    <span className="ml-1.5 text-[10px] text-emerald-700">filled</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
+            <ApplicationStepsNav
+              steps={stepNavItems}
+              stepIndex={stepIndex}
+              onStepSelect={setStepIndex}
+              completedCount={app.progress.completedSteps}
+              className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20"
+            />
 
-          {/* Add next step */}
-          <Card className="border-dashed border-emerald-200 bg-emerald-50/30">
-            <CardContent className="py-3 px-4 flex flex-wrap items-end gap-3">
-              <div className="space-y-1 min-w-[200px] flex-1">
-                <Label className="text-xs">Add next step (form)</Label>
-                <Select value={addFormId || undefined} onValueChange={setAddFormId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select form template…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableForms.length === 0 ? (
-                      <SelectItem value="__none" disabled>
-                        No more forms available
-                      </SelectItem>
-                    ) : (
-                      availableForms.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.name}
-                          {f.areaOfInterest ? ` (${f.areaOfInterest})` : ''}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 pb-2">
-                <Checkbox
-                  id="add-payment"
-                  checked={addPayment}
-                  onCheckedChange={(c) => setAddPayment(Boolean(c))}
-                />
-                <Label htmlFor="add-payment" className="text-xs font-normal cursor-pointer">
-                  Payment required
-                </Label>
-              </div>
-              <Button
-                size="sm"
-                className="bg-emerald-700 hover:bg-emerald-800"
-                onClick={addNextStep}
-                disabled={addingStep || !addFormId}
-              >
-                {addingStep ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-1.5" />
-                )}
-                Add step
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
+            <div className="flex-1 min-w-0 w-full space-y-4">
+              <Card>
             <CardContent className="pt-5">
               {currentStep ? (
                 <ApplicationStepForm
@@ -444,7 +386,9 @@ export default function AdminApplicationDetailPage() {
                 <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
               )}
             </CardContent>
-          </Card>
+              </Card>
+            </div>
+          </div>
         </div>
 
         {/* Sticky note panel — right */}
