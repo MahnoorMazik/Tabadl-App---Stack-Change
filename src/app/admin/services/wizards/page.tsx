@@ -216,7 +216,7 @@ export default function WizardsPage() {
   return (
     <AdminPageTemplate
       title="Wizards"
-      description="CR and PR each have their own live wizard. Only one active wizard per service (CR or PR), not shared between both."
+      description=""
       icon={<Layers className="h-5 w-5 text-emerald-600" />}
       showConstruction={false}
       requiredPermission={`${Module.SERVICES}.${Action.VIEW}`}
@@ -227,7 +227,7 @@ export default function WizardsPage() {
           onClick={openCreate}
         >
           <Plus className="h-4 w-4 mr-1" />
-          Create Wizard
+          Create Application
         </Button>
       }
     >
@@ -287,7 +287,7 @@ export default function WizardsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Steps</TableHead>
-                    <TableHead className="w-[120px]">Client live</TableHead>
+                    <TableHead className="w-[120px]">Status</TableHead>
                     <TableHead className="w-24">Created</TableHead>
                     <TableHead className="w-36 text-right">Actions</TableHead>
                   </TableRow>
@@ -299,11 +299,11 @@ export default function WizardsPage() {
                     return (
                     <TableRow key={wizard.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium max-w-48">
-                        <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex flex-row gap-2 min-w-0">
                           <span className="truncate block">{wizard.name}</span>
                           {isLive && (
                             <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
-                              Live for clients
+                              Live
                             </Badge>
                           )}
                         </div>

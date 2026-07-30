@@ -141,23 +141,39 @@ export default function AdminApplicationDetailPage() {
 
   const currentStep = app?.steps[stepIndex]
 
-  const saveAnswers = async (answers: Record<string, string>) => {
+  const saveAnswers = async (
+    answers: Record<string, string>,
+    opts?: { goNext?: boolean }
+  ) => {
     if (!app || !currentStep) return
     setSaving(true)
     setSaveIndicator('saving')
     try {
-      await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
+      const nextIndex = opts?.goNext
+        ? Math.min(stepIndex + 1, app.steps.length - 1)
+        : stepIndex
+
+      const res = await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
-        currentStepIndex: stepIndex,
+        currentStepIndex: nextIndex,
         answers: Object.entries(answers).map(([fieldId, value]) => ({
           fieldId,
           value: value || null,
         })),
       })
+      const savedApp = res.data?.data?.application as AppDetail | undefined
+      if (savedApp) {
+        setApp(savedApp)
+        if (opts?.goNext) {
+          setStepIndex(nextIndex)
+        } else {
+          setStepIndex(
+            Math.min(savedApp.currentStepIndex ?? stepIndex, Math.max(0, savedApp.steps.length - 1))
+          )
+        }
+      }
       setSaveIndicator('saved')
       toast({ title: 'Answers saved' })
-      const refreshed = await axios.get(`/api/admin/wizard-applications/${app.id}`)
-      setApp(refreshed.data?.data?.application)
       setTimeout(() => setSaveIndicator('idle'), 1500)
     } catch (error: any) {
       setSaveIndicator('idle')
@@ -237,24 +253,21 @@ export default function AdminApplicationDetailPage() {
     }
   }
 
-  const reviewStep = async (status: 'APPROVED' | 'REJECTED') => {
+  const approveStep = async () => {
     if (!app || !currentStep) return
     setReviewSaving(true)
     try {
       const res = await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
-        stepApproval: { wizardStepId: currentStep.id, status },
+        stepApproval: { wizardStepId: currentStep.id, status: 'APPROVED' },
       })
       setApp(res.data?.data?.application as AppDetail)
       toast({
-        title: status === 'APPROVED' ? 'Step approved' : 'Step rejected',
-        description:
-          status === 'APPROVED'
-            ? 'The client cannot change approved answers on this step.'
-            : 'The client can edit this step and save again for review.',
+        title: 'Step approved',
+        description: 'The client cannot change approved answers on this step.',
       })
     } catch (error: any) {
       toast({
-        title: 'Could not update step review',
+        title: 'Could not approve step',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -423,39 +436,25 @@ export default function AdminApplicationDetailPage() {
                         </Badge>
                       )}
                       {showStepReviewActions && (
-                        <>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={reviewSaving || saving}
-                            onClick={() => void reviewStep('REJECTED')}
-                          >
-                            Reject
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="bg-emerald-700 hover:bg-emerald-800"
-                            disabled={reviewSaving || saving}
-                            onClick={() => void reviewStep('APPROVED')}
-                          >
-                            {reviewSaving ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              'Approve'
-                            )}
-                          </Button>
-                        </>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="bg-emerald-700 hover:bg-emerald-800"
+                          disabled={reviewSaving || saving}
+                          onClick={() => void approveStep()}
+                        >
+                          {reviewSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Approve'
+                          )}
+                        </Button>
                       )}
                     </>
                   }
                   onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
                   onSave={async (answers, opts) => {
-                    await saveAnswers(answers)
-                    if (opts?.goNext) {
-                      setStepIndex((i) => Math.min(i + 1, app.steps.length - 1))
-                    }
+                    await saveAnswers(answers, { goNext: opts?.goNext })
                   }}
                   onSaveAndExit={async (answers) => {
                     await saveAnswers(answers)
