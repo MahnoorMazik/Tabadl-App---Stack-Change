@@ -37,7 +37,7 @@ export function wizardStatusLabel(status: string): string {
 export function wizardStatusClasses(status: string): string {
   switch (status) {
     case 'DRAFT':
-      return 'bg-slate-200 text-slate-800 border-slate-300'
+      return 'border bg-gray-100 border-gray-300 text-gray-800'
     case 'PENDING':
       return 'bg-amber-200 text-amber-900 border-amber-300'
     case 'IN_PROGRESS':

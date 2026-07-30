@@ -146,7 +146,7 @@ export function ApplicationStepsNav({
                   if (accessible) onStepSelect(index)
                 }}
                 className={cn(
-                  'group w-full rounded-lg py-2 pl-2 pr-2 text-left transition-colors',
+                  'group w-full rounded-lg py-2 px-3 text-left transition-colors',
                   !accessible && 'opacity-50 cursor-not-allowed',
                   accessible && !active && 'hover:bg-muted/50',
                   active
@@ -155,32 +155,35 @@ export function ApplicationStepsNav({
                 )}
               >
                 <span className="min-w-0 block">
-                  <span
-                    className={cn(
-                      'block text-[10px] font-semibold uppercase tracking-wider',
-                      active ? 'text-emerald-700' : 'text-muted-foreground'
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={cn(
+                        'block text-xs font-semibold uppercase tracking-wider',
+                        active ? 'text-emerald-700' : 'text-muted-foreground'
+                      )}
+                    >
+                      Step {index + 1}
+                    </span>
+                    {step.paymentRequired && (
+                      <span className="inline-block mt-1 text-[10px] font-medium text-amber-800 bg-amber-100/80 border border-amber-200/60 rounded px-1.5 py-px">
+                        Payment
+                      </span>
                     )}
-                  >
-                    Step {index + 1}
-                  </span>
+                    {!accessible && (
+                      <span className="inline-block mt-1 text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
+                        Locked
+                      </span>
+                    )}
+                  </div>
                   <span
                     className={cn(
-                      'block truncate text-sm leading-snug mt-0.5',
+                      'block truncate text-sm leading-snug mt-0.5 mb-2',
                       active ? 'font-semibold text-emerald-950' : 'font-medium text-foreground'
                     )}
                   >
                     {step.formName}
                   </span>
-                  {step.paymentRequired && (
-                    <span className="inline-block mt-1 text-[10px] font-medium text-amber-800 bg-amber-100/80 border border-amber-200/60 rounded px-1.5 py-px">
-                      Payment
-                    </span>
-                  )}
-                  {!accessible && (
-                    <span className="inline-block mt-1 text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
-                      Locked
-                    </span>
-                  )}
+                  
                 </span>
               </button>
             </li>
@@ -191,12 +194,12 @@ export function ApplicationStepsNav({
   )
 
   return (
-    <Card className={cn('flex flex-col overflow-hidden border-border/80', className)}>
-      <CardHeader className="py-4 px-4 space-y-3 border-b bg-muted/20">
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Steps</h2>
+    <Card className={cn('flex flex-col overflow-hidden border-border/80 pb-0', className)}>
+      <CardHeader className="pt-4 px-4 space-y-3 border-b bg-muted/20">
+        <div className='mb-0'>
+          <h2 className="text-lg font-semibold">Steps</h2>
           
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Forms in order — {filled} of {total} completed
           </p>
         </div>

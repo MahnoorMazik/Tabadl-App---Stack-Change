@@ -154,15 +154,14 @@ export function ApplicationStepForm({
             {approvalRequired && (
               <Badge
                 variant="outline"
-                className="text-[10px] border-sky-200 bg-sky-50 text-sky-800"
+                className="text-[12px] border border-sky-300 bg-sky-100 text-sky-800"
               >
-                <ShieldCheck className="h-3 w-3 mr-1" />
-                Admin approval
+                Admin Approval
               </Badge>
             )}
             {paymentRequired && (
-              <Badge className="text-[10px] bg-violet-100 text-violet-800 hover:bg-violet-100 border border-violet-200">
-                Payment after this step
+              <Badge className="text-[12px] bg-violet-100 text-violet-800 border border-violet-300">
+                Payment Required
               </Badge>
             )}
             {saveIndicator === 'saving' && (
@@ -228,7 +227,7 @@ export function ApplicationStepForm({
             className={cn(
               'space-y-1.5 rounded-xl border p-3.5 transition-shadow',
               engaging
-                ? 'bg-white dark:bg-card border-emerald-100/80 shadow-sm hover:shadow-md hover:border-emerald-200'
+                ? 'bg-white dark:bg-card shadow-sm hover:shadow-md hover:border-emerald-200'
                 : 'bg-card'
             )}
           >
@@ -345,14 +344,14 @@ export function ApplicationStepForm({
         >
           <div className="flex gap-2">
             {onBack && stepIndex > 0 && (
-              <Button type="button" variant="outline" onClick={onBack} disabled={saving}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
+              <Button type="button" variant="outline" onClick={onBack} disabled={saving} className='cursor-pointer'>
+                <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
             )}
             {onSaveAndExit && (
-              <Button type="button" variant="outline" onClick={handleSaveExit} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button type="button" variant="outline" onClick={handleSaveExit} disabled={saving} className='cursor-pointer'>
+                <Save className="h-4 w-4 mr-1" />
                 {saveExitLabel}
               </Button>
             )}
@@ -361,7 +360,7 @@ export function ApplicationStepForm({
             type="button"
             className={cn(
               'min-w-[140px]',
-              engaging && 'bg-emerald-700 hover:bg-emerald-800 shadow-sm'
+              engaging && 'bg-emerald-700 hover:bg-emerald-800 shadow-sm cursor-pointer'
             )}
             onClick={handleContinue}
             disabled={saving}

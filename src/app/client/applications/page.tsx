@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import axios from 'axios'
 import { format } from 'date-fns'
@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -30,6 +31,10 @@ import {
   ArrowRight,
   Plus,
   ListChecks,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
@@ -51,10 +56,11 @@ type ApplicationItem = {
 }
 
 const LAUNCH_MIN_MS = 1400
+const PAGE_SIZE = 10
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status))}>
+    <Badge className={cn('border hover:opacity-100 px-2 py-0.5 font-medium rounded-md', wizardStatusClasses(status))}>
       {status === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
       {(status === 'APPROVED' || status === 'COMPLETED') && (
         <CheckCircle className="h-3 w-3 mr-1" />
@@ -81,6 +87,8 @@ export default function ClientApplicationsPage() {
   const [activeTab, setActiveTab] = useState<'new' | 'applied'>('new')
   const [applications, setApplications] = useState<ApplicationItem[]>([])
   const [loadingApps, setLoadingApps] = useState(true)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [launch, setLaunch] = useState<{
     area: AreaOfInterestKey
     label: string
@@ -121,6 +129,33 @@ export default function ClientApplicationsPage() {
     }, 12000)
     return () => clearInterval(timer)
   }, [authLoading, user, fetchApplications])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  const filteredApplications = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return applications
+    return applications.filter((app) => {
+      const areaLabel = areaOfInterestDisplayLabel(app.areaOfInterest).toLowerCase()
+      return (
+        app.wizard.name.toLowerCase().includes(q) ||
+        app.applicationNumber.toLowerCase().includes(q) ||
+        app.areaOfInterest.toLowerCase().includes(q) ||
+        areaLabel.includes(q) ||
+        app.status.toLowerCase().includes(q) ||
+        (app.adminNotes?.toLowerCase().includes(q) ?? false)
+      )
+    })
+  }, [applications, search])
+
+  const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedApplications = filteredApplications.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  )
 
   const draftForArea = (area: AreaOfInterestKey) =>
     applications.find((a) => a.areaOfInterest === area && a.status === 'DRAFT')
@@ -193,30 +228,38 @@ export default function ClientApplicationsPage() {
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Tabs
             value={activeTab}
             onValueChange={(v) => setActiveTab(v as 'new' | 'applied')}
             className="space-y-4"
           >
-            <TabsList className="grid w-full grid-cols-2 h-auto p-1.5 gap-1.5 bg-slate-100 dark:bg-muted/40 rounded-xl">
+            <TabsList className="gap-3 flex justify-end ml-auto h-auto bg-transparent p-0 rounded-none shadow-none">
               <TabsTrigger
                 value="new"
                 className={cn(
-                  'gap-1.5 py-2.5 rounded-lg font-medium transition-all',
-                  'data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md',
-                  'data-[state=inactive]:bg-white data-[state=inactive]:text-emerald-800 dark:data-[state=inactive]:bg-card'
+                  'gap-2 px-4 py-2.5 rounded-md text-sm font-medium w-auto flex-none border shadow-none',
+                  'transition-[color,background-color,border-color] duration-200 ease-out cursor-pointer',
+                  'data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-800',
+                  'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
+                  'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
+                  'data-[state=inactive]:border-gray-300',
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border'
                 )}
               >
-                <Plus className="h-4 w-4" />
+                <FileText className="h-4 w-4" />
                 New application
               </TabsTrigger>
               <TabsTrigger
                 value="applied"
                 className={cn(
-                  'gap-1.5 py-2.5 rounded-lg font-medium transition-all',
-                  'data-[state=active]:bg-sky-600 data-[state=active]:text-white data-[state=active]:shadow-md',
-                  'data-[state=inactive]:bg-white data-[state=inactive]:text-sky-800 dark:data-[state=inactive]:bg-card'
+                  'gap-2 px-4 py-2.5 rounded-md text-sm font-medium w-auto flex-none border shadow-none',
+                  'transition-[color,background-color,border-color] duration-200 ease-out cursor-pointer',
+                  'data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-800',
+                  'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
+                  'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
+                  'data-[state=inactive]:border-gray-300',
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border'
                 )}
               >
                 <ListChecks className="h-4 w-4" />
@@ -224,10 +267,10 @@ export default function ClientApplicationsPage() {
                 {applications.length > 0 && (
                   <Badge
                     className={cn(
-                      'ml-1 text-[10px] h-5 px-1.5 border-0',
+                      'text-[11px] h-5 min-w-5 px-1.5 justify-center border transition-colors duration-200 ease-out',
                       activeTab === 'applied'
-                        ? 'bg-white/25 text-white'
-                        : 'bg-sky-100 text-sky-800'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-500'
+                        : 'bg-gray-100 border-gray-300 text-gray-700'
                     )}
                   >
                     {applications.length}
@@ -236,16 +279,23 @@ export default function ClientApplicationsPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="new" className="mt-0">
+            <TabsContent
+              value="new"
+              forceMount
+              className={cn(
+                'mt-0 outline-none transition-opacity duration-200 ease-out',
+                'data-[state=inactive]:hidden data-[state=active]:animate-in data-[state=active]:fade-in-0'
+              )}
+            >
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Start a new application</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-lg font-semibold">Start a new application</CardTitle>
+                  <CardDescription className="text-muted-foreground text-sm">
                     Choose your area of interest — we&apos;ll open the active application wizard
                     for that service right away.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-3 pt-3">
                   <div className="grid gap-3 sm:grid-cols-2">
                     {AREA_OF_INTEREST_OPTIONS.map((option) => {
                       const draft = draftForArea(option.key)
@@ -257,7 +307,7 @@ export default function ClientApplicationsPage() {
                           disabled={Boolean(launch)}
                           onClick={() => void beginApplication(option.key, option.label)}
                           className={cn(
-                            'group relative rounded-xl border bg-white dark:bg-card p-4 text-left transition-all',
+                            'group relative flex justify-start flex-col rounded-xl border bg-white dark:bg-card p-4 text-left transition-all cursor-pointer hover:border-primary/30 hover:bg-primary/10',
                             'hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/10',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
                             isLaunching && 'border-emerald-500 ring-2 ring-emerald-500/30',
@@ -265,22 +315,27 @@ export default function ClientApplicationsPage() {
                           )}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-sm">{option.label}</span>
-                            <Badge variant="secondary" className="text-[10px]">
-                              {option.key}
-                            </Badge>
+                            <span className="font-semibold text-base">{option.label}</span>
+
+                            <div className="flex items-center gap-2">
+                              {draft && (
+                                <Badge className="text-[12px] bg-amber-100 text-amber-900 border-amber-200 w-fit">
+                                  Draft in progress
+                                </Badge>
+                              )}
+                              <Badge variant="secondary" className="text-[12px] bg-gray-100 border-gray-300">
+                                {option.key}
+                              </Badge>
+                            </div>
+
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
                             {option.description}
                           </p>
-                          <p className="mt-3 text-xs font-medium text-emerald-700 group-hover:text-emerald-800">
+                          <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
                             {draft ? 'Continue draft →' : 'Start application →'}
                           </p>
-                          {draft && (
-                            <Badge className="mt-2 text-[10px] bg-amber-100 text-amber-900 border-amber-200 w-fit">
-                              Draft in progress
-                            </Badge>
-                          )}
+                          
                         </button>
                       )
                     })}
@@ -289,21 +344,47 @@ export default function ClientApplicationsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="applied" className="mt-0">
+            <TabsContent
+              value="applied"
+              forceMount
+              className={cn(
+                'mt-0 outline-none transition-opacity duration-200 ease-out',
+                'data-[state=inactive]:hidden data-[state=active]:animate-in data-[state=active]:fade-in-0'
+              )}
+            >
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Applied applications</CardTitle>
-                  <CardDescription>
-                    Every application you started or submitted — with live status and admin updates.
-                  </CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <CardTitle>Applied applications</CardTitle>
+                      <CardDescription className="mt-0.5">
+                        {loadingApps
+                          ? 'Loading…'
+                          : filteredApplications.length === 0
+                            ? search
+                              ? 'No results found'
+                              : 'No applications yet'
+                            : `${filteredApplications.length} application${filteredApplications.length === 1 ? '' : 's'}${search ? ' found' : ''}. Track status and continue drafts anytime.`}
+                      </CardDescription>
+                    </div>
+                    <div className="relative sm:w-64">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search applications…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-8 h-9 text-sm"
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {loadingApps ? (
-                    <div className="flex justify-center py-10">
-                      <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
                     </div>
                   ) : applications.length === 0 ? (
-                    <div className="text-center py-10 space-y-3">
+                    <div className="rounded-lg border border-dashed p-10 text-center space-y-3">
                       <p className="text-sm text-muted-foreground">
                         No applications yet. Start one from the New application tab.
                       </p>
@@ -316,8 +397,12 @@ export default function ClientApplicationsPage() {
                         Start new application
                       </Button>
                     </div>
+                  ) : filteredApplications.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                      No applications match your search.
+                    </div>
                   ) : (
-                    <div className="rounded-md border overflow-x-auto">
+                    <>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -326,74 +411,137 @@ export default function ClientApplicationsPage() {
                             <TableHead>Progress</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Admin update</TableHead>
-                            <TableHead>Updated</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
+                            <TableHead className="w-28">Updated</TableHead>
+                            <TableHead className="w-28 text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {applications.map((app) => (
-                            <TableRow key={app.id}>
-                              <TableCell>
-                                <div>
-                                  <p className="font-medium text-sm">{app.wizard.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {app.applicationNumber}
-                                  </p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">
-                                  {areaOfInterestDisplayLabel(app.areaOfInterest)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                                {app.progress.completedSteps}/{app.progress.totalSteps} steps
-                              </TableCell>
-                              <TableCell>
-                                <StatusBadge status={app.status} />
-                              </TableCell>
-                              <TableCell className="max-w-[220px]">
-                                {app.adminNotes ? (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="rounded-sm bg-amber-100 border border-amber-200/80 px-2 py-1.5 shadow-sm text-xs text-amber-950 truncate cursor-default max-w-[200px]">
+                          {paginatedApplications.map((app) => {
+                            const isDraft = app.status === 'DRAFT'
+                            return (
+                              <TableRow key={app.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium max-w-52">
+                                  <div className="flex flex-col gap-1 min-w-0">
+                                    <span className="truncate block">{app.wizard.name}</span>
+                                    <span className="text-xs text-muted-foreground font-normal">
+                                      {app.applicationNumber}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-normal">
+                                    {app.areaOfInterest} ·{' '}
+                                    {areaOfInterestDisplayLabel(app.areaOfInterest)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                    {app.progress.completedSteps}/{app.progress.totalSteps}{' '}
+                                    step{app.progress.totalSteps === 1 ? '' : 's'}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <StatusBadge status={app.status} />
+                                </TableCell>
+                                <TableCell className="max-w-[220px]">
+                                  {app.adminNotes ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="rounded-md bg-amber-100 border border-amber-200/80 px-2 py-1.5 shadow-sm text-xs text-amber-950 truncate cursor-default max-w-[200px]">
+                                          {app.adminNotes}
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="top"
+                                        className="max-w-xs whitespace-pre-wrap break-words bg-amber-50 text-amber-950 border border-amber-200"
+                                      >
                                         {app.adminNotes}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent
-                                      side="top"
-                                      className="max-w-xs whitespace-pre-wrap break-words bg-amber-50 text-amber-950 border border-amber-200"
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(app.updatedAt), 'dd/MM/yyyy')}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 border rounded-md text-sm font-medium cursor-pointer"
+                                      onClick={() =>
+                                        router.push(`/client/applications/${app.id}`)
+                                      }
+                                      aria-label={isDraft ? 'Continue application' : 'View application'}
                                     >
-                                      {app.adminNotes}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                                {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  size="sm"
-                                  className={
-                                    app.status === 'DRAFT'
-                                      ? 'bg-emerald-700 hover:bg-emerald-800'
-                                      : undefined
-                                  }
-                                  variant={app.status === 'DRAFT' ? 'default' : 'outline'}
-                                  onClick={() => router.push(`/client/applications/${app.id}`)}
-                                >
-                                  {app.status === 'DRAFT' ? 'Continue' : 'View'}
-                                  <ArrowRight className="h-4 w-4 ml-1.5" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                      {isDraft ? (
+                                        <ArrowRight className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
                         </TableBody>
                       </Table>
-                    </div>
+
+                      {filteredApplications.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-between border-t pt-4 mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            Page {safePage} of {totalPages} &mdash;{' '}
+                            {filteredApplications.length} record
+                            {filteredApplications.length === 1 ? '' : 's'}
+                          </p>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPage((p) => Math.max(1, p - 1))}
+                              disabled={safePage === 1}
+                              aria-label="Previous page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                              <Button
+                                key={p}
+                                type="button"
+                                variant={p === safePage ? 'default' : 'outline'}
+                                size="icon"
+                                className={`h-8 w-8 text-xs ${
+                                  p === safePage
+                                    ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
+                                    : ''
+                                }`}
+                                onClick={() => setPage(p)}
+                                aria-label={`Page ${p}`}
+                              >
+                                {p}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={safePage === totalPages}
+                              aria-label="Next page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>

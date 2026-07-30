@@ -24,6 +24,7 @@ import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
 import {
   approvalAdvanceBlockedReason,
   canClientAccessStepIndex,
@@ -255,6 +256,8 @@ export default function ClientApplicationFillPage() {
     setStepIndex(index)
   }
 
+  const areaLabel = app ? areaOfInterestDisplayLabel(app.areaOfInterest) : ''
+
   return (
     <MobileLayout
       isSidebarCollapsed={isSidebarCollapsed}
@@ -282,14 +285,14 @@ export default function ClientApplicationFillPage() {
             <div className="flex-1 min-w-0 w-full space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={app.status} />
-                <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
+                {/* <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
                   {areaLabel}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
+                </Badge> */}
+                <span className="text-sm text-muted-foreground">
                   {app.progress.completedSteps}/{app.progress.totalSteps} steps filled
                 </span>
                 {app.updatedAt && (
-                  <span className="text-xs text-muted-foreground ml-auto">
+                  <span className="text-sm text-muted-foreground ml-auto">
                     Updated {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
                   </span>
                 )}
@@ -317,11 +320,12 @@ export default function ClientApplicationFillPage() {
                   onStepSelect={goToStep}
                   completedCount={app.progress.completedSteps}
                   isStepAccessible={(i) => canClientAccessStepIndex(app.steps, i)}
-                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20"
+                  areaLabel={areaLabel}
+                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky pt-0"
                 />
 
                 <div className="flex-1 min-w-0 w-full">
-              <Card className="border-emerald-100 shadow-md overflow-hidden">
+              <Card className="shadow-md overflow-hidden">
                 <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
                 <CardContent className="pb-6">
                   {currentStep ? (
