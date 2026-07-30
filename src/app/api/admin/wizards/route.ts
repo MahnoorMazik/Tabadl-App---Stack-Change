@@ -17,6 +17,7 @@ import {
   mapWizardDetail,
   prepareWizardSteps,
 } from '@/lib/wizards/wizard-utils'
+import { deactivateOtherWizardsInArea } from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
 
@@ -65,6 +66,7 @@ export const GET = withFormBuilderAuth(async (request) => {
         formTemplateId: step.formTemplateId,
         formName: step.formTemplate.name,
         paymentRequired: step.paymentRequired,
+        approvalRequired: step.approvalRequired,
         sortOrder: step.sortOrder,
       })),
     }))
@@ -156,13 +158,14 @@ export const POST = withFormBuilderAuth(async (request) => {
       data: {
         name: body.name,
         areaOfInterest: body.areaOfInterest,
-        isActive: body.isActive ?? true,
+        isActive: body.isActive ?? false,
         createdById: request.user!.userId,
         steps: {
           create: prepared.steps.map((step) => ({
             formTemplateId: step.formTemplateId,
             sortOrder: step.sortOrder,
             paymentRequired: step.paymentRequired,
+            approvalRequired: step.approvalRequired,
           })),
         },
         services: {
@@ -193,6 +196,10 @@ export const POST = withFormBuilderAuth(async (request) => {
         },
       },
     })
+
+    if (wizard.isActive) {
+      await deactivateOtherWizardsInArea(wizard.id, wizard.areaOfInterest)
+    }
 
     return addCorsHeaders(
       createSuccessResponse(

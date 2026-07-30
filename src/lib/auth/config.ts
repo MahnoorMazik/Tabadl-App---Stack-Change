@@ -136,11 +136,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token?.id && trigger !== "signIn") {
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
-          select: { id: true, isActive: true, isDeleted: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            staffType: true,
+            avatar: true,
+            phone: true,
+            isActive: true,
+            isDeleted: true,
+            tokenVersion: true,
+          },
         })
         if (!dbUser || !dbUser.isActive || dbUser.isDeleted) {
           return {}
         }
+        // Keep JWT identity in sync with DB so middleware + API agree on role
+        token.role = dbUser.role
+        token.staffType = dbUser.staffType
+        token.email = dbUser.email
+        token.name = dbUser.name ?? null
+        token.avatar = dbUser.avatar ?? null
+        token.phone = dbUser.phone ?? null
+        token.tokenVersion = dbUser.tokenVersion
       }
 
       // Initial sign in
@@ -163,6 +182,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: true,
             avatar: true,
             phone: true,
+            role: true,
+            staffType: true,
             tokenVersion: true,
             isActive: true,
           },
@@ -172,6 +193,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.name = dbUser.name ?? null
           token.avatar = dbUser.avatar ?? null
           token.phone = dbUser.phone ?? null
+          token.role = dbUser.role
+          token.staffType = dbUser.staffType
           token.tokenVersion = dbUser.tokenVersion
         }
       }

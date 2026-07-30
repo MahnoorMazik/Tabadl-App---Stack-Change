@@ -7,6 +7,10 @@ export interface WizardStepDraft {
   id: string
   formTemplateId: string
   paymentRequired: boolean
+  approvalRequired: boolean
+  source?: 'library' | 'new'
+  fieldCount?: number
+  formName?: string
 }
 
 export interface WizardDraft {
@@ -20,6 +24,7 @@ export interface WizardListItem {
   id: string
   name: string
   areaOfInterest: AreaOfInterestKey
+  isActive?: boolean
   serviceIds: string[]
   serviceNames: string[]
   steps: Array<{
@@ -27,6 +32,7 @@ export interface WizardListItem {
     formTemplateId: string
     formName: string
     paymentRequired: boolean
+    approvalRequired: boolean
   }>
   createdAt: string
 }
@@ -36,13 +42,7 @@ export function createEmptyWizardDraft(): WizardDraft {
     name: '',
     areaOfInterest: null,
     serviceIds: [],
-    steps: [
-      {
-        id: `step-${Date.now()}`,
-        formTemplateId: '',
-        paymentRequired: false,
-      },
-    ],
+    steps: [],
   }
 }
 
@@ -51,6 +51,7 @@ export function createEmptyWizardStep(): WizardStepDraft {
     id: `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     formTemplateId: '',
     paymentRequired: false,
+    approvalRequired: false,
   }
 }
 
@@ -59,6 +60,7 @@ export function mapApiWizard(wizard: {
   id: string
   name: string
   areaOfInterest: AreaOfInterestKey
+  isActive?: boolean
   serviceIds?: string[]
   serviceNames?: string[]
   services?: Array<{ id: string; name: string }>
@@ -67,6 +69,7 @@ export function mapApiWizard(wizard: {
     formTemplateId: string
     formName: string
     paymentRequired: boolean
+    approvalRequired: boolean
   }>
   createdAt: string | Date
 }): WizardListItem {
@@ -79,6 +82,7 @@ export function mapApiWizard(wizard: {
     id: wizard.id,
     name: wizard.name,
     areaOfInterest: wizard.areaOfInterest,
+    isActive: wizard.isActive ?? false,
     serviceIds,
     serviceNames,
     steps: wizard.steps.map((step) => ({
@@ -86,6 +90,7 @@ export function mapApiWizard(wizard: {
       formTemplateId: step.formTemplateId,
       formName: step.formName,
       paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
     })),
     createdAt:
       typeof wizard.createdAt === 'string'

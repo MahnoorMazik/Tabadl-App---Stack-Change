@@ -4,6 +4,7 @@ import { AREA_OF_INTEREST_KEYS } from '@/lib/validations/forms'
 const wizardStepSchema = z.object({
   formTemplateId: z.string().min(1, 'Form template is required'),
   paymentRequired: z.boolean().optional().default(false),
+  approvalRequired: z.boolean().optional().default(false),
   sortOrder: z.number().int().min(0).optional(),
 })
 
@@ -13,9 +14,7 @@ export const applicationWizardSchema = z.object({
     message: 'Area of interest is required',
   }),
   isActive: z.boolean().optional(),
-  serviceIds: z
-    .array(z.string().min(1))
-    .min(1, 'Select at least one service'),
+  serviceIds: z.array(z.string().min(1)).default([]),
   steps: z
     .array(wizardStepSchema)
     .min(1, 'Wizard must contain at least one step'),
@@ -25,10 +24,7 @@ export const applicationWizardUpdateSchema = z.object({
   name: z.string().trim().min(1, 'Wizard name is required').max(200).optional(),
   areaOfInterest: z.enum(AREA_OF_INTEREST_KEYS).optional(),
   isActive: z.boolean().optional(),
-  serviceIds: z
-    .array(z.string().min(1))
-    .min(1, 'Select at least one service')
-    .optional(),
+  serviceIds: z.array(z.string().min(1)).optional(),
   steps: z
     .array(wizardStepSchema)
     .min(1, 'Wizard must contain at least one step')
@@ -70,5 +66,6 @@ export function normalizeWizardSteps(steps: ApplicationWizardStepInput[]) {
       formTemplateId: step.formTemplateId,
       sortOrder: index,
       paymentRequired: step.paymentRequired ?? false,
+      approvalRequired: step.approvalRequired ?? false,
     }))
 }

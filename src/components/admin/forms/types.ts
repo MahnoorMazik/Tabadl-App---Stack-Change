@@ -12,7 +12,7 @@ export type FormFieldType =
   | 'FILE'
 
 /** Static area-of-interest keys stored on FormTemplate */
-export type AreaOfInterestKey = 'CR' | 'PR' | 'GR'
+export type AreaOfInterestKey = 'CR' | 'PR'
 
 export const AREA_OF_INTEREST_OPTIONS: Array<{
   key: AreaOfInterestKey
@@ -29,12 +29,22 @@ export const AREA_OF_INTEREST_OPTIONS: Array<{
     label: 'Premium Residency (PR)',
     description: 'Investor, talent, entrepreneur & more',
   },
-  {
-    key: 'GR',
-    label: 'General Services (GR)',
-    description: 'Browse the full service catalogue',
-  },
 ]
+
+/** Client-facing short labels (no CR/PR/GR codes) */
+export const AREA_OF_INTEREST_DISPLAY_LABELS: Record<AreaOfInterestKey, string> = {
+  CR: 'Company Registration',
+  PR: 'Private Registration',
+  GR: 'General Registration',
+}
+
+export function areaOfInterestDisplayLabel(key: string): string {
+  return (
+    AREA_OF_INTEREST_DISPLAY_LABELS[key as AreaOfInterestKey] ??
+    AREA_OF_INTEREST_OPTIONS.find((o) => o.key === key)?.label ??
+    key
+  )
+}
 
 export interface BusinessServiceOption {
   id: string

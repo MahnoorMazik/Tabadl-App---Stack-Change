@@ -27,16 +27,25 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Loader2, Plus, ArrowLeft, ArrowRight, Search, Wand2, Shapes, Building2, BadgeCheck, Check } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import {
   AREA_OF_INTEREST_OPTIONS,
   AreaOfInterestKey,
   FormTemplateListItem,
+  mapApiTemplateDetail,
 } from '@/components/admin/forms/types'
 import {
   WizardDraft,
@@ -47,11 +56,7 @@ import {
   mapApiWizard,
 } from './types'
 import { SortableWizardStep } from './SortableWizardStep'
-
-interface ServiceOption {
-  id: string
-  name: string
-}
+import { FormBuilder } from '@/components/admin/forms/FormBuilder'
 
 interface CreateWizardModalProps {
   open: boolean
@@ -60,6 +65,11 @@ interface CreateWizardModalProps {
   onUpdated?: (wizard: WizardListItem) => void
   /** When set, modal opens in edit mode with this wizard prefilled. */
   editingWizard?: WizardListItem | null
+}
+
+const SERVICE_ICONS: Record<AreaOfInterestKey, typeof Building2> = {
+  CR: Building2,
+  PR: BadgeCheck,
 }
 
 function draftFromWizard(wizard: WizardListItem): WizardDraft {
@@ -71,6 +81,7 @@ function draftFromWizard(wizard: WizardListItem): WizardDraft {
       id: step.id,
       formTemplateId: step.formTemplateId,
       paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
     })),
   }
 }
@@ -89,8 +100,18 @@ export function CreateWizardModal({
   const [showValidation, setShowValidation] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [services, setServices] = useState<ServiceOption[]>([])
   const [forms, setForms] = useState<FormTemplateListItem[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerTab, setPickerTab] = useState<'existing' | 'quick'>('existing')
+  const [formSearch, setFormSearch] = useState('')
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [editingFormTemplate, setEditingFormTemplate] = useState<any>(null)
+  const [loadingTemplate, setLoadingTemplate] = useState(false)
+  const [quickName, setQuickName] = useState('')
+  const [quickFields, setQuickFields] = useState<
+    Array<{ id: string; type: 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'PHONE' | 'SELECT'; label: string; options: string }>
+  >([])
+  const [quickSaving, setQuickSaving] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -104,6 +125,12 @@ export function CreateWizardModal({
     setDraft(createEmptyWizardDraft())
     setShowValidation(false)
     setSaving(false)
+    setPickerOpen(false)
+    setBuilderOpen(false)
+    setEditingFormTemplate(null)
+    setQuickName('')
+    setQuickFields([])
+    setFormSearch('')
   }, [])
 
   useEffect(() => {
@@ -123,18 +150,8 @@ export function CreateWizardModal({
     const load = async () => {
       setLoading(true)
       try {
-        const [servicesRes, formsRes] = await Promise.all([
-          formApi.availableServices(),
-          formApi.listTemplates(),
-        ])
+        const formsRes = await formApi.listTemplates()
         if (cancelled) return
-
-        setServices(
-          (servicesRes.services ?? []).map((s: any) => ({
-            id: s.id,
-            name: s.name,
-          }))
-        )
 
         setForms(
           (formsRes.templates ?? []).map((t: any) => ({
@@ -183,7 +200,7 @@ export function CreateWizardModal({
   const setupError =
     showValidation &&
     modalStep === 1 &&
-    (!draft.name.trim() || !draft.areaOfInterest || draft.serviceIds.length === 0)
+    (!draft.name.trim() || !draft.areaOfInterest)
 
   const stepsError =
     showValidation &&
@@ -199,22 +216,26 @@ export function CreateWizardModal({
     }))
   }
 
-  const toggleService = (serviceId: string) => {
-    setDraft((prev) => {
-      const selected = prev.serviceIds.includes(serviceId)
-      return {
-        ...prev,
-        serviceIds: selected
-          ? prev.serviceIds.filter((id) => id !== serviceId)
-          : [...prev.serviceIds, serviceId],
-      }
-    })
-  }
-
   const updateStep = (stepId: string, patch: Partial<WizardStepDraft>) => {
     setDraft((prev) => ({
       ...prev,
       steps: prev.steps.map((s) => (s.id === stepId ? { ...s, ...patch } : s)),
+    }))
+  }
+
+  const addFormAsStep = (form: FormTemplateListItem, source: 'library' | 'new') => {
+    setDraft((prev) => ({
+      ...prev,
+      steps: [
+        ...prev.steps,
+        {
+          ...createEmptyWizardStep(),
+          formTemplateId: form.id,
+          source,
+          fieldCount: form.fieldCount,
+          formName: form.name,
+        },
+      ],
     }))
   }
 
@@ -235,6 +256,28 @@ export function CreateWizardModal({
     })
   }
 
+  // Open the Template Builder to edit an existing form — open Sheet immediately, load async
+  const handleEditForm = async (formTemplateId: string) => {
+    // Open the sheet right away with a loading spinner inside FormBuilder
+    setEditingFormTemplate(null)
+    setLoadingTemplate(true)
+    setBuilderOpen(true)
+    try {
+      const res = await formApi.getTemplate(formTemplateId)
+      const mapped = mapApiTemplateDetail(res.template)
+      setEditingFormTemplate(mapped)
+    } catch (error) {
+      setBuilderOpen(false)
+      toast({
+        title: 'Could not load form',
+        description: 'Failed to load form template for editing.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingTemplate(false)
+    }
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -252,10 +295,10 @@ export function CreateWizardModal({
 
   const handleNext = () => {
     setShowValidation(true)
-    if (!draft.name.trim() || !draft.areaOfInterest || draft.serviceIds.length === 0) {
+    if (!draft.name.trim() || !draft.areaOfInterest) {
       toast({
         title: 'Complete setup',
-        description: 'Enter a wizard name, select an area of interest, and at least one service.',
+        description: 'Enter wizard name and select area of interest.',
         variant: 'destructive',
       })
       return
@@ -301,10 +344,11 @@ export function CreateWizardModal({
     const payload = {
       name: draft.name.trim(),
       areaOfInterest: draft.areaOfInterest,
-      serviceIds: [...draft.serviceIds],
+      serviceIds: [],
       steps: draft.steps.map((step, index) => ({
         formTemplateId: step.formTemplateId,
         paymentRequired: step.paymentRequired,
+        approvalRequired: step.approvalRequired,
         sortOrder: index,
       })),
     }
@@ -344,29 +388,139 @@ export function CreateWizardModal({
   }
 
   const usedFormIds = draft.steps.map((s) => s.formTemplateId).filter(Boolean)
+  const searchedForms = formsForArea.filter((f) =>
+    f.name.toLowerCase().includes(formSearch.toLowerCase())
+  )
+
+  const appendQuickField = (type: 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'PHONE' | 'SELECT') => {
+    setQuickFields((prev) => [
+      ...prev,
+      {
+        id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type,
+        label: '',
+        options: '',
+      },
+    ])
+  }
+
+  const createQuickForm = async () => {
+    if (!quickName.trim() || quickFields.length === 0) {
+      toast({
+        title: 'Quick create incomplete',
+        description: 'Provide form name and at least one field.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!draft.areaOfInterest) return
+
+    setQuickSaving(true)
+    try {
+      const createdFields: any[] = []
+      for (const field of quickFields) {
+        if (!field.label.trim()) continue
+        const options =
+          field.type === 'SELECT'
+            ? field.options
+                .split(',')
+                .map((v) => v.trim())
+                .filter(Boolean)
+            : undefined
+        const res = await formApi.createField({
+          label: field.label.trim(),
+          type: field.type,
+          options,
+          isActive: true,
+        })
+        createdFields.push(res.field)
+      }
+      if (createdFields.length === 0) {
+        throw new Error('At least one valid field is required')
+      }
+      const formRes = await formApi.createTemplate({
+        name: quickName.trim(),
+        description: null,
+        areaOfInterest: draft.areaOfInterest,
+        isActive: true,
+        serviceIds: [],
+        fieldIds: createdFields.map((field: any, index: number) => ({
+          fieldId: field.id,
+          sortOrder: index,
+          isRequired: false,
+          labelOverride: null,
+        })),
+      })
+
+      const newForm: FormTemplateListItem = {
+        id: formRes.template.id,
+        name: formRes.template.name,
+        description: formRes.template.description,
+        areaOfInterest: formRes.template.areaOfInterest ?? null,
+        isActive: formRes.template.isActive,
+        fieldCount: formRes.template.fieldCount ?? createdFields.length,
+        updatedAt: formRes.template.updatedAt ?? new Date().toISOString(),
+        services: formRes.template.services ?? [],
+      }
+      setForms((prev) => [newForm, ...prev])
+      addFormAsStep(newForm, 'new')
+      setQuickFields([])
+      setQuickName('')
+      setPickerOpen(false)
+      toast({ title: 'Form created', description: `${newForm.name} added as step.` })
+    } catch (error) {
+      const message = error instanceof FormApiError ? error.message : 'Quick create failed'
+      toast({ title: 'Quick create failed', description: message, variant: 'destructive' })
+    } finally {
+      setQuickSaving(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto border-emerald-100/80 bg-linear-to-b from-emerald-50/40 via-background to-background">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="text-lg tracking-tight">
             {isEdit ? 'Edit Application Steps' : 'Create Application Steps'}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             {modalStep === 1
-              ? 'Name the wizard, then choose area of interest and services.'
-              : 'Add forms as wizard steps, drag to reorder, and set payment requirements.'}
+              ? 'Name your wizard and pick the service it belongs to.'
+              : 'Add and order form steps for this wizard.'}
           </DialogDescription>
+          <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
+                modalStep === 1
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              1 · Basics
+            </span>
+            <div className="h-px flex-1 bg-border" />
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
+                modalStep === 2
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              2 · Steps
+            </span>
+          </div>
         </DialogHeader>
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : modalStep === 1 ? (
-          <div className="space-y-5 py-2">
+          <div className="space-y-6 py-1">
             <div className="space-y-2">
-              <Label htmlFor="wizard-name">
+              <Label htmlFor="wizard-name" className="text-sm font-medium">
                 Wizard name <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -376,165 +530,173 @@ export function CreateWizardModal({
                   setDraft((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="e.g. Commercial registration application"
+                className="h-10 bg-background border-emerald-100 focus-visible:ring-emerald-600/30"
               />
               {setupError && !draft.name.trim() && (
                 <p className="text-xs text-destructive">Wizard name is required.</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>
-                Area of interest <span className="text-destructive">*</span>
-              </Label>
-              <div className="grid grid-cols-1 gap-2">
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium">
+                  Service <span className="text-destructive">*</span>
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  One wizard per service — CR and PR each have their own live form.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 {AREA_OF_INTEREST_OPTIONS.map((option) => {
-                  const checked = draft.areaOfInterest === option.key
+                  const selected = draft.areaOfInterest === option.key
+                  const Icon = SERVICE_ICONS[option.key]
                   return (
-                    <div
+                    <button
                       key={option.key}
-                      className="flex items-start gap-2 rounded-md border px-2.5 py-2"
+                      type="button"
+                      onClick={() => setAreaOfInterest(option.key)}
+                      className={cn(
+                        'group relative flex flex-col items-start rounded-xl border-2 p-3.5 text-left transition-all',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+                        selected
+                          ? 'border-emerald-600 bg-emerald-50/90 shadow-sm shadow-emerald-600/10'
+                          : 'border-border bg-background hover:border-emerald-200 hover:bg-muted/30'
+                      )}
                     >
-                      <Checkbox
-                        id={`wizard-aoi-${option.key}`}
-                        checked={checked}
-                        onCheckedChange={() => setAreaOfInterest(option.key)}
-                        className="mt-0.5"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <Label
-                          htmlFor={`wizard-aoi-${option.key}`}
-                          className="font-normal cursor-pointer leading-snug"
+                      <div className="flex w-full items-start justify-between gap-2">
+                        <span
+                          className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                            selected
+                              ? 'border-emerald-200 bg-emerald-600 text-white'
+                              : 'border-border bg-muted/50 text-muted-foreground group-hover:border-emerald-200 group-hover:text-emerald-700'
+                          )}
                         >
-                          {option.label}
-                        </Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {option.description}
-                        </p>
+                          <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <span
+                          className={cn(
+                            'rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                            selected
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {option.key}
+                        </span>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        {option.key}
-                      </Badge>
-                    </div>
+                      <span
+                        className={cn(
+                          'mt-3 text-sm font-semibold leading-snug',
+                          selected ? 'text-emerald-950' : 'text-foreground'
+                        )}
+                      >
+                        {option.label.replace(/\s*\(CR\)|\s*\(PR\)/i, '')}
+                      </span>
+                      <span className="mt-1 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
+                        {option.description}
+                      </span>
+                      {selected && (
+                        <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
+                          <Check className="h-3 w-3 stroke-[3]" aria-hidden />
+                        </span>
+                      )}
+                    </button>
                   )
                 })}
               </div>
               {setupError && !draft.areaOfInterest && (
-                <p className="text-xs text-destructive">Area of interest is required.</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>
-                Services <span className="text-destructive">*</span>
-              </Label>
-              {services.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No active business services found. Seed the catalog first.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                  {services.map((service) => {
-                    const checked = draft.serviceIds.includes(service.id)
-                    return (
-                      <div
-                        key={service.id}
-                        className="flex items-start gap-2 rounded-md border px-2.5 py-2"
-                      >
-                        <Checkbox
-                          id={`wizard-svc-${service.id}`}
-                          checked={checked}
-                          onCheckedChange={() => toggleService(service.id)}
-                          className="mt-0.5"
-                        />
-                        <Label
-                          htmlFor={`wizard-svc-${service.id}`}
-                          className="font-normal cursor-pointer leading-snug"
-                        >
-                          {service.name}
-                        </Label>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              {setupError && draft.serviceIds.length === 0 && (
-                <p className="text-xs text-destructive">Select at least one service.</p>
+                <p className="text-xs text-destructive">Please select CR or PR.</p>
               )}
             </div>
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{draft.areaOfInterest}</Badge>
-              <span>
-                {draft.serviceIds.length} service
-                {draft.serviceIds.length === 1 ? '' : 's'} selected
-              </span>
-            </div>
-
             {stepsError && (
               <p className="text-xs text-destructive">
-                Each step must have a form selected.
+                Please create a form using the Template Builder first.
               </p>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              Drag steps by the grip handle to change their order.
-            </p>
-
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={draft.steps.map((s) => s.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-3">
-                  {draft.steps.map((step, index) => (
-                    <SortableWizardStep
-                      key={step.id}
-                      step={step}
-                      index={index}
-                      canRemove={draft.steps.length > 1}
-                      formsForArea={formsForArea}
-                      usedFormIds={usedFormIds}
-                      onUpdate={updateStep}
-                      onRemove={removeStep}
-                    />
-                  ))}
+            {draft.steps.length === 0 ? (
+              /* ── No steps yet: prompt user to use Template Builder ── */
+              <div className="rounded-lg border border-dashed border-border p-8 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No steps added yet. Create a form using the Template Builder — it will automatically appear as a step.
+                </p>
+                <Button
+                  type="button"
+                  className="bg-primary hover:bg-primary/90 cursor-pointer"
+                  onClick={() => setBuilderOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-1" />Add step
+                </Button>
+              </div>
+            ) : (
+              /* ── Steps exist: show them with disabled form name, no dropdown ── */
+              <>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    className="bg-primary hover:bg-primary/90 cursor-pointer"
+                    onClick={() => setBuilderOpen(true)}
+                  >
+                   <Plus className="h-4 w-4 mr-1" />Add step
+                  </Button>
                 </div>
-              </SortableContext>
-            </DndContext>
 
-            <Button type="button" variant="outline" size="sm" onClick={addStep}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add step
-            </Button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={draft.steps.map((s) => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {draft.steps.map((step, index) => (
+                        <SortableWizardStep
+                          key={step.id}
+                          step={step}
+                          index={index}
+                          canRemove={draft.steps.length > 1}
+                          formsForArea={formsForArea}
+                          usedFormIds={usedFormIds}
+                          onUpdate={updateStep}
+                          onRemove={removeStep}
+                          onEditForm={handleEditForm}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </>
+            )}
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className={`gap-2 ${modalStep === 2 ? 'sm:justify-between' : 'sm:justify-end'}`}>
           {modalStep === 2 ? (
             <>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => {
                   setShowValidation(false)
                   setModalStep(1)
                 }}
                 disabled={saving}
+                className="flex items-center gap-2 cursor-pointer"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <Button
                 type="button"
-                className="bg-emerald-700 hover:bg-emerald-800"
+                className="bg-primary hover:bg-primary/90 cursor-pointer"
                 onClick={handleCreate}
-                disabled={saving || loading}
+                disabled={saving || loading || draft.steps.length === 0}
               >
                 {saving ? (
                   <>
@@ -542,16 +704,16 @@ export function CreateWizardModal({
                     {isEdit ? 'Saving…' : 'Creating…'}
                   </>
                 ) : isEdit ? (
-                  'Save changes'
+                  'Save Changes'
                 ) : (
-                  'Create wizard'
+                  'Create Wizard'
                 )}
               </Button>
             </>
           ) : (
             <Button
               type="button"
-              className="bg-emerald-700 hover:bg-emerald-800"
+              className="bg-primary hover:bg-primary/90 cursor-pointer"
               onClick={handleNext}
               disabled={loading}
             >
@@ -561,6 +723,182 @@ export function CreateWizardModal({
           )}
         </DialogFooter>
       </DialogContent>
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="sm:max-w-2xl border-border bg-linear-to-b from-muted/40 via-background to-background">
+          <DialogHeader>
+            <DialogTitle>Add step</DialogTitle>
+            <DialogDescription>Choose from library or create instantly.</DialogDescription>
+          </DialogHeader>
+          <Tabs value={pickerTab} onValueChange={(v) => setPickerTab(v as 'existing' | 'quick')} className="space-y-3">
+            <TabsList className="bg-muted/70">
+              <TabsTrigger value="existing" className="gap-1.5">
+                <Search className="h-3.5 w-3.5" />
+                Choose existing form
+              </TabsTrigger>
+              <TabsTrigger value="quick" className="gap-1.5">
+                <Wand2 className="h-3.5 w-3.5" />
+                Quick create
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="existing" className="space-y-3">
+              <Input
+                placeholder="Search forms..."
+                value={formSearch}
+                onChange={(e) => setFormSearch(e.target.value)}
+                className="bg-background/95 border-border focus-visible:ring-primary"
+              />
+              <div className="max-h-72 overflow-auto space-y-2 rounded-md border border-border bg-muted/30 p-2">
+                {searchedForms.map((form) => (
+                  <button
+                    key={form.id}
+                    type="button"
+                    className="w-full rounded-md border border-border bg-card px-3 py-2 text-left transition hover:bg-muted/70 hover:border-primary/30"
+                    onClick={() => {
+                      addFormAsStep(form, 'library')
+                      setPickerOpen(false)
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{form.name}</span>
+                      <Badge variant="secondary">{form.areaOfInterest ?? 'N/A'}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{form.fieldCount} fields</p>
+                  </button>
+                ))}
+                {searchedForms.length === 0 && (
+                  <p className="text-xs text-muted-foreground px-2 py-1">No forms found for your search.</p>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="quick" className="space-y-3">
+              <Input
+                placeholder="Quick form name"
+                value={quickName}
+                onChange={(e) => setQuickName(e.target.value)}
+                className="bg-background/95 border-border focus-visible:ring-primary"
+              />
+              <div className="rounded-md border border-border bg-muted/30 p-2.5">
+                <p className="text-xs text-muted-foreground mb-2">Field palette</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className="border-border hover:bg-muted" onClick={() => appendQuickField('TEXT')}>Text</Button>
+                  <Button size="sm" variant="outline" className="border-border hover:bg-muted" onClick={() => appendQuickField('TEXTAREA')}>Long text</Button>
+                  <Button size="sm" variant="outline" className="border-border hover:bg-muted" onClick={() => appendQuickField('EMAIL')}>Email</Button>
+                  <Button size="sm" variant="outline" className="border-border hover:bg-muted" onClick={() => appendQuickField('PHONE')}>Phone</Button>
+                  <Button size="sm" variant="outline" className="border-border hover:bg-muted" onClick={() => appendQuickField('SELECT')}>Dropdown</Button>
+                </div>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-auto rounded-md border border-border bg-muted/30 p-2">
+                {quickFields.map((field, idx) => (
+                  <div key={field.id} className="rounded-md border border-border bg-card p-2 space-y-2">
+                    <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                      <Shapes className="h-3 w-3" />
+                      {field.type}
+                    </div>
+                    <Input
+                      placeholder={`Field ${idx + 1} label`}
+                      value={field.label}
+                      onChange={(e) =>
+                        setQuickFields((prev) =>
+                          prev.map((f) => (f.id === field.id ? { ...f, label: e.target.value } : f))
+                        )
+                      }
+                    />
+                    {field.type === 'SELECT' && (
+                      <Input
+                        placeholder="Options comma-separated"
+                        value={field.options}
+                        onChange={(e) =>
+                          setQuickFields((prev) =>
+                            prev.map((f) => (f.id === field.id ? { ...f, options: e.target.value } : f))
+                          )
+                        }
+                        className="bg-background/95 border-border focus-visible:ring-primary"
+                      />
+                    )}
+                  </div>
+                ))}
+                {quickFields.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Add field chips to build this quick form.</p>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <Button className="bg-primary hover:bg-primary/90" onClick={createQuickForm} disabled={quickSaving}>
+                  {quickSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Create and add step
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+      <Sheet open={builderOpen} onOpenChange={(open) => {
+        setBuilderOpen(open)
+        if (!open) setEditingFormTemplate(null)
+      }}>
+        <SheetContent side="right" className="w-[60vw] sm:max-w-none gap-0">
+          <SheetHeader>
+            <SheetTitle className='text-xl'>
+              {editingFormTemplate ? 'Edit Form' : loadingTemplate ? 'Loading…' : 'Template Builder'}
+            </SheetTitle>
+            <SheetDescription>
+              {editingFormTemplate
+                ? 'Update this form — changes will be reflected in the step.'
+                : loadingTemplate
+                  ? 'Fetching form details…'
+                  : 'Create a complete form, then it will be appended as a step.'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4 overflow-hidden pt-2">
+            {loadingTemplate && !editingFormTemplate ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              </div>
+            ) : (
+            <FormBuilder
+              key={editingFormTemplate?.id ?? 'create'}
+              mode={editingFormTemplate ? 'edit' : 'create'}
+              initialTemplate={editingFormTemplate ?? undefined}
+              inline
+              hideAreaOfInterest
+              forcedAreaOfInterest={draft.areaOfInterest}
+              onSaved={(saved) => {
+                const newForm: FormTemplateListItem = {
+                  id: saved.id,
+                  name: saved.name,
+                  description: saved.description,
+                  areaOfInterest: saved.areaOfInterest,
+                  isActive: saved.isActive,
+                  fieldCount: saved.fields.length,
+                  updatedAt: saved.updatedAt,
+                  services: [],
+                }
+                setForms((prev) => {
+                  const exists = prev.some((f) => f.id === newForm.id)
+                  return exists
+                    ? prev.map((f) => (f.id === newForm.id ? newForm : f))
+                    : [newForm, ...prev]
+                })
+                if (editingFormTemplate) {
+                  // Update the existing step's formName
+                  setDraft((prev) => ({
+                    ...prev,
+                    steps: prev.steps.map((s) =>
+                      s.formTemplateId === saved.id
+                        ? { ...s, formName: saved.name } as any
+                        : s
+                    ),
+                  }))
+                } else {
+                  addFormAsStep(newForm, 'new')
+                }
+                setBuilderOpen(false)
+                setEditingFormTemplate(null)
+              }}
+            />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Dialog>
   )
 }

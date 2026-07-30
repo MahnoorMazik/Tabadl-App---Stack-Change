@@ -91,6 +91,7 @@ export function mapWizardDetail(
       formTemplateId: step.formTemplateId,
       formName: step.formTemplate.name,
       paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
       sortOrder: step.sortOrder,
     })),
   }
@@ -100,20 +101,26 @@ export async function replaceWizardRelations(
   wizardId: string,
   data: {
     name?: string
-    areaOfInterest?: 'CR' | 'PR' | 'GR'
+    areaOfInterest?: 'CR' | 'PR'
     isActive?: boolean
     serviceIds?: string[]
     steps?: Array<{
       formTemplateId: string
       sortOrder: number
       paymentRequired: boolean
+      approvalRequired: boolean
     }>
   }
 ) {
   await db.$transaction(async (tx) => {
+    const existing = await tx.applicationWizard.findUnique({
+      where: { id: wizardId },
+      select: { areaOfInterest: true },
+    })
+
     const updateData: {
       name?: string
-      areaOfInterest?: 'CR' | 'PR' | 'GR'
+      areaOfInterest?: 'CR' | 'PR'
       isActive?: boolean
     } = {}
 
@@ -130,6 +137,17 @@ export async function replaceWizardRelations(
       })
     }
 
+    if (data.isActive === true && existing) {
+      await tx.applicationWizard.updateMany({
+        where: {
+          areaOfInterest: data.areaOfInterest ?? existing.areaOfInterest,
+          isDeleted: false,
+          id: { not: wizardId },
+        },
+        data: { isActive: false },
+      })
+    }
+
     if (data.steps) {
       await tx.applicationWizardStep.deleteMany({ where: { wizardId } })
       await tx.applicationWizardStep.createMany({
@@ -138,6 +156,7 @@ export async function replaceWizardRelations(
           formTemplateId: step.formTemplateId,
           sortOrder: step.sortOrder,
           paymentRequired: step.paymentRequired,
+          approvalRequired: step.approvalRequired,
         })),
       })
     }

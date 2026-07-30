@@ -108,12 +108,6 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         permission: `${Module.SERVICES}.${Action.VIEW}`
       },
       {
-        title: 'Services Form',
-        icon: ClipboardList,
-        href: '/admin/services/forms',
-        permission: `${Module.SERVICES}.${Action.VIEW}`
-      },
-      {
         title: 'Wizards',
         icon: Layers,
         href: '/admin/services/wizards',
@@ -131,12 +125,6 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: FileText,
         href: '/admin/applications',
         permission: `${Module.APPLICATIONS}.${Action.VIEW}`
-      },
-      {
-        title: t('admin.sidebar.tasks'),
-        icon: CheckCircle,
-        href: '/admin/applications/tasks',
-        permission: `${Module.TASKS}.${Action.VIEW}`
       }
     ]
   },
@@ -459,7 +447,6 @@ export function PermissionAwareSidebar({ className, isCollapsed = false, onToggl
 
     // Hide applications, financials, reports, and documents sections
     const hiddenModuleTitles = [
-      t('admin.sidebar.applications'),
       t('admin.sidebar.financial'),
       t('admin.sidebar.reports'),
       t('admin.sidebar.documents')
