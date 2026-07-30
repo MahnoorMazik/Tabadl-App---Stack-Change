@@ -178,17 +178,18 @@ export function ApplicationStepsNav({
     <Card className={cn('flex flex-col overflow-hidden border-border/80', className)}>
       <CardHeader className="py-4 px-4 space-y-3 border-b bg-muted/20">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-foreground">Steps</h2>
+          <h2 className="text-lg font-semibold mb-3">Steps</h2>
+          
           <p className="text-xs text-muted-foreground mt-0.5">
             Forms in order — {filled} of {total} completed
           </p>
         </div>
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
+        {/* <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-emerald-600 transition-all duration-300"
             style={{ width: `${progressPct}%` }}
           />
-        </div>
+        </div> */}
 
         <div className="flex gap-2 lg:hidden">
           <Select value={String(stepIndex)} onValueChange={(v) => onStepSelect(Number(v))}>

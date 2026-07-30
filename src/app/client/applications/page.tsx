@@ -19,6 +19,7 @@ import {
 import {
   AREA_OF_INTEREST_OPTIONS,
   AreaOfInterestKey,
+  areaOfInterestDisplayLabel,
 } from '@/components/admin/forms/types'
 import {
   ClipboardList,
@@ -410,7 +411,9 @@ export default function ClientApplicationsPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="secondary">{app.areaOfInterest}</Badge>
+                                <Badge variant="secondary">
+                                  {areaOfInterestDisplayLabel(app.areaOfInterest)}
+                                </Badge>
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                                 {app.progress.completedSteps}/{app.progress.totalSteps} steps

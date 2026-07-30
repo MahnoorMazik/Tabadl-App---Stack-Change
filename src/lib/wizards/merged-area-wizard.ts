@@ -117,9 +117,9 @@ export async function isWizardStepInArea(
 
 export function mergedApplicationDisplayName(areaOfInterest: string) {
   const labels: Record<string, string> = {
-    CR: 'Company Registration (CR)',
-    PR: 'Premium Residency (PR)',
-    GR: 'General Services (GR)',
+    CR: 'Company Registration',
+    PR: 'Private Registration',
+    GR: 'General Registration',
   }
   const label = labels[areaOfInterest] ?? areaOfInterest
   return `${label} — full application`

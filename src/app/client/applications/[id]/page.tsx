@@ -24,6 +24,7 @@ import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
 
 type AppDetail = {
   id: string
@@ -206,6 +207,8 @@ export default function ClientApplicationFillPage() {
       filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
     })) ?? []
 
+  const areaLabel = app ? areaOfInterestDisplayLabel(app.areaOfInterest) : ''
+
   return (
     <MobileLayout
       isSidebarCollapsed={isSidebarCollapsed}
@@ -213,8 +216,8 @@ export default function ClientApplicationFillPage() {
       onToggleMobile={toggleMobileSidebar}
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
-      title={app?.wizard.name || 'Application'}
-      description={app ? `${app.applicationNumber} · ${app.areaOfInterest}` : 'Loading…'}
+      title={app ? areaLabel || app.wizard.name : 'Application'}
+      description={app ? `${app.applicationNumber} · ${areaLabel}` : 'Loading…'}
       icon={<FileText className="h-5 w-5 text-emerald-600" />}
       actions={
         <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')}>
@@ -228,13 +231,13 @@ export default function ClientApplicationFillPage() {
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="flex flex-col xl:flex-row gap-5 items-start">
             <div className="flex-1 min-w-0 w-full space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={app.status} />
                 <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
-                  {app.areaOfInterest}
+                  {areaLabel}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {app.progress.completedSteps}/{app.progress.totalSteps} steps filled
@@ -267,13 +270,14 @@ export default function ClientApplicationFillPage() {
                   stepIndex={stepIndex}
                   onStepSelect={setStepIndex}
                   completedCount={app.progress.completedSteps}
-                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20"
+                  areaLabel={areaLabel}
+                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky pt-0"
                 />
 
                 <div className="flex-1 min-w-0 w-full">
               <Card className="border-emerald-100 shadow-md overflow-hidden">
-                <div className="h-1.5 bg-linear-to-r from-emerald-500 via-teal-500 to-sky-500" />
-                <CardContent className="pt-5 pb-6">
+                <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
+                <CardContent className="pb-6">
                   {currentStep ? (
                     <ApplicationStepForm
                       formName={currentStep.formName}

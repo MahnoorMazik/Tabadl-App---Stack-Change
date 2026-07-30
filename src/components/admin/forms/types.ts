@@ -36,6 +36,21 @@ export const AREA_OF_INTEREST_OPTIONS: Array<{
   },
 ]
 
+/** Client-facing short labels (no CR/PR/GR codes) */
+export const AREA_OF_INTEREST_DISPLAY_LABELS: Record<AreaOfInterestKey, string> = {
+  CR: 'Company Registration',
+  PR: 'Private Registration',
+  GR: 'General Registration',
+}
+
+export function areaOfInterestDisplayLabel(key: string): string {
+  return (
+    AREA_OF_INTEREST_DISPLAY_LABELS[key as AreaOfInterestKey] ??
+    AREA_OF_INTEREST_OPTIONS.find((o) => o.key === key)?.label ??
+    key
+  )
+}
+
 export interface BusinessServiceOption {
   id: string
   name: string
