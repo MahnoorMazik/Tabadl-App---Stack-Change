@@ -2,10 +2,8 @@ import nodemailer from "nodemailer";
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { promises as dns } from 'node:dns';
 import type { Transporter } from 'nodemailer';
-import { APPLICATION_EMAILS } from "./application-templates";
+import { APPLICATION_EMAILS, LOGO_ATTACHMENT } from "./application-templates";
 import { db } from "@/lib/db";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 
 // Helper: format dates for emails using configured timezone
 const formatDateTimeForEmail = (d?: Date | string | null) => {
@@ -26,6 +24,15 @@ const formatDateTimeForEmail = (d?: Date | string | null) => {
   }
 }
 
+// Generate a truly unique Message-ID
+function generateMessageId(applicationId?: string) {
+  const time = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 15);
+  const domain = 'tabadlalkon.com';
+  const appId = applicationId ? `-${applicationId.substring(0, 8)}` : '';
+  return `<${time}.${random}${appId}@${domain}>`;
+}
+
 export type ApplicationEmailType =
   | "SUBMITTED"
   | "IN_PROGRESS"
@@ -42,7 +49,6 @@ export interface ApplicationEmailPayload {
 
 const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
 const smtpPort = Number(process.env.SMTP_PORT || 465);
-// Use SMTPS (secure) for port 465, STARTTLS for port 587
 const smtpSecure = smtpPort === 465;
 const smtpRequireTLS = smtpPort === 587;
 
@@ -51,7 +57,6 @@ let transporter: Transporter<SMTPTransport.Options> | null = null;
 async function ensureTransporter(): Promise<Transporter<SMTPTransport.Options>> {
   if (transporter) return transporter;
 
-  // Resolve IPv4 address for the SMTP host to avoid IPv6 timeouts
   const lookupResult = await dns.lookup(smtpHost, { family: 4 }).catch(() => null as null | { address: string });
   const connectHost = lookupResult?.address ?? smtpHost;
 
@@ -65,7 +70,6 @@ async function ensureTransporter(): Promise<Transporter<SMTPTransport.Options>> 
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD,
     },
-    // Ensure TLS uses the original hostname for SNI/certificate verification
     tls: { servername: smtpHost },
   } as SMTPTransport.Options);
 
@@ -75,7 +79,6 @@ async function ensureTransporter(): Promise<Transporter<SMTPTransport.Options>> 
 export async function sendApplicationStatusEmail(
   payload: ApplicationEmailPayload
 ) {
-  // Ensure transporter uses IPv4-resolved address to avoid IPv6 timeouts
   const tr = await ensureTransporter();
 
   const where = payload.applicationId
@@ -167,24 +170,46 @@ export async function sendApplicationStatusEmail(
     console.log('SMTP_USER:', process.env.SMTP_USER);
     await tr.verify();
     console.log('SMTP connection successful');
-    const logoPath = resolve(process.cwd(), 'public', 'logo-horizontal.png');
-    const attachments = existsSync(logoPath)
-      ? [
-          {
-            filename: 'logo-horizontal.png',
-            path: logoPath,
-            cid: 'tk-logo@tabadlalkon',
-            contentType: 'image/png',
-          },
-        ]
-      : [];
+
+    // Generate unique identifiers
+    const messageId = generateMessageId(application.id);
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 6);
+    const appIdShort = application.id.substring(0, 8);
+    
+    // CRITICAL: Make subject COMPLETELY unique to break threading
+    const uniqueSubject = `${template.subject} [${application.applicationNumber || appIdShort}-${randomSuffix}]`;
 
     const info = await tr.sendMail({
-      from: process.env.SMTP_FROM,
+      from: {
+        name: 'Tabadl Alkon',
+        address: process.env.SMTP_FROM || 'info@tabadlalkon.com',
+      },
       to: recipient,
-      subject: template.subject,
+      subject: uniqueSubject,
       html: emailHtml,
-      attachments,
+      // ADD THIS: Attach the logo using CID
+      attachments: [LOGO_ATTACHMENT],
+      headers: {
+        // CRITICAL: These headers tell email clients this is a new thread
+        'Message-ID': messageId,
+        'References': '', // Empty = start new thread
+        'In-Reply-To': '', // Empty = start new thread
+        'X-Mailer': 'Tabadl Alkon System',
+        'X-Entity-Ref-ID': `app-${application.id}-${timestamp}`,
+        'X-Thread-ID': `new-${application.id}-${timestamp}`,
+        'Auto-Submitted': 'auto-generated',
+        'X-Application-ID': application.id,
+        'X-Email-Type': statusKey,
+        // Gmail specific: Force new thread
+        'X-GM-THRID': '',
+        // Prevent auto-grouping
+        'X-Google-Original-From': 'Tabadl Alkon',
+        // Add a random header to make it unique
+        'X-Unique-ID': `${application.id}-${timestamp}-${randomSuffix}`,
+        // Outlook specific
+        'X-MS-Exchange-Organization-Network-Message-Id': messageId,
+      },
     });
 
     return {
