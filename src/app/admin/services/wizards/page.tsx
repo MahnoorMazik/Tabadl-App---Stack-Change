@@ -309,9 +309,9 @@ export default function WizardsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-normal">
+                        <span className="text-sm">
                           {wizard.areaOfInterest} · {AOI_LABELS[wizard.areaOfInterest] ?? wizard.areaOfInterest}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
