@@ -30,15 +30,40 @@ export function approvalAdvanceBlockedReason(step: StepApprovalGate): string {
     return 'Complete the previous step before continuing.'
   }
   if (step.approvalStatus === 'PENDING') {
-    return 'This step is waiting for admin approval before you can continue.'
+    return 'This step is waiting for admin approval. The next step will open once admin approves.'
   }
   if (step.approvalStatus === 'REJECTED') {
-    return 'Update this step and save again. Admin must approve it before the next step opens.'
+    return 'Update this step and save again for admin review before continuing.'
   }
-  return 'Save this step first. Admin must approve it before you can open the next step.'
+  return 'Save this step and send it for admin approval before opening the next step.'
 }
 
-/** Any approval-required step not yet approved (for submit). */
+export function hasPendingStepApproval(steps: StepApprovalGate[]): boolean {
+  return steps.some(
+    (s) => s.approvalRequired && s.approvalStatus === 'PENDING'
+  )
+}
+
+/** After admin approves a step, move client to the next accessible step if needed. */
+export function resolveClientStepIndexAfterUpdate(
+  steps: StepApprovalGate[],
+  previousIndex: number
+): number {
+  const allowedMax = maxAccessibleStepIndex(steps)
+  const prevStep = steps[previousIndex]
+
+  if (
+    prevStep?.approvalRequired &&
+    prevStep.approvalStatus === 'APPROVED' &&
+    previousIndex < allowedMax
+  ) {
+    return previousIndex + 1
+  }
+
+  return Math.min(Math.max(0, previousIndex), allowedMax)
+}
+
+/** Any approval-required step not yet approved (for full application submit). */
 export function findUnapprovedRequiredStepIndex(steps: StepApprovalGate[]): number | null {
   for (let j = 0; j < steps.length; j++) {
     if (steps[j].approvalRequired && steps[j].approvalStatus !== 'APPROVED') {

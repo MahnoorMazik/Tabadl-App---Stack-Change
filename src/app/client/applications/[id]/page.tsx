@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
-import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+import { wizardStatusClasses, wizardStatusLabel, isClientApplicationEditable } from '@/lib/wizards/wizard-status'
 import {
   AREA_OF_INTEREST_OPTIONS,
 } from '@/components/admin/forms/types'
@@ -33,6 +33,8 @@ import {
   findUnapprovedRequiredStepIndex,
   firstBlockingApprovalStepBefore,
   maxAccessibleStepIndex,
+  hasPendingStepApproval,
+  resolveClientStepIndexAfterUpdate,
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
 
@@ -108,11 +110,13 @@ export default function ClientApplicationFillPage() {
   const [stepIndex, setStepIndex] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [submitted, setSubmitted] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
   const latestFormValuesRef = useRef<Record<string, string>>({})
   const appFingerprintRef = useRef<string | null>(null)
+  const appRef = useRef<AppDetail | null>(null)
+
+  const applicationLocked = app ? !isClientApplicationEditable(app.status) : false
 
   const load = useCallback(
     async (silent = false) => {
@@ -121,19 +125,42 @@ export default function ClientApplicationFillPage() {
         const res = await axios.get(`/api/client/wizard-applications/${id}`)
         const detail = res.data?.data?.application as AppDetail
         const fingerprint = wizardApplicationDetailFingerprint(detail)
+        const hadPendingApproval = appRef.current
+          ? hasPendingStepApproval(appRef.current.steps)
+          : false
 
         if (silent && fingerprint === appFingerprintRef.current) return
 
         appFingerprintRef.current = fingerprint
+        appRef.current = detail
         setApp(detail)
+
+        const unlockedAfterApproval =
+          silent &&
+          hadPendingApproval &&
+          !hasPendingStepApproval(detail.steps)
+
         if (!silent) {
           const maxIdx = Math.max(0, detail.steps.length - 1)
           const allowedMax = maxAccessibleStepIndex(detail.steps)
           setStepIndex(
             Math.min(detail.currentStepIndex ?? 0, maxIdx, allowedMax)
           )
+        } else {
+          setStepIndex((prev) => {
+            const allowedMax = maxAccessibleStepIndex(detail.steps)
+            const fromApproval = resolveClientStepIndexAfterUpdate(detail.steps, prev)
+            const fromServer = Math.min(detail.currentStepIndex ?? prev, allowedMax)
+            return Math.max(fromApproval, fromServer)
+          })
         }
-        setSubmitted(detail.status !== 'DRAFT')
+
+        if (unlockedAfterApproval) {
+          toast({
+            title: 'Step approved',
+            description: 'The next step is now open. You can continue filling the form.',
+          })
+        }
       } catch {
         if (!silent) {
           toast({ title: 'Application not found', variant: 'destructive' })
@@ -151,25 +178,46 @@ export default function ClientApplicationFillPage() {
   }, [authLoading, user, load])
 
   useEffect(() => {
-    if (authLoading || !user) return
-    // Background refresh only after submit — not while client is filling the form.
-    if (!submitted) return
+    if (authLoading || !user || !app) return
+
+    const waitingOnApproval = hasPendingStepApproval(app.steps)
+    const shouldPoll = waitingOnApproval || applicationLocked
+    if (!shouldPoll) return
+
+    const intervalMs = waitingOnApproval ? 5000 : 60000
     const timer = setInterval(() => {
-      if (formDirty || saving) return
+      if (saving) return
+      if (formDirty && !waitingOnApproval) return
       void load(true)
-    }, 60000)
+    }, intervalMs)
     return () => clearInterval(timer)
-  }, [authLoading, user, load, submitted, formDirty, saving])
+  }, [authLoading, user, load, applicationLocked, formDirty, saving, app?.steps])
+
+  useEffect(() => {
+    if (authLoading || !user || !app) return
+    if (!hasPendingStepApproval(app.steps)) return
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || saving) return
+      void load(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [authLoading, user, app?.steps, load, saving])
 
   const currentStep = app?.steps[stepIndex]
 
   const stepHasSavedAnswers = (step: AppDetail['steps'][number]) =>
     step.fields.some((f) => f.answer?.value || f.answer?.fileUrl)
 
-  const isStepLockedForClient = (step: AppDetail['steps'][number]) => {
-    if (!step.approvalRequired) return false
-    if (!stepHasSavedAnswers(step)) return false
-    return step.approvalStatus === 'PENDING' || step.approvalStatus === 'APPROVED'
+  /** Read-only after full application submit, or when admin approved this approval step. */
+  const isStepReadOnlyForClient = (index: number) => {
+    if (!app || applicationLocked) return applicationLocked
+    const step = app.steps[index]
+    if (!step?.approvalRequired) return false
+    return (
+      step.approvalStatus === 'APPROVED' && stepHasSavedAnswers(step)
+    )
   }
 
   const buildAnswersPayload = (
@@ -236,6 +284,7 @@ export default function ClientApplicationFillPage() {
       setServerSyncVersion((v) => v + 1)
       if (savedApp) {
         appFingerprintRef.current = wizardApplicationDetailFingerprint(savedApp)
+        appRef.current = savedApp
         setApp(savedApp)
       }
 
@@ -250,9 +299,9 @@ export default function ClientApplicationFillPage() {
         const submittedApp = submitRes.data?.data?.application as AppDetail | undefined
         if (submittedApp) {
           appFingerprintRef.current = wizardApplicationDetailFingerprint(submittedApp)
+          appRef.current = submittedApp
           setApp(submittedApp)
         }
-        setSubmitted(true)
         toast({
           title: 'Application submitted',
           description: 'Status is now Pending. Our team will review it shortly.',
@@ -353,7 +402,7 @@ export default function ClientApplicationFillPage() {
                 )}
               </div>
 
-              {submitted && (
+              {applicationLocked && (
                 <div
                   className={cn(
                     'rounded-xl border px-4 py-3 text-sm',
@@ -375,7 +424,6 @@ export default function ClientApplicationFillPage() {
                   onStepSelect={goToStep}
                   completedCount={app.progress.completedSteps}
                   isStepAccessible={(i) => canClientAccessStepIndex(app.steps, i)}
-                  areaLabel={areaLabel}
                   className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky pt-0"
                 />
 
@@ -395,7 +443,7 @@ export default function ClientApplicationFillPage() {
                       approvalStatus={currentStep.approvalStatus ?? null}
                       rejectionNote={currentStep.rejectionNote}
                       isLastStep={stepIndex >= app.steps.length - 1}
-                      readOnly={submitted || isStepLockedForClient(currentStep)}
+                      readOnly={isStepReadOnlyForClient(stepIndex)}
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
@@ -406,7 +454,7 @@ export default function ClientApplicationFillPage() {
                       onDirtyChange={setFormDirty}
                       serverSyncVersion={serverSyncVersion}
                       saveExitLabel="Save"
-                      showSubmit={!submitted}
+                      showSubmit={!applicationLocked}
                       allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}
                       allowSubmit={findUnapprovedRequiredStepIndex(app.steps) === null}
                     />

@@ -75,3 +75,8 @@ export function wizardStatusSelectTriggerClasses(status: string): string {
       return ''
   }
 }
+
+/** Client may still fill wizard steps while application is in draft. */
+export function isClientApplicationEditable(status: string): boolean {
+  return status === 'DRAFT'
+}

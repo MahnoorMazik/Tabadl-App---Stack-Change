@@ -27,6 +27,7 @@ async function getApprovalGatesForApplication(applicationId: string) {
   )
 
   return app.wizard.steps.map((s) => ({
+    id: s.id,
     approvalRequired: s.approvalRequired,
     approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
   }))
@@ -38,6 +39,8 @@ export {
   approvalAdvanceBlockedReason,
   findUnapprovedRequiredStepIndex,
   maxAccessibleStepIndex,
+  hasPendingStepApproval,
+  resolveClientStepIndexAfterUpdate,
 } from '@/lib/wizards/wizard-step-approval-rules'
 export type { StepApprovalGate } from '@/lib/wizards/wizard-step-approval-rules'
 
@@ -67,16 +70,10 @@ export async function assertClientMayEditStepAnswers(params: {
   const review = await getStepReview(params.applicationId, params.wizardStepId)
   if (!review) return { ok: true as const }
 
-  if (
-    review.status === WizardStepApprovalStatus.PENDING ||
-    review.status === WizardStepApprovalStatus.APPROVED
-  ) {
+  if (review.status === WizardStepApprovalStatus.APPROVED) {
     return {
       ok: false as const,
-      message:
-        review.status === WizardStepApprovalStatus.APPROVED
-          ? 'This step was approved and can no longer be edited.'
-          : 'This step is pending admin approval and cannot be edited.',
+      message: 'This step was approved and can no longer be edited.',
     }
   }
 

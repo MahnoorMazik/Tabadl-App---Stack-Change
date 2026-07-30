@@ -19,6 +19,7 @@ import {
 } from '@/lib/wizards/wizard-application-utils'
 import { isWizardStepInWizard } from '@/lib/wizards/merged-area-wizard'
 import { setStepApproval } from '@/lib/wizards/wizard-step-approval'
+import { maxAccessibleStepIndex } from '@/lib/wizards/wizard-step-approval-rules'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -174,6 +175,33 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         status: parsed.data.stepApproval.status,
         reviewedById: authResult.user.userId,
       })
+
+      const afterApproval = await getWizardApplicationDetail(id)
+      if (afterApproval) {
+        const mapped = await mapWizardApplicationDetail(afterApproval)
+        const approvedStepIndex = mapped.steps.findIndex(
+          (s) => s.id === parsed.data.stepApproval!.wizardStepId
+        )
+        const allowedMax = maxAccessibleStepIndex(mapped.steps)
+        const nextIndex =
+          approvedStepIndex >= 0
+            ? Math.min(approvedStepIndex + 1, allowedMax)
+            : existing.currentStepIndex
+        if (
+          typeof nextIndex === 'number' &&
+          nextIndex > (existing.currentStepIndex ?? 0)
+        ) {
+          await db.wizardApplication.update({
+            where: { id },
+            data: { currentStepIndex: nextIndex, updatedAt: new Date() },
+          })
+        } else {
+          await db.wizardApplication.update({
+            where: { id },
+            data: { updatedAt: new Date() },
+          })
+        }
+      }
     }
 
     if (parsed.data.wizardStepId && parsed.data.answers) {
