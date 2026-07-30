@@ -171,7 +171,7 @@ cd "$APP_DIR"
 
 # Prompt for application URL
 print_info "Configuring application URL..."
-DEFAULT_APP_URL="https://tk.mylyra.app"
+DEFAULT_APP_URL="https://staging.tk.sa"
 read -p "Enter application URL [${DEFAULT_APP_URL}]: " APP_URL
 APP_URL=${APP_URL:-$DEFAULT_APP_URL}
 

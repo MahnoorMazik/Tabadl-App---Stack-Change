@@ -28,6 +28,8 @@ interface AdminPageTemplateProps {
   requiredPermission?: string
   requiredPermissions?: string[]
   actions?: ReactNode
+  /** Widen main content beyond the default max-w-6xl (e.g. multi-column builders) */
+  fullWidth?: boolean
 }
 
 export function AdminPageTemplate({ 
@@ -38,7 +40,8 @@ export function AdminPageTemplate({
   showConstruction = true,
   requiredPermission,
   requiredPermissions,
-  actions
+  actions,
+  fullWidth = false,
 }: AdminPageTemplateProps) {
   const { user, loading, permissionsLoading } = useAuth()
   const router = useRouter()
@@ -50,7 +53,13 @@ export function AdminPageTemplate({
   const needsPermissionCheck = Boolean(requiredPermission || (requiredPermissions && requiredPermissions.length > 0))
 
   useEffect(() => {
-    if (loading) return
+    // Stay in a neutral loading state until auth + permissions are fully resolved.
+    // Never keep a stale "denied" while permissions are still loading — that was
+    // bouncing users to the dashboard on soft navigations (e.g. New Form / after save).
+    if (loading || permissionsLoading) {
+      setHasPermission(null)
+      return
+    }
 
     if (!user) {
       router.replace('/admin/login')
@@ -67,9 +76,6 @@ export function AdminPageTemplate({
       return
     }
 
-    // Wait until permissions are fetched before denying access
-    if (permissionsLoading) return
-
     const userPermissions = user.permissions || []
 
     if (requiredPermission) {
@@ -79,7 +85,9 @@ export function AdminPageTemplate({
 
     if (requiredPermissions && requiredPermissions.length > 0) {
       setHasPermission(
-        requiredPermissions.some((permission) => userPermissions.includes(permission as Permission))
+        requiredPermissions.some((permission) =>
+          userPermissions.includes(permission as Permission)
+        )
       )
       return
     }
@@ -87,14 +95,7 @@ export function AdminPageTemplate({
     setHasPermission(true)
   }, [user, loading, permissionsLoading, requiredPermission, requiredPermissions, needsPermissionCheck, router])
 
-  useEffect(() => {
-    if (hasPermission === false) {
-      router.replace('/admin/dashboard')
-    }
-  }, [hasPermission, router])
-
   const isChecking = loading || hasPermission === null || (needsPermissionCheck && permissionsLoading)
-
   if (isChecking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -106,7 +107,8 @@ export function AdminPageTemplate({
     )
   }
 
-  // Show no permission state
+  // Show no permission state (do NOT auto-redirect to dashboard — that caused
+  // false "redirect" bugs when navigating between form/wizard screens)
   if (hasPermission === false) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -184,7 +186,7 @@ export function AdminPageTemplate({
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="max-w-6xl mx-auto">
+          <div className={fullWidth ? 'max-w-[1600px] mx-auto' : 'max-w-6xl mx-auto'}>
             {children || (showConstruction && (
               <Card className="h-full">
                 <CardHeader>
