@@ -39,17 +39,17 @@ export function wizardStatusClasses(status: string): string {
     case 'DRAFT':
       return 'border bg-gray-100 border-gray-300 text-gray-800'
     case 'PENDING':
-      return 'bg-amber-200 text-amber-900 border-amber-300'
+      return 'border bg-amber-100 border-amber-300 text-amber-800'
     case 'IN_PROGRESS':
-      return 'bg-sky-200 text-sky-900 border-sky-300'
+      return 'border bg-sky-100 border-sky-300 text-sky-800'
     case 'HARD_COPY_REQUIRED':
-      return 'bg-orange-200 text-orange-950 border-orange-400'
+      return 'border bg-orange-100 border-orange-300 text-orange-800'
     case 'APPROVED':
-      return 'bg-emerald-200 text-emerald-900 border-emerald-300'
+      return 'border bg-emerald-100 border-emerald-300 text-emerald-800'
     case 'COMPLETED':
-      return 'bg-teal-200 text-teal-900 border-teal-300'
+      return 'border bg-teal-100 border-teal-300 text-teal-800'
     case 'REJECTED':
-      return 'bg-red-200 text-red-900 border-red-300'
+      return 'border bg-red-100 border-red-300 text-red-800'
     default:
       return 'bg-muted text-foreground border-border'
   }

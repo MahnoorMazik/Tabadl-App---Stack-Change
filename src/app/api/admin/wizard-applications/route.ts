@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { UserRole } from '@prisma/client'
+import { UserRole, WizardStepApprovalStatus } from '@prisma/client'
 import { db } from '@/lib/db'
 import {
   createErrorResponse,
@@ -83,7 +83,10 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             areaOfInterest: true,
-            steps: { select: { id: true } },
+            steps: {
+              orderBy: { sortOrder: 'asc' },
+              select: { id: true },
+            },
           },
         },
         assignedTo: {
@@ -91,6 +94,17 @@ export async function GET(request: NextRequest) {
         },
         answers: {
           select: { wizardStepId: true, value: true, fileUrl: true },
+        },
+        stepReviews: {
+          where: { status: WizardStepApprovalStatus.PENDING },
+          select: {
+            wizardStepId: true,
+            wizardStep: {
+              select: {
+                formTemplate: { select: { name: true } },
+              },
+            },
+          },
         },
       },
     })
@@ -100,6 +114,20 @@ export async function GET(request: NextRequest) {
         app.answers.filter((a) => a.value || a.fileUrl).map((a) => a.wizardStepId)
       )
       const totalSteps = app.wizard.steps.length
+      const stepIndexById = new Map(
+        app.wizard.steps.map((step, index) => [step.id, index])
+      )
+      const pendingApprovals = app.stepReviews.map((review) => {
+        const stepIndex = stepIndexById.get(review.wizardStepId) ?? 0
+        return {
+          wizardStepId: review.wizardStepId,
+          stepIndex,
+          stepNumber: stepIndex + 1,
+          formName: review.wizardStep.formTemplate.name,
+        }
+      })
+      pendingApprovals.sort((a, b) => a.stepIndex - b.stepIndex)
+
       return {
         id: app.id,
         applicationNumber: app.applicationNumber,
@@ -122,6 +150,9 @@ export async function GET(request: NextRequest) {
           completedSteps: answeredSteps.size,
           currentStepIndex: app.currentStepIndex,
         },
+        pendingApprovals,
+        hasPendingApproval: pendingApprovals.length > 0,
+        pendingApprovalCount: pendingApprovals.length,
       }
     })
 

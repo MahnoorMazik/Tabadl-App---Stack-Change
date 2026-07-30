@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { format } from 'date-fns'
@@ -24,7 +24,9 @@ import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
-import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import {
+  AREA_OF_INTEREST_OPTIONS,
+} from '@/components/admin/forms/types'
 import {
   approvalAdvanceBlockedReason,
   canClientAccessStepIndex,
@@ -65,6 +67,12 @@ type AppDetail = {
   progress: { totalSteps: number; completedSteps: number }
 }
 
+function getAreaLabel(area: string) {
+  return (
+    AREA_OF_INTEREST_OPTIONS.find((o) => o.key === area)?.label ?? area
+  )
+}
+
 function StatusBadge({ status }: { status: string }) {
   return (
     <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status))}>
@@ -100,6 +108,7 @@ export default function ClientApplicationFillPage() {
   const [saving, setSaving] = useState(false)
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [submitted, setSubmitted] = useState(false)
+  const latestFormValuesRef = useRef<Record<string, string>>({})
 
   const load = useCallback(
     async (silent = false) => {
@@ -151,11 +160,22 @@ export default function ClientApplicationFillPage() {
     return step.approvalStatus === 'PENDING' || step.approvalStatus === 'APPROVED'
   }
 
-  const buildAnswersPayload = (answers: Record<string, string>) =>
-    Object.entries(answers).map(([fieldId, value]) => ({
-      fieldId,
-      value: value || null,
-    }))
+  const buildAnswersPayload = (
+    answers: Record<string, string>,
+    fields: AppDetail['steps'][number]['fields']
+  ) =>
+    fields.map((field) => {
+      const raw =
+        answers[field.fieldId] ??
+        field.answer?.value ??
+        field.answer?.fileUrl ??
+        ''
+      const trimmed = String(raw).trim()
+      return {
+        fieldId: field.fieldId,
+        value: trimmed || null,
+      }
+    })
 
   const saveStep = async (
     answers: Record<string, string>,
@@ -192,20 +212,31 @@ export default function ClientApplicationFillPage() {
         ? Math.min(stepIndex + 1, app.steps.length - 1)
         : stepIndex
 
-      await axios.patch(`/api/client/wizard-applications/${app.id}`, {
+      const answersPayload = buildAnswersPayload(answers, currentStep.fields)
+
+      const patchRes = await axios.patch(`/api/client/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
         currentStepIndex: nextIndex,
-        answers: buildAnswersPayload(answers),
+        answers: answersPayload,
       })
+      const savedApp = patchRes.data?.data?.application as AppDetail | undefined
+      if (savedApp) setApp(savedApp)
 
       if (opts?.submit) {
-        await axios.post(`/api/client/wizard-applications/${app.id}/submit`)
+        const submitRes = await axios.post(
+          `/api/client/wizard-applications/${app.id}/submit`,
+          {
+            wizardStepId: currentStep.id,
+            answers: answersPayload,
+          }
+        )
+        const submittedApp = submitRes.data?.data?.application as AppDetail | undefined
+        if (submittedApp) setApp(submittedApp)
         setSubmitted(true)
         toast({
           title: 'Application submitted',
           description: 'Status is now Pending. Our team will review it shortly.',
         })
-        await load()
         return
       }
 
@@ -216,9 +247,14 @@ export default function ClientApplicationFillPage() {
       }
       if (opts?.goNext) {
         setStepIndex(nextIndex)
+      } else if (savedApp) {
+        setStepIndex(
+          Math.min(savedApp.currentStepIndex ?? stepIndex, Math.max(0, savedApp.steps.length - 1))
+        )
       }
-      await load(true)
-      setTimeout(() => setSaveIndicator('idle'), 1500)
+      if (!opts?.exit) {
+        setTimeout(() => setSaveIndicator('idle'), 1500)
+      }
     } catch (error: any) {
       setSaveIndicator('idle')
       toast({
@@ -256,7 +292,7 @@ export default function ClientApplicationFillPage() {
     setStepIndex(index)
   }
 
-  const areaLabel = app ? areaOfInterestDisplayLabel(app.areaOfInterest) : ''
+  const areaLabel = app ? getAreaLabel(app.areaOfInterest) : ''
 
   return (
     <MobileLayout
@@ -266,7 +302,7 @@ export default function ClientApplicationFillPage() {
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
       title={app ? areaLabel || app.wizard.name : 'Application'}
-      description={app ? `${app.applicationNumber} · ${areaLabel}` : 'Loading…'}
+      description={app ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}` : 'Loading…'}
       icon={<FileText className="h-5 w-5 text-emerald-600" />}
       actions={
         <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')}>
@@ -345,7 +381,9 @@ export default function ClientApplicationFillPage() {
                       engaging
                       onBack={() => goToStep(Math.max(0, stepIndex - 1))}
                       onSave={(answers, opts) => saveStep(answers, opts)}
-                      onSaveAndExit={(answers) => saveStep(answers, { exit: true })}
+                      onSaveAndExit={(answers) => saveStep(answers)}
+                      latestValuesRef={latestFormValuesRef}
+                      saveExitLabel="Save"
                       showSubmit={!submitted}
                       allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}
                       allowSubmit={findUnapprovedRequiredStepIndex(app.steps) === null}

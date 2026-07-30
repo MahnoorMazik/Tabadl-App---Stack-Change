@@ -51,8 +51,7 @@ const patchSchema = z.object({
   stepApproval: z
     .object({
       wizardStepId: z.string().min(1),
-      status: z.enum(['APPROVED', 'REJECTED']),
-      rejectionNote: z.string().max(2000).nullable().optional(),
+      status: z.literal('APPROVED'),
     })
     .optional(),
 })
@@ -174,7 +173,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         wizardStepId: parsed.data.stepApproval.wizardStepId,
         status: parsed.data.stepApproval.status,
         reviewedById: authResult.user.userId,
-        rejectionNote: parsed.data.stepApproval.rejectionNote,
       })
     }
 

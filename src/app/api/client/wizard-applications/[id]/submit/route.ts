@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { WizardApplicationStatus } from '@prisma/client'
+import { z } from 'zod'
 import { db } from '@/lib/db'
 import {
   createErrorResponse,
@@ -10,18 +11,38 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 import { requireAuth } from '@/lib/rbac-middleware'
+import { zodErrorResponse } from '@/lib/forms/api-helpers'
 import {
   ensureClientAccess,
   getWizardApplicationDetail,
   mapWizardApplicationDetail,
+  upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
-import { assertAllRequiredApprovalsForSubmit } from '@/lib/wizards/wizard-step-approval'
+import { isWizardStepInWizard } from '@/lib/wizards/merged-area-wizard'
+import {
+  assertAllRequiredApprovalsForSubmit,
+  assertClientMayEditStepAnswers,
+  syncStepReviewAfterClientSave,
+} from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 export const OPTIONS = () => handleCorsPreflight()
 
-/** POST /api/client/wizard-applications/[id]/submit — submit → PENDING */
+const submitBodySchema = z.object({
+  wizardStepId: z.string().min(1).optional(),
+  answers: z
+    .array(
+      z.object({
+        fieldId: z.string().min(1),
+        value: z.string().nullable().optional(),
+        fileUrl: z.string().nullable().optional(),
+      })
+    )
+    .optional(),
+})
+
+/** POST /api/client/wizard-applications/[id]/submit — save final step (optional) then submit → PENDING */
 export async function POST(request: NextRequest, context: RouteContext) {
   const requestId = getRequestId(request)
   const { id } = await context.params
@@ -71,6 +92,67 @@ export async function POST(request: NextRequest, context: RouteContext) {
           requestId,
         })
       )
+    }
+
+    let body: unknown = {}
+    try {
+      body = await request.json()
+    } catch {
+      body = {}
+    }
+    const parsedBody = submitBodySchema.safeParse(body)
+    if (!parsedBody.success) {
+      return zodErrorResponse(parsedBody.error, requestId)
+    }
+
+    if (
+      parsedBody.data.wizardStepId &&
+      parsedBody.data.answers &&
+      parsedBody.data.answers.length > 0
+    ) {
+      const stepValid = await isWizardStepInWizard(
+        parsedBody.data.wizardStepId,
+        app.wizardId
+      )
+      if (!stepValid) {
+        return addCorsHeaders(
+          createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'Invalid wizard step', 400, {
+            requestId,
+          })
+        )
+      }
+
+      const wizardStep = await db.applicationWizardStep.findFirst({
+        where: { id: parsedBody.data.wizardStepId },
+        select: { approvalRequired: true },
+      })
+
+      const editCheck = await assertClientMayEditStepAnswers({
+        applicationId: id,
+        wizardStepId: parsedBody.data.wizardStepId,
+        approvalRequired: wizardStep?.approvalRequired ?? false,
+      })
+      if (!editCheck.ok) {
+        return addCorsHeaders(
+          createErrorResponse(ErrorCodes.VALIDATION_ERROR, editCheck.message, 400, {
+            requestId,
+          })
+        )
+      }
+
+      await upsertStepAnswers({
+        applicationId: id,
+        wizardStepId: parsedBody.data.wizardStepId,
+        answers: parsedBody.data.answers,
+        updatedById: authResult.user.userId,
+      })
+
+      await syncStepReviewAfterClientSave({
+        applicationId: id,
+        wizardStepId: parsedBody.data.wizardStepId,
+        approvalRequired: wizardStep?.approvalRequired ?? false,
+        answers: parsedBody.data.answers,
+      })
     }
 
     const approvalCheck = await assertAllRequiredApprovalsForSubmit({

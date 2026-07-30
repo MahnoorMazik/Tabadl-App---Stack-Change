@@ -20,10 +20,18 @@ import {
   AlertCircle,
   Loader2,
   Play,
+  ShieldCheck,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+
+type PendingApproval = {
+  wizardStepId: string
+  stepIndex: number
+  stepNumber: number
+  formName: string
+}
 
 type ApplicationRow = {
   id: string
@@ -37,6 +45,9 @@ type ApplicationRow = {
   client: { id: string; name: string; email: string }
   wizard: { id: string; name: string; areaOfInterest: string }
   progress: { totalSteps: number; completedSteps: number; currentStepIndex: number }
+  pendingApprovals?: PendingApproval[]
+  hasPendingApproval?: boolean
+  pendingApprovalCount?: number
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -63,7 +74,12 @@ export default function AdminApplicationsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [applications, setApplications] = useState<ApplicationRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [counts, setCounts] = useState({ total: 0, pending: 0, draft: 0 })
+  const [counts, setCounts] = useState({
+    total: 0,
+    pending: 0,
+    draft: 0,
+    stepApprovalPending: 0,
+  })
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400)
@@ -85,6 +101,7 @@ export default function AdminApplicationsPage() {
         total: list.length,
         pending: list.filter((a) => a.status === 'PENDING').length,
         draft: list.filter((a) => a.status === 'DRAFT').length,
+        stepApprovalPending: list.filter((a) => a.hasPendingApproval).length,
       })
     } catch (error: any) {
       setApplications([])
@@ -112,7 +129,7 @@ export default function AdminApplicationsPage() {
       fullWidth
     >
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
@@ -121,9 +138,20 @@ export default function AdminApplicationsPage() {
               <p className="text-2xl font-semibold">{counts.total}</p>
             </CardContent>
           </Card>
+          <Card className="border-sky-200/80 bg-sky-50/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-sky-800 flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Step approval pending
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-sky-800">{counts.stepApprovalPending}</p>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Submitted pending</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold text-amber-700">{counts.pending}</p>
@@ -177,6 +205,7 @@ export default function AdminApplicationsPage() {
                 <TableHead>Area</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Step approval</TableHead>
                 <TableHead>Updated</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -184,19 +213,22 @@ export default function AdminApplicationsPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">
+                  <TableCell colSpan={8} className="text-center py-10">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : applications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                     No wizard applications yet.
                   </TableCell>
                 </TableRow>
               ) : (
                 applications.map((app) => (
-                  <TableRow key={app.id}>
+                  <TableRow
+                    key={app.id}
+                    className={cn(app.hasPendingApproval && 'bg-sky-50/50 hover:bg-sky-50/80')}
+                  >
                     <TableCell>
                       <div>
                         <p className="font-medium text-sm">{app.client.name}</p>
@@ -219,17 +251,37 @@ export default function AdminApplicationsPage() {
                     <TableCell>
                       <StatusBadge status={app.status} />
                     </TableCell>
+                    <TableCell>
+                      {app.hasPendingApproval && app.pendingApprovals?.length ? (
+                        <div className="space-y-1">
+                          <Badge className="bg-sky-100 text-sky-900 border-sky-200 hover:bg-sky-100">
+                            <ShieldCheck className="h-3 w-3 mr-1" />
+                            {app.pendingApprovalCount === 1
+                              ? `Step ${app.pendingApprovals[0].stepNumber} pending`
+                              : `${app.pendingApprovalCount} steps pending`}
+                          </Badge>
+                          {/* <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                            {app.pendingApprovals.map((p) => p.formName).join(', ')}
+                          </p> */}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant={app.hasPendingApproval ? 'default' : 'outline'}
+                        className={cn(
+                          app.hasPendingApproval && 'bg-sky-700 hover:bg-sky-800'
+                        )}
                         onClick={() => router.push(`/admin/applications/${app.id}`)}
                       >
                         <Eye className="h-4 w-4 mr-1.5" />
-                        Open
+                        {app.hasPendingApproval ? 'Review' : 'Open'}
                       </Button>
                     </TableCell>
                   </TableRow>

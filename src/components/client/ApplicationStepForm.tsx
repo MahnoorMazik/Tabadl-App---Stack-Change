@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -55,6 +55,8 @@ export interface ApplicationStepFormProps {
   allowSubmit?: boolean
   /** Extra controls in the step header (e.g. admin approve/reject) */
   headerActions?: React.ReactNode
+  /** Optional ref kept in sync with the latest field values (for save/submit). */
+  latestValuesRef?: React.MutableRefObject<Record<string, string>>
 }
 
 export function ApplicationStepForm({
@@ -79,23 +81,44 @@ export function ApplicationStepForm({
   headerActions,
   allowStepAdvance = true,
   allowSubmit = true,
+  latestValuesRef,
 }: ApplicationStepFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const initialized = useRef(false)
+  const valuesRef = useRef<Record<string, string>>({})
+
+  /** Only re-sync from server when step or saved answers change — not on every parent re-render. */
+  const fieldsSyncKey = useMemo(
+    () =>
+      `${stepIndex}|${fields
+        .map(
+          (f) =>
+            `${f.fieldId}:${f.answer?.value ?? ''}:${f.answer?.fileUrl ?? ''}:${f.isRequired ? 1 : 0}`
+        )
+        .join(';')}`,
+    [stepIndex, fields]
+  )
+
+  const syncValues = (next: Record<string, string>) => {
+    valuesRef.current = next
+    if (latestValuesRef) latestValuesRef.current = next
+    setValues(next)
+  }
 
   useEffect(() => {
     const initial: Record<string, string> = {}
     for (const field of fields) {
       initial[field.fieldId] = field.answer?.value ?? field.answer?.fileUrl ?? ''
     }
-    setValues(initial)
+    syncValues(initial)
     setErrors({})
-    initialized.current = true
-  }, [fields])
+  }, [fieldsSyncKey, fields])
 
   const setValue = (fieldId: string, value: string) => {
-    setValues((prev) => ({ ...prev, [fieldId]: value }))
+    const next = { ...valuesRef.current, [fieldId]: value }
+    valuesRef.current = next
+    if (latestValuesRef) latestValuesRef.current = next
+    setValues(next)
     setErrors((prev) => {
       if (!prev[fieldId]) return prev
       const next = { ...prev }
@@ -104,10 +127,12 @@ export function ApplicationStepForm({
     })
   }
 
-  const validate = () => {
+  const getCurrentValues = () => ({ ...valuesRef.current })
+
+  const validate = (currentValues: Record<string, string>) => {
     const nextErrors: Record<string, string> = {}
     for (const field of fields) {
-      if (field.isRequired && !String(values[field.fieldId] ?? '').trim()) {
+      if (field.isRequired && !String(currentValues[field.fieldId] ?? '').trim()) {
         nextErrors[field.fieldId] = 'Required'
       }
     }
@@ -116,17 +141,22 @@ export function ApplicationStepForm({
   }
 
   const handleContinue = async () => {
-    if (!validate()) return
-    const canAdvance = allowStepAdvance !== false
+    const currentValues = getCurrentValues()
+    const canAdvance = allowStepAdvance !== false && !isLastStep
     const canSubmitNow = allowSubmit !== false
-    await onSave?.(values, {
-      goNext: canAdvance && !isLastStep,
-      submit: Boolean(isLastStep && showSubmit && canSubmitNow),
+    const wantsSubmit = Boolean(isLastStep && showSubmit && canSubmitNow)
+    const mustValidate = canAdvance || wantsSubmit || Boolean(approvalRequired)
+
+    if (mustValidate && !validate(currentValues)) return
+
+    await onSave?.(currentValues, {
+      goNext: canAdvance,
+      submit: wantsSubmit,
     })
   }
 
   const handleSaveExit = async () => {
-    await onSaveAndExit?.(values)
+    await onSaveAndExit?.(getCurrentValues())
   }
 
   const progressPct = totalSteps > 0 ? Math.round(((stepIndex + 1) / totalSteps) * 100) : 0
@@ -227,7 +257,7 @@ export function ApplicationStepForm({
             className={cn(
               'space-y-1.5 rounded-xl border p-3.5 transition-shadow',
               engaging
-                ? 'bg-white dark:bg-card shadow-sm hover:shadow-md hover:border-emerald-200'
+                ? 'bg-white dark:bg-card shadow-sm'
                 : 'bg-card'
             )}
           >
@@ -249,7 +279,7 @@ export function ApplicationStepForm({
                 placeholder={field.placeholder || undefined}
                 disabled={readOnly}
                 rows={4}
-                className={engaging ? 'border-emerald-100 focus-visible:ring-emerald-500' : undefined}
+                className={engaging ? 'disabled:opacity-80 disabled:cursor-not-allowed focus-visible:ring-emerald-500 disabled:bg-gray-100' : undefined}
               />
             ) : field.type === 'SELECT' || field.type === 'RADIO' ? (
               <Select
@@ -287,7 +317,7 @@ export function ApplicationStepForm({
                   onChange={(e) => setValue(field.fieldId, e.target.value)}
                   placeholder="File URL or path"
                   disabled={readOnly}
-                  className={engaging ? 'border-emerald-100 focus-visible:ring-emerald-500' : undefined}
+                  className={engaging ? 'focus-visible:ring-emerald-500 disabled:opacity-80 disabled:cursor-not-allowed disabled:bg-gray-100' : undefined}
                 />
                 {!readOnly && (
                   <Input
@@ -318,7 +348,7 @@ export function ApplicationStepForm({
                 onChange={(e) => setValue(field.fieldId, e.target.value)}
                 placeholder={field.placeholder || undefined}
                 disabled={readOnly}
-                className={engaging ? 'border-emerald-100 focus-visible:ring-emerald-500 h-10' : undefined}
+                className={engaging ? 'focus-visible:ring-emerald-500 h-10 disabled:opacity-80 disabled:cursor-not-allowed disabled:bg-gray-100' : undefined}
               />
             )}
 
