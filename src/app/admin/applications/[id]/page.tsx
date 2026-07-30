@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
-import { format } from 'date-fns'
+import { differenceInYears, format, isValid, parseISO } from 'date-fns'
 import { AdminPageTemplate } from '@/components/AdminPageTemplate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,6 +26,9 @@ import {
   Save,
   Pin,
   Plus,
+  User,
+  Calendar,
+  Phone,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -33,6 +36,7 @@ import {
   wizardStatusSelectTriggerClasses,
 } from '@/lib/wizards/wizard-status'
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
+import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
 
 type AppDetail = {
   id: string
@@ -43,7 +47,13 @@ type AppDetail = {
   submittedAt: string | null
   updatedAt: string
   adminNotes?: string | null
-  client: { id: string; name: string; email: string; phone?: string | null }
+  client: {
+    id: string
+    name: string
+    email: string
+    phone?: string | null
+    clientNumber?: string | null
+  }
   wizard: { id: string; name: string }
   steps: Array<{
     id: string
@@ -73,6 +83,38 @@ type FormOption = {
   name: string
   areaOfInterest?: string | null
   fieldCount?: number
+}
+
+function findAnswerByLabels(
+  steps: AppDetail['steps'],
+  labels: string[]
+): string | null {
+  const normalized = labels.map((l) => l.toLowerCase())
+  for (const step of steps) {
+    for (const field of step.fields) {
+      const label = field.label.toLowerCase()
+      if (normalized.some((n) => label.includes(n))) {
+        const value = field.answer?.value?.trim()
+        if (value) return value
+      }
+    }
+  }
+  return null
+}
+
+function parseBirthDate(value: string | null): Date | null {
+  if (!value) return null
+  const iso = parseISO(value)
+  if (isValid(iso)) return iso
+  const fallback = new Date(value)
+  return isValid(fallback) ? fallback : null
+}
+
+function formatAge(dob: Date | null): string | null {
+  if (!dob) return null
+  const years = differenceInYears(new Date(), dob)
+  if (years < 0 || years > 150) return null
+  return `${years} year${years === 1 ? '' : 's'}`
 }
 
 export default function AdminApplicationDetailPage() {
@@ -116,24 +158,24 @@ export default function AdminApplicationDetailPage() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const res = await axios.get('/api/admin/form-templates')
-        const list = res.data?.data?.templates ?? res.data?.templates ?? []
-        if (!cancelled) {
-          setForms(
-            list.map((t: any) => ({
-              id: t.id,
-              name: t.name,
-              areaOfInterest: t.areaOfInterest,
-              fieldCount: t.fieldCount,
-            }))
-          )
+      ; (async () => {
+        try {
+          const res = await axios.get('/api/admin/form-templates')
+          const list = res.data?.data?.templates ?? res.data?.templates ?? []
+          if (!cancelled) {
+            setForms(
+              list.map((t: any) => ({
+                id: t.id,
+                name: t.name,
+                areaOfInterest: t.areaOfInterest,
+                fieldCount: t.fieldCount,
+              }))
+            )
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
-      }
-    })()
+      })()
     return () => {
       cancelled = true
     }
@@ -314,6 +356,31 @@ export default function AdminApplicationDetailPage() {
     currentStepHasSaved &&
     currentStep?.approvalStatus === 'PENDING'
 
+  const gender = findAnswerByLabels(app.steps, ['gender', 'sex'])
+  const dobRaw = findAnswerByLabels(app.steps, [
+    'date of birth',
+    'dob',
+    'birth date',
+    'birthdate',
+  ])
+  const dob = parseBirthDate(dobRaw)
+  const age = formatAge(dob)
+  const clientNumber = app.client.clientNumber || app.applicationNumber
+  const primaryId =
+    findAnswerByLabels(app.steps, [
+      'primary id',
+      'national id',
+      'iqama',
+      'passport',
+      'id number',
+    ]) || app.client.clientNumber || '—'
+  const phone =
+    app.client.phone ||
+    findAnswerByLabels(app.steps, ['phone', 'mobile', 'whatsapp']) ||
+    null
+
+  const areaLabel = areaOfInterestDisplayLabel(app.areaOfInterest)
+
   return (
     <AdminPageTemplate
       title={app.wizard.name}
@@ -332,16 +399,26 @@ export default function AdminApplicationDetailPage() {
       <div className="flex flex-col xl:flex-row gap-5 items-start max-w-7xl">
         <div className="flex-1 min-w-0 space-y-4 w-full">
           {/* Overview */}
-          <Card>
-            <CardContent className="py-4 px-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+          <Card className="border-border/80 shadow-sm py-0">
+            <CardContent className="py-5 px-5 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <h2 className="text-lg font-semibold">
                     Overview
-                  </p>
-                  <p className="text-sm font-semibold mt-0.5">{app.wizard.name}</p>
+                  </h2>
+                  <div className='flex items-center gap-3'>
+                    {/* <p className="text-base font-semibold mt-0.5 text-gray-500">
+                      {app.wizard.name}
+                    </p> */}
+                    <p className="inline-flex items-center gap-1.5">
+                      <span className="text-gray-500 text-sm">Updated on: </span>
+                      <span className="text-gray-600 font-medium text-sm">
+                        {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end gap-2">
                   <Select
                     value={app.status}
                     onValueChange={updateStatus}
@@ -349,8 +426,9 @@ export default function AdminApplicationDetailPage() {
                   >
                     <SelectTrigger
                       className={cn(
-                        'w-[200px] h-9 border font-medium',
-                        wizardStatusSelectTriggerClasses(app.status)
+                        'w-full sm:w-[180px] h-9 shadow-xs transition-[color,box-shadow] outline-none',
+                        'focus:ring-0 focus:ring-offset-0',
+                        'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]'
                       )}
                     >
                       <SelectValue />
@@ -365,33 +443,87 @@ export default function AdminApplicationDetailPage() {
                       <SelectItem value="COMPLETED">Completed</SelectItem>
                     </SelectContent>
                   </Select>
+                  {/* <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600">
+                    <span className="text-slate-400 font-medium">Updated</span>
+                    {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
+                  </span> */}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              {/* <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-900">
                   <span className="text-indigo-500 font-medium">Client</span>
                   {app.client.name}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
                   <span className="text-slate-400 font-medium">Email</span>
                   {app.client.email}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs text-violet-900">
                   <span className="text-violet-500 font-medium">AOI</span>
-                  {app.areaOfInterest}
+                  {app.areaOfInterest} · {areaOfInterestDisplayLabel(app.areaOfInterest)}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs text-teal-900">
-                  <span className="text-teal-600 font-medium">Progress</span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900">
+                  <span className="text-emerald-600 font-medium">Progress</span>
                   {app.progress.completedSteps}/{app.progress.totalSteps} filled
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono text-slate-600">
                   {app.applicationNumber}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600 ml-auto">
-                  <span className="text-slate-400 font-medium">Updated</span>
-                  {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
+              </div> */}
+
+              {/* Client profile strip — same layout as reference, theme + app fields */}
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className='text-gray-500 text-sm'>
+                    Client:
+                  </span>
+                  <span className="text-gray-600 font-medium text-sm">
+                    {app.client.name}
+                  </span>
                 </span>
+
+                <span className="inline-flex items-center gap-1.5">
+                  <span className='text-gray-500 text-sm'>
+                    Email:
+                  </span>
+                  <span className="text-gray-600 font-medium text-sm">
+                    {app.client.email}
+                  </span>
+                </span>
+
+                <span className="inline-flex items-center gap-1.5">
+                  <span className='text-gray-500 text-sm'>
+                    AOI:
+                  </span>
+                  <span className="text-gray-600 font-medium text-sm">{app.areaOfInterest} · {areaOfInterestDisplayLabel(app.areaOfInterest)}</span>
+                </span>
+
+                <span className="inline-flex items-center gap-1.5">
+                  <span className='text-gray-500 text-sm'>
+                    Progress:
+                  </span>
+                  <span className="text-gray-600 font-medium text-sm">{app.progress.completedSteps}/{app.progress.totalSteps} filled</span>
+                </span>
+
+                <span className="inline-flex items-center gap-1.5">
+                  <span className='text-gray-500 text-sm'>
+                    App No:
+                  </span>
+                  <span className="text-gray-600 font-medium text-sm">{app.applicationNumber}</span>
+                </span>
+
+                {/* {phone && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>
+                      Phone: <span className="text-foreground">{phone}</span>
+                    </span>
+                  </span>
+                )} */}
+
+                {/* <span>
+                  Primary ID: <span className="text-foreground">{primaryId}</span>
+                </span> */}
               </div>
             </CardContent>
           </Card>
@@ -406,65 +538,66 @@ export default function AdminApplicationDetailPage() {
             />
 
             <div className="flex-1 min-w-0 w-full space-y-4">
-              <Card>
-            <CardContent className="pt-5">
-              {currentStep ? (
-                <ApplicationStepForm
-                  formName={currentStep.formName}
-                  fields={currentStep.fields}
-                  stepIndex={stepIndex}
-                  totalSteps={app.steps.length}
-                  paymentRequired={currentStep.paymentRequired}
-                  approvalRequired={currentStep.approvalRequired}
-                  approvalStatus={currentStep.approvalStatus ?? null}
-                  rejectionNote={currentStep.rejectionNote}
-                  isLastStep={stepIndex >= app.steps.length - 1}
-                  saving={saving}
-                  saveIndicator={saveIndicator}
-                  engaging
-                  saveExitLabel="Save"
-                  headerActions={
-                    <>
-                      {currentStep.approvalStatus === 'APPROVED' && (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-                          Approved
-                        </Badge>
-                      )}
-                      {currentStep.approvalStatus === 'REJECTED' && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          Rejected
-                        </Badge>
-                      )}
-                      {showStepReviewActions && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="bg-emerald-700 hover:bg-emerald-800"
-                          disabled={reviewSaving || saving}
-                          onClick={() => void approveStep()}
-                        >
-                          {reviewSaving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            'Approve'
+              <Card className="pt-0 pb-0 shadow-md overflow-hidden">
+                <h2 className="text-lg font-semibold mb-3 px-6 pt-5">{areaLabel}</h2>
+                <CardContent className="pt-0 pb-5">
+                  {currentStep ? (
+                    <ApplicationStepForm
+                      formName={currentStep.formName}
+                      fields={currentStep.fields}
+                      stepIndex={stepIndex}
+                      totalSteps={app.steps.length}
+                      paymentRequired={currentStep.paymentRequired}
+                      approvalRequired={currentStep.approvalRequired}
+                      approvalStatus={currentStep.approvalStatus ?? null}
+                      rejectionNote={currentStep.rejectionNote}
+                      isLastStep={stepIndex >= app.steps.length - 1}
+                      saving={saving}
+                      saveIndicator={saveIndicator}
+                      engaging
+                      saveExitLabel="Save"
+                      headerActions={
+                        <>
+                          {currentStep.approvalStatus === 'APPROVED' && (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                              Approved
+                            </Badge>
                           )}
-                        </Button>
-                      )}
-                    </>
-                  }
-                  onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
-                  onSave={async (answers, opts) => {
-                    await saveAnswers(answers, { goNext: opts?.goNext })
-                  }}
-                  onSaveAndExit={async (answers) => {
-                    await saveAnswers(answers)
-                  }}
-                  showSubmit={false}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
-              )}
-            </CardContent>
+                          {currentStep.approvalStatus === 'REJECTED' && (
+                            <Badge variant="destructive" className="text-[10px]">
+                              Rejected
+                            </Badge>
+                          )}
+                          {showStepReviewActions && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-emerald-700 hover:bg-emerald-800"
+                              disabled={reviewSaving || saving}
+                              onClick={() => void approveStep()}
+                            >
+                              {reviewSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Approve'
+                              )}
+                            </Button>
+                          )}
+                        </>
+                      }
+                      onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
+                      onSave={async (answers, opts) => {
+                        await saveAnswers(answers, { goNext: opts?.goNext })
+                      }}
+                      onSaveAndExit={async (answers) => {
+                        await saveAnswers(answers)
+                      }}
+                      showSubmit={false}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
+                  )}
+                </CardContent>
               </Card>
             </div>
           </div>
@@ -477,7 +610,7 @@ export default function AdminApplicationDetailPage() {
               <Pin className="h-5 w-5 text-red-600 fill-red-500 drop-shadow" />
             </div>
             <div className="mt-2 rounded-sm bg-amber-100 border border-amber-200 shadow-[2px_6px_16px_rgba(0,0,0,0.12)] px-4 py-4 space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/80">
+              <p className="text-sm font-semibold uppercase tracking-wide text-amber-800/80">
                 Sticky note for client
               </p>
               <Textarea
@@ -489,7 +622,7 @@ export default function AdminApplicationDetailPage() {
               />
               <Button
                 size="sm"
-                className="w-full bg-amber-700 hover:bg-amber-800 text-white"
+                className="w-full bg-amber-700 hover:bg-amber-800 text-white cursor-pointer"
                 onClick={saveAdminNotes}
                 disabled={notesSaving}
               >
@@ -500,7 +633,7 @@ export default function AdminApplicationDetailPage() {
                 )}
                 Pin note
               </Button>
-              <p className="text-[10px] text-amber-800/70 leading-snug">
+              <p className="text-xs text-amber-800/70 leading-snug">
                 Client sees this on Applied applications and inside the form.
               </p>
             </div>

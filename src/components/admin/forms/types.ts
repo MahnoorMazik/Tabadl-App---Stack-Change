@@ -26,16 +26,15 @@ export const AREA_OF_INTEREST_OPTIONS: Array<{
   },
   {
     key: 'PR',
-    label: 'Premium Residency (PR)',
+    label: 'Private Registration (PR)',
     description: 'Investor, talent, entrepreneur & more',
   },
 ]
 
-/** Client-facing short labels (no CR/PR/GR codes) */
+/** Client-facing labels with area codes */
 export const AREA_OF_INTEREST_DISPLAY_LABELS: Record<AreaOfInterestKey, string> = {
-  CR: 'Company Registration',
-  PR: 'Private Registration',
-  GR: 'General Registration',
+  CR: 'Company Registration (CR)',
+  PR: 'Private Registration (PR)',
 }
 
 export function areaOfInterestDisplayLabel(key: string): string {

@@ -48,7 +48,7 @@ const PAGE_SIZE = 10
 
 const AOI_LABELS: Record<string, string> = {
   CR: 'Company Registration',
-  PR: 'Premium Residency',
+  PR: 'Private Registration',
 }
 
 function formatDate(value: string) {

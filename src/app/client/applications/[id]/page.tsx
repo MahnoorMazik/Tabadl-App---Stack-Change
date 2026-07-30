@@ -24,9 +24,7 @@ import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
-import {
-  AREA_OF_INTEREST_OPTIONS,
-} from '@/components/admin/forms/types'
+import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
 import {
   approvalAdvanceBlockedReason,
   canClientAccessStepIndex,
@@ -68,9 +66,7 @@ type AppDetail = {
 }
 
 function getAreaLabel(area: string) {
-  return (
-    AREA_OF_INTEREST_OPTIONS.find((o) => o.key === area)?.label ?? area
-  )
+  return areaOfInterestDisplayLabel(area)
 }
 
 function StatusBadge({ status }: { status: string }) {

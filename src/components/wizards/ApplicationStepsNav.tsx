@@ -194,7 +194,7 @@ export function ApplicationStepsNav({
   )
 
   return (
-    <Card className={cn('flex flex-col overflow-hidden border-border/80 pb-0', className)}>
+    <Card className={cn('flex flex-col overflow-hidden border-border/80 pb-0 pt-0', className)}>
       <CardHeader className="pt-4 px-4 space-y-3 border-b bg-muted/20">
         <div className='mb-0'>
           <h2 className="text-lg font-semibold">Steps</h2>

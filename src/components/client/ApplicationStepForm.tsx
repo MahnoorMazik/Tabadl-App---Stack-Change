@@ -75,7 +75,7 @@ export function ApplicationStepForm({
   onBack,
   onSave,
   onSaveAndExit,
-  saveExitLabel = 'Save & exit',
+  saveExitLabel = 'Save as Draft',
   showSubmit = true,
   engaging = false,
   headerActions,
@@ -382,7 +382,8 @@ export function ApplicationStepForm({
             {onSaveAndExit && (
               <Button type="button" variant="outline" onClick={handleSaveExit} disabled={saving} className='cursor-pointer'>
                 <Save className="h-4 w-4 mr-1" />
-                {saveExitLabel}
+                {/* {saveExitLabel} */}
+                Save as Draft
               </Button>
             )}
           </div>
