@@ -25,7 +25,7 @@ import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel, isClientApplicationEditable } from '@/lib/wizards/wizard-status'
 import {
-  AREA_OF_INTEREST_OPTIONS,
+  areaOfInterestDisplayLabel,
 } from '@/components/admin/forms/types'
 import {
   approvalAdvanceBlockedReason,
