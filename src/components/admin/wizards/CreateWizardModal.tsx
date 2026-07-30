@@ -36,7 +36,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Loader2, Plus, ArrowLeft, ArrowRight, Search, Wand2, Shapes, Building2, BadgeCheck, Check } from 'lucide-react'
+import { Loader2, Plus, ArrowLeft, ArrowRight, Search, Wand2, Shapes } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
@@ -65,11 +65,6 @@ interface CreateWizardModalProps {
   onUpdated?: (wizard: WizardListItem) => void
   /** When set, modal opens in edit mode with this wizard prefilled. */
   editingWizard?: WizardListItem | null
-}
-
-const SERVICE_ICONS: Record<AreaOfInterestKey, typeof Building2> = {
-  CR: Building2,
-  PR: BadgeCheck,
 }
 
 function draftFromWizard(wizard: WizardListItem): WizardDraft {
@@ -479,7 +474,7 @@ export function CreateWizardModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto border-emerald-100/80 bg-linear-to-b from-emerald-50/40 via-background to-background">
-        <DialogHeader className="space-y-3">
+        <DialogHeader className="space-y-3 gap-0">
           <DialogTitle className="text-lg tracking-tight">
             {isEdit ? 'Edit Application Steps' : 'Create Application Steps'}
           </DialogTitle>
@@ -488,7 +483,7 @@ export function CreateWizardModal({
               ? 'Name your wizard and pick the service it belongs to.'
               : 'Add and order form steps for this wizard.'}
           </DialogDescription>
-          <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
+          {/* <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
             <span
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
@@ -510,7 +505,7 @@ export function CreateWizardModal({
             >
               2 · Steps
             </span>
-          </div>
+          </div> */}
         </DialogHeader>
 
         {loading ? (
@@ -530,7 +525,7 @@ export function CreateWizardModal({
                   setDraft((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="e.g. Commercial registration application"
-                className="h-10 bg-background border-emerald-100 focus-visible:ring-emerald-600/30"
+                className="h-10 bg-background focus-visible:ring-emerald-600/30"
               />
               {setupError && !draft.name.trim() && (
                 <p className="text-xs text-destructive">Wizard name is required.</p>
@@ -546,61 +541,36 @@ export function CreateWizardModal({
                   One wizard per service — CR and PR each have their own live form.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {AREA_OF_INTEREST_OPTIONS.map((option) => {
                   const selected = draft.areaOfInterest === option.key
-                  const Icon = SERVICE_ICONS[option.key]
                   return (
                     <button
                       key={option.key}
                       type="button"
                       onClick={() => setAreaOfInterest(option.key)}
                       className={cn(
-                        'group relative flex flex-col items-start rounded-xl border-2 p-3.5 text-left transition-all',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
-                        selected
-                          ? 'border-emerald-600 bg-emerald-50/90 shadow-sm shadow-emerald-600/10'
-                          : 'border-border bg-background hover:border-emerald-200 hover:bg-muted/30'
+                        'group relative flex justify-start flex-col rounded-xl border dark:bg-card p-4 text-left transition-all cursor-pointer',
+                        'hover:border-emerald-500 hover:bg-primary/10 hover:shadow-md hover:shadow-emerald-500/10',
+                        'focus-visible:outline-none',
+                        selected && 'border-emerald-500 hover:shadow-emerald-500/10 bg-emerald-500/10'
                       )}
                     >
-                      <div className="flex w-full items-start justify-between gap-2">
-                        <span
-                          className={cn(
-                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors',
-                            selected
-                              ? 'border-emerald-200 bg-emerald-600 text-white'
-                              : 'border-border bg-muted/50 text-muted-foreground group-hover:border-emerald-200 group-hover:text-emerald-700'
-                          )}
-                        >
-                          <Icon className="h-4 w-4" aria-hidden />
-                        </span>
-                        <span
-                          className={cn(
-                            'rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                            selected
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-muted text-muted-foreground'
-                          )}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-base">{option.label}</span>
+                        <Badge
+                          variant="secondary"
+                          className="text-[12px] bg-gray-100 border-gray-300 shrink-0"
                         >
                           {option.key}
-                        </span>
+                        </Badge>
                       </div>
-                      <span
-                        className={cn(
-                          'mt-3 text-sm font-semibold leading-snug',
-                          selected ? 'text-emerald-950' : 'text-foreground'
-                        )}
-                      >
-                        {option.label.replace(/\s*\(CR\)|\s*\(PR\)/i, '')}
-                      </span>
-                      <span className="mt-1 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
                         {option.description}
-                      </span>
-                      {selected && (
-                        <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
-                          <Check className="h-3 w-3 stroke-[3]" aria-hidden />
-                        </span>
-                      )}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
+                        {selected ? 'Selected →' : 'Select service →'}
+                      </p>
                     </button>
                   )
                 })}

@@ -116,7 +116,7 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
     { title: 'Import Clients', icon: UserPlus, href: '/admin/clients/import', permission: `${Module.CLIENTS}.${Action.IMPORT}` }
   ],
   [Module.APPLICATIONS]: [
-    { title: 'All Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
+    { title: 'Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
   ],
   [Module.SERVICES]: [
     { title: 'Services Catalog', icon: Briefcase, href: '/admin/services', permission: `${Module.SERVICES}.${Action.VIEW}` },

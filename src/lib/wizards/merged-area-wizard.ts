@@ -95,7 +95,7 @@ export async function isWizardStepInWizard(wizardStepId: string, wizardId: strin
 export function mergedApplicationDisplayName(areaOfInterest: string) {
   const labels: Record<string, string> = {
     CR: 'Company Registration (CR)',
-    PR: 'Premium Residency (PR)',
+    PR: 'Private Registration (PR)',
   }
   const label = labels[areaOfInterest] ?? areaOfInterest
   return `${label} — application`

@@ -49,7 +49,7 @@ function StepNode({
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
           active
             ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm shadow-emerald-600/25'
-            : 'border-emerald-400 bg-emerald-400 text-white'
+            : 'border-emerald-600 bg-emerald-600 text-white'
         )}
         aria-hidden
       >
@@ -194,7 +194,7 @@ export function ApplicationStepsNav({
   )
 
   return (
-    <Card className={cn('flex flex-col overflow-hidden border-border/80 pb-0', className)}>
+    <Card className={cn('flex flex-col overflow-hidden border-border/80 pb-0 pt-0', className)}>
       <CardHeader className="pt-4 px-4 space-y-3 border-b bg-muted/20">
         <div className='mb-0'>
           <h2 className="text-lg font-semibold">Steps</h2>

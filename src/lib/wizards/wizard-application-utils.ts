@@ -63,6 +63,7 @@ const applicationInclude = {
       name: true,
       email: true,
       phone: true,
+      clientNumber: true,
       user: { select: { id: true, name: true, email: true } },
     },
   },

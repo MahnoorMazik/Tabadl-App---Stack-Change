@@ -72,9 +72,7 @@ type AppDetail = {
 }
 
 function getAreaLabel(area: string) {
-  return (
-    AREA_OF_INTEREST_OPTIONS.find((o) => o.key === area)?.label ?? area
-  )
+  return areaOfInterestDisplayLabel(area)
 }
 
 function StatusBadge({ status }: { status: string }) {

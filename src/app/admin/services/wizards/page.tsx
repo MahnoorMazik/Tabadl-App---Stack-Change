@@ -48,7 +48,7 @@ const PAGE_SIZE = 10
 
 const AOI_LABELS: Record<string, string> = {
   CR: 'Company Registration',
-  PR: 'Premium Residency',
+  PR: 'Private Registration',
 }
 
 function formatDate(value: string) {
@@ -309,9 +309,9 @@ export default function WizardsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-normal">
+                        <span className="text-sm">
                           {wizard.areaOfInterest} · {AOI_LABELS[wizard.areaOfInterest] ?? wizard.areaOfInterest}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
