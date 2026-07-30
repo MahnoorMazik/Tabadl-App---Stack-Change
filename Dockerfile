@@ -1,5 +1,5 @@
 # Stage 1: Builder (Debian-based to ensure native binaries like lightningcss and SWC work)
-FROM node:20-bullseye-slim AS builder
+FROM node:22.13-bullseye-slim AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -12,8 +12,9 @@ RUN apt-get update \
        openssl \
     && rm -rf /var/lib/apt/lists/*
 
-# Enable corepack and install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN node -v
+RUN npm -v 
+RUN npm install -g pnpm@9.15.9
 
 # Copy package files first (for better layer caching)
 COPY package.json pnpm-lock.yaml* .npmrc* ./
@@ -23,7 +24,7 @@ RUN sed -i '/"@next\/swc-win32-x64-msvc"/d' package.json || echo "Warning: Could
 
 # Install all dependencies (including dev dependencies for build)
 # This layer is cached unless package.json or pnpm-lock.yaml changes
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code (this layer invalidates only when source changes)
 COPY . .
@@ -66,7 +67,8 @@ RUN pnpm run build || (echo "ERROR: Next.js build failed!" && exit 1)
 #   1) build with full deps, 2) re-install prod deps into a clean dir and copy.
 
 # Stage 2: Runner (Debian-based)
-FROM node:20-bullseye-slim AS runner
+FROM node:22.13-bullseye-slim AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -83,7 +85,7 @@ RUN apt-get update \
        openssl \
        tzdata \
     && rm -rf /var/lib/apt/lists/* \
-    && corepack enable && corepack prepare pnpm@latest --activate
+    && npm install -g pnpm@9.15.9
 
 # Set timezone (adjust as needed)
 ENV TZ=UTC
@@ -125,14 +127,14 @@ RUN mkdir -p prisma/db uploads logs uploads/applications uploads/leads && \
 # Switch to non-root user
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 2006
 
-ENV PORT=3000
+ENV PORT=2006
 ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
+    CMD curl -f http://localhost:2006/api/health || exit 1
 
 # Use entrypoint script to initialize database and start application
 ENTRYPOINT ["dumb-init", "--", "./docker-entrypoint.sh"]

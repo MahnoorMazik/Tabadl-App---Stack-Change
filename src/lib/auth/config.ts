@@ -1,4 +1,4 @@
-import NextAuth from "next-auth"
+import NextAuth, { User } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
@@ -55,6 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login",
   },
+  
   providers: [
     Credentials({
       id: "credentials",
@@ -125,7 +126,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           staffType: user.staffType ?? null,
           avatar: user.avatar ?? null,
           phone: user.phone ?? null,
-        }
+        } as User
       }
     })
   ],

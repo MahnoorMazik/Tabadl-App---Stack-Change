@@ -82,7 +82,7 @@ export const GET = withPermission(viewPerm)(async (request) => {
       )
     )
   } catch (error: unknown) {
-    logError(error, {
+    logError(error as Error, {
       code: ErrorCodes.DATABASE_ERROR,
       requestId,
       userId: request.user?.userId,
@@ -167,7 +167,7 @@ export const POST = withPermission(createPerm)(async (request) => {
         })
       )
     }
-    logError(error, {
+    logError(error as Error, {
       code: ErrorCodes.DATABASE_ERROR,
       requestId,
       userId: actor.userId,

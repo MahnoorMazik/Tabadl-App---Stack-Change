@@ -59,7 +59,7 @@ export async function requireFormBuilderAuth(request: NextRequest): Promise<
 > {
   const authResult = await requireAuth(request)
   if ('error' in authResult) {
-    return { error: authResult.error, status: authResult.status }
+    return { error: authResult.error ?? 'Authentication error', status: authResult.status ?? 401 }
   }
 
   if (!isStaffOrAdmin(authResult.user.role)) {
