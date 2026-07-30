@@ -80,7 +80,7 @@ export async function replaceTemplateRelations(
   data: {
     name?: string
     description?: string | null
-    areaOfInterest?: 'CR' | 'PR' | 'GR' | null
+    areaOfInterest?: 'CR' | 'PR' | null
     isActive?: boolean
     fields?: Array<{
       fieldId: string

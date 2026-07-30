@@ -10,10 +10,7 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 import { requireAuth } from '@/lib/rbac-middleware'
-import {
-  fetchMergedStepsForArea,
-  mergedApplicationDisplayName,
-} from '@/lib/wizards/merged-area-wizard'
+import { fetchActiveWizardForArea } from '@/lib/wizards/merged-area-wizard'
 
 export const OPTIONS = () => handleCorsPreflight()
 
@@ -49,11 +46,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const area = searchParams.get('areaOfInterest')?.toUpperCase()
 
-    if (!area || !['CR', 'PR', 'GR'].includes(area)) {
+    if (!area || !['CR', 'PR'].includes(area)) {
       return addCorsHeaders(
         createErrorResponse(
           ErrorCodes.VALIDATION_ERROR,
-          'areaOfInterest query (CR, PR, or GR) is required',
+          'areaOfInterest query (CR or PR) is required',
           400,
           { requestId }
         )
@@ -61,28 +58,26 @@ export async function GET(request: NextRequest) {
     }
 
     const areaOfInterest = area as AreaOfInterest
-    const mergedSteps = await fetchMergedStepsForArea(areaOfInterest)
-
-    const wizardIds = new Set<string>()
-    for (const step of mergedSteps) {
-      wizardIds.add(step.sourceWizardId)
-    }
+    const activeWizard = await fetchActiveWizardForArea(areaOfInterest)
+    const steps = activeWizard
+      ? activeWizard.steps.map((step, index) => ({
+          index: index + 1,
+          id: step.id,
+          formTemplateId: step.formTemplateId,
+          formName: step.formTemplate.name,
+          fieldCount: step.formTemplate.fields.length,
+          paymentRequired: step.paymentRequired,
+          approvalRequired: step.approvalRequired,
+        }))
+      : []
 
     const merged = {
       areaOfInterest,
-      title: mergedApplicationDisplayName(areaOfInterest),
-      totalSteps: mergedSteps.length,
-      wizardCount: wizardIds.size,
-      steps: mergedSteps.map((step, index) => ({
-        index: index + 1,
-        id: step.id,
-        formTemplateId: step.formTemplateId,
-        formName: step.formTemplate.name,
-        fieldCount: step.formTemplate.fields.length,
-        paymentRequired: step.paymentRequired,
-        approvalRequired: step.approvalRequired,
-        sourceWizardName: step.sourceWizardName,
-      })),
+      wizardId: activeWizard?.id ?? null,
+      title: activeWizard?.name ?? areaOfInterest,
+      totalSteps: steps.length,
+      wizardCount: activeWizard ? 1 : 0,
+      steps,
     }
 
     return addCorsHeaders(

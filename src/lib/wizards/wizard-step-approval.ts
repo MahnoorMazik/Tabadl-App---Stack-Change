@@ -1,5 +1,45 @@
 import { WizardStepApprovalStatus } from '@prisma/client'
 import { db } from '@/lib/db'
+import {
+  canClientAccessStepIndex,
+  findUnapprovedRequiredStepIndex,
+} from '@/lib/wizards/wizard-step-approval-rules'
+
+async function getApprovalGatesForApplication(applicationId: string) {
+  const app = await db.wizardApplication.findFirst({
+    where: { id: applicationId, isDeleted: false },
+    select: {
+      wizard: {
+        select: {
+          steps: {
+            orderBy: { sortOrder: 'asc' as const },
+            select: { id: true, approvalRequired: true },
+          },
+        },
+      },
+      stepReviews: { select: { wizardStepId: true, status: true } },
+    },
+  })
+  if (!app) return []
+
+  const statusByStepId = new Map(
+    app.stepReviews.map((r) => [r.wizardStepId, r.status])
+  )
+
+  return app.wizard.steps.map((s) => ({
+    approvalRequired: s.approvalRequired,
+    approvalStatus: (statusByStepId.get(s.id) as StepApprovalStatus) ?? null,
+  }))
+}
+
+export {
+  canClientAccessStepIndex,
+  firstBlockingApprovalStepBefore,
+  approvalAdvanceBlockedReason,
+  findUnapprovedRequiredStepIndex,
+  maxAccessibleStepIndex,
+} from '@/lib/wizards/wizard-step-approval-rules'
+export type { StepApprovalGate } from '@/lib/wizards/wizard-step-approval-rules'
 
 export type StepApprovalStatus = WizardStepApprovalStatus | null
 
@@ -112,4 +152,35 @@ export async function setStepApproval(params: {
       rejectionNote: params.rejectionNote ?? null,
     },
   })
+}
+
+export async function assertClientStepIndexAllowed(params: {
+  applicationId: string
+  targetStepIndex: number
+}) {
+  const gates = await getApprovalGatesForApplication(params.applicationId)
+  if (params.targetStepIndex <= 0 || gates.length === 0) return { ok: true as const }
+
+  if (canClientAccessStepIndex(gates, params.targetStepIndex)) {
+    return { ok: true as const }
+  }
+
+  return {
+    ok: false as const,
+    message:
+      'Complete and get admin approval on earlier steps before opening this step.',
+  }
+}
+
+export async function assertAllRequiredApprovalsForSubmit(params: {
+  applicationId: string
+}) {
+  const gates = await getApprovalGatesForApplication(params.applicationId)
+  const idx = findUnapprovedRequiredStepIndex(gates)
+  if (idx === null) return { ok: true as const }
+
+  return {
+    ok: false as const,
+    message: `Step ${idx + 1} requires admin approval before you can submit the application.`,
+  }
 }

@@ -50,6 +50,9 @@ export interface ApplicationStepFormProps {
   showSubmit?: boolean
   /** Stronger visual treatment for the form canvas */
   engaging?: boolean
+  /** When false, Save & continue / submit advance is blocked (e.g. pending approval). */
+  allowStepAdvance?: boolean
+  allowSubmit?: boolean
   /** Extra controls in the step header (e.g. admin approve/reject) */
   headerActions?: React.ReactNode
 }
@@ -74,6 +77,8 @@ export function ApplicationStepForm({
   showSubmit = true,
   engaging = false,
   headerActions,
+  allowStepAdvance = true,
+  allowSubmit = true,
 }: ApplicationStepFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -112,7 +117,12 @@ export function ApplicationStepForm({
 
   const handleContinue = async () => {
     if (!validate()) return
-    await onSave?.(values, { goNext: !isLastStep, submit: Boolean(isLastStep && showSubmit) })
+    const canAdvance = allowStepAdvance !== false
+    const canSubmitNow = allowSubmit !== false
+    await onSave?.(values, {
+      goNext: canAdvance && !isLastStep,
+      submit: Boolean(isLastStep && showSubmit && canSubmitNow),
+    })
   }
 
   const handleSaveExit = async () => {
@@ -363,7 +373,13 @@ export function ApplicationStepForm({
             ) : (
               <ArrowRight className="h-4 w-4 mr-2" />
             )}
-            {isLastStep && showSubmit ? 'Submit application' : 'Save & continue'}
+            {isLastStep && showSubmit
+              ? allowSubmit === false
+                ? 'Complete approvals to submit'
+                : 'Submit application'
+              : allowStepAdvance === false
+                ? 'Save for admin review'
+                : 'Save & continue'}
           </Button>
         </div>
       )}

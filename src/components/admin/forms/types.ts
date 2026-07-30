@@ -12,7 +12,7 @@ export type FormFieldType =
   | 'FILE'
 
 /** Static area-of-interest keys stored on FormTemplate */
-export type AreaOfInterestKey = 'CR' | 'PR' | 'GR'
+export type AreaOfInterestKey = 'CR' | 'PR'
 
 export const AREA_OF_INTEREST_OPTIONS: Array<{
   key: AreaOfInterestKey
@@ -28,11 +28,6 @@ export const AREA_OF_INTEREST_OPTIONS: Array<{
     key: 'PR',
     label: 'Premium Residency (PR)',
     description: 'Investor, talent, entrepreneur & more',
-  },
-  {
-    key: 'GR',
-    label: 'General Services (GR)',
-    description: 'Browse the full service catalogue',
   },
 ]
 

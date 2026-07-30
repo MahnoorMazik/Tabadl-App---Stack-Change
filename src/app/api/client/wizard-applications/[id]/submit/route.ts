@@ -15,7 +15,7 @@ import {
   getWizardApplicationDetail,
   mapWizardApplicationDetail,
 } from '@/lib/wizards/wizard-application-utils'
-import { countMergedStepsForArea } from '@/lib/wizards/merged-area-wizard'
+import { assertAllRequiredApprovalsForSubmit } from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -73,7 +73,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const totalSteps = await countMergedStepsForArea(app.areaOfInterest)
+    const approvalCheck = await assertAllRequiredApprovalsForSubmit({
+      applicationId: id,
+    })
+    if (!approvalCheck.ok) {
+      return addCorsHeaders(
+        createErrorResponse(ErrorCodes.VALIDATION_ERROR, approvalCheck.message, 400, {
+          requestId,
+        })
+      )
+    }
+
+    const appWithWizard = await db.wizardApplication.findFirst({
+      where: { id, clientId: access.client.id, isDeleted: false },
+      select: {
+        wizard: { select: { steps: { select: { id: true } } } },
+      },
+    })
+    const totalSteps = appWithWizard?.wizard.steps.length ?? 0
 
     await db.wizardApplication.update({
       where: { id },

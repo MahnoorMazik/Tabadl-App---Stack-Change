@@ -24,7 +24,13 @@ import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
-import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import {
+  approvalAdvanceBlockedReason,
+  canClientAccessStepIndex,
+  findUnapprovedRequiredStepIndex,
+  firstBlockingApprovalStepBefore,
+  maxAccessibleStepIndex,
+} from '@/lib/wizards/wizard-step-approval-rules'
 
 type AppDetail = {
   id: string
@@ -102,8 +108,10 @@ export default function ClientApplicationFillPage() {
         const detail = res.data?.data?.application as AppDetail
         setApp(detail)
         if (!silent) {
+          const maxIdx = Math.max(0, detail.steps.length - 1)
+          const allowedMax = maxAccessibleStepIndex(detail.steps)
           setStepIndex(
-            Math.min(detail.currentStepIndex ?? 0, Math.max(0, detail.steps.length - 1))
+            Math.min(detail.currentStepIndex ?? 0, maxIdx, allowedMax)
           )
         }
         setSubmitted(detail.status !== 'DRAFT')
@@ -153,6 +161,29 @@ export default function ClientApplicationFillPage() {
     opts?: { goNext?: boolean; submit?: boolean; exit?: boolean }
   ) => {
     if (!app || !currentStep) return
+
+    if (opts?.submit && findUnapprovedRequiredStepIndex(app.steps) !== null) {
+      toast({
+        title: 'Approval required',
+        description: 'All admin approval steps must be approved before submitting.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (opts?.goNext && !canClientAccessStepIndex(app.steps, stepIndex + 1)) {
+      const block = firstBlockingApprovalStepBefore(app.steps, stepIndex + 1)
+      toast({
+        title: 'Next step locked',
+        description:
+          block !== null
+            ? approvalAdvanceBlockedReason(app.steps[block])
+            : 'Complete the current step first.',
+        variant: 'destructive',
+      })
+      opts = { ...opts, goNext: false }
+    }
+
     setSaving(true)
     setSaveIndicator('saving')
     try {
@@ -207,7 +238,22 @@ export default function ClientApplicationFillPage() {
       filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
     })) ?? []
 
-  const areaLabel = app ? areaOfInterestDisplayLabel(app.areaOfInterest) : ''
+  const goToStep = (index: number) => {
+    if (!app) return
+    if (!canClientAccessStepIndex(app.steps, index)) {
+      const block = firstBlockingApprovalStepBefore(app.steps, index)
+      toast({
+        title: 'Step locked',
+        description:
+          block !== null
+            ? approvalAdvanceBlockedReason(app.steps[block])
+            : 'Complete earlier steps first.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setStepIndex(index)
+  }
 
   return (
     <MobileLayout
@@ -268,10 +314,10 @@ export default function ClientApplicationFillPage() {
                 <ApplicationStepsNav
                   steps={stepNavItems}
                   stepIndex={stepIndex}
-                  onStepSelect={setStepIndex}
+                  onStepSelect={goToStep}
                   completedCount={app.progress.completedSteps}
-                  areaLabel={areaLabel}
-                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky pt-0"
+                  isStepAccessible={(i) => canClientAccessStepIndex(app.steps, i)}
+                  className="w-full lg:w-72 xl:w-80 shrink-0 lg:sticky lg:top-20"
                 />
 
                 <div className="flex-1 min-w-0 w-full">
@@ -293,10 +339,12 @@ export default function ClientApplicationFillPage() {
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
-                      onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
+                      onBack={() => goToStep(Math.max(0, stepIndex - 1))}
                       onSave={(answers, opts) => saveStep(answers, opts)}
                       onSaveAndExit={(answers) => saveStep(answers, { exit: true })}
                       showSubmit={!submitted}
+                      allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}
+                      allowSubmit={findUnapprovedRequiredStepIndex(app.steps) === null}
                     />
                   ) : (
                     <p className="text-sm text-muted-foreground py-6 text-center">

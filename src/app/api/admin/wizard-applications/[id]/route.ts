@@ -17,7 +17,7 @@ import {
   mapWizardApplicationDetail,
   upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
-import { isWizardStepInArea } from '@/lib/wizards/merged-area-wizard'
+import { isWizardStepInWizard } from '@/lib/wizards/merged-area-wizard'
 import { setStepApproval } from '@/lib/wizards/wizard-step-approval'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -158,9 +158,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     if (parsed.data.stepApproval) {
-      const stepOk = await isWizardStepInArea(
+      const stepOk = await isWizardStepInWizard(
         parsed.data.stepApproval.wizardStepId,
-        existing.areaOfInterest
+        existing.wizardId
       )
       if (!stepOk) {
         return addCorsHeaders(
@@ -179,9 +179,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     if (parsed.data.wizardStepId && parsed.data.answers) {
-      const stepValid = await isWizardStepInArea(
+      const stepValid = await isWizardStepInWizard(
         parsed.data.wizardStepId,
-        existing.areaOfInterest
+        existing.wizardId
       )
       if (!stepValid) {
         return addCorsHeaders(

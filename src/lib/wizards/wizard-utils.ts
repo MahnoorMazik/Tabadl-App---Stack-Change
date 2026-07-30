@@ -101,7 +101,7 @@ export async function replaceWizardRelations(
   wizardId: string,
   data: {
     name?: string
-    areaOfInterest?: 'CR' | 'PR' | 'GR'
+    areaOfInterest?: 'CR' | 'PR'
     isActive?: boolean
     serviceIds?: string[]
     steps?: Array<{
@@ -113,9 +113,14 @@ export async function replaceWizardRelations(
   }
 ) {
   await db.$transaction(async (tx) => {
+    const existing = await tx.applicationWizard.findUnique({
+      where: { id: wizardId },
+      select: { areaOfInterest: true },
+    })
+
     const updateData: {
       name?: string
-      areaOfInterest?: 'CR' | 'PR' | 'GR'
+      areaOfInterest?: 'CR' | 'PR'
       isActive?: boolean
     } = {}
 
@@ -129,6 +134,17 @@ export async function replaceWizardRelations(
       await tx.applicationWizard.update({
         where: { id: wizardId },
         data: updateData,
+      })
+    }
+
+    if (data.isActive === true && existing) {
+      await tx.applicationWizard.updateMany({
+        where: {
+          areaOfInterest: data.areaOfInterest ?? existing.areaOfInterest,
+          isDeleted: false,
+          id: { not: wizardId },
+        },
+        data: { isActive: false },
       })
     }
 

@@ -64,7 +64,7 @@ const templateFieldItemSchema = z.object({
   labelOverride: z.string().trim().max(200).optional().nullable(),
 })
 
-export const AREA_OF_INTEREST_KEYS = ['CR', 'PR', 'GR'] as const
+export const AREA_OF_INTEREST_KEYS = ['CR', 'PR'] as const
 
 export const formTemplateSchema = z.object({
   name: z.string().trim().min(1, 'Form name is required').max(200),
