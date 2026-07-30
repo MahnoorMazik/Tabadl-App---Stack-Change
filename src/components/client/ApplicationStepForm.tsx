@@ -57,6 +57,8 @@ export interface ApplicationStepFormProps {
   headerActions?: React.ReactNode
   /** Optional ref kept in sync with the latest field values (for save/submit). */
   latestValuesRef?: React.MutableRefObject<Record<string, string>>
+  /** Fired when the user edits fields (true) or values sync from server (false). */
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 export function ApplicationStepForm({
@@ -82,10 +84,13 @@ export function ApplicationStepForm({
   allowStepAdvance = true,
   allowSubmit = true,
   latestValuesRef,
+  onDirtyChange,
 }: ApplicationStepFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const valuesRef = useRef<Record<string, string>>({})
+  const fieldsRef = useRef(fields)
+  fieldsRef.current = fields
 
   /** Only re-sync from server when step or saved answers change — not on every parent re-render. */
   const fieldsSyncKey = useMemo(
@@ -99,26 +104,33 @@ export function ApplicationStepForm({
     [stepIndex, fields]
   )
 
-  const syncValues = (next: Record<string, string>) => {
+  const lastSyncedKeyRef = useRef<string | null>(null)
+
+  const syncValues = (next: Record<string, string>, fromServer = false) => {
     valuesRef.current = next
     if (latestValuesRef) latestValuesRef.current = next
     setValues(next)
+    if (fromServer) onDirtyChange?.(false)
   }
 
   useEffect(() => {
+    if (lastSyncedKeyRef.current === fieldsSyncKey) return
+    lastSyncedKeyRef.current = fieldsSyncKey
+
     const initial: Record<string, string> = {}
-    for (const field of fields) {
+    for (const field of fieldsRef.current) {
       initial[field.fieldId] = field.answer?.value ?? field.answer?.fileUrl ?? ''
     }
-    syncValues(initial)
+    syncValues(initial, true)
     setErrors({})
-  }, [fieldsSyncKey, fields])
+  }, [fieldsSyncKey])
 
   const setValue = (fieldId: string, value: string) => {
     const next = { ...valuesRef.current, [fieldId]: value }
     valuesRef.current = next
     if (latestValuesRef) latestValuesRef.current = next
     setValues(next)
+    onDirtyChange?.(true)
     setErrors((prev) => {
       if (!prev[fieldId]) return prev
       const next = { ...prev }

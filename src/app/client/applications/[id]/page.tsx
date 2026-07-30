@@ -108,6 +108,7 @@ export default function ClientApplicationFillPage() {
   const [saving, setSaving] = useState(false)
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [submitted, setSubmitted] = useState(false)
+  const [formDirty, setFormDirty] = useState(false)
   const latestFormValuesRef = useRef<Record<string, string>>({})
 
   const load = useCallback(
@@ -144,10 +145,11 @@ export default function ClientApplicationFillPage() {
   useEffect(() => {
     if (authLoading || !user) return
     const timer = setInterval(() => {
+      if (formDirty || saving) return
       void load(true)
     }, 12000)
     return () => clearInterval(timer)
-  }, [authLoading, user, load])
+  }, [authLoading, user, load, formDirty, saving])
 
   const currentStep = app?.steps[stepIndex]
 
@@ -221,6 +223,7 @@ export default function ClientApplicationFillPage() {
       })
       const savedApp = patchRes.data?.data?.application as AppDetail | undefined
       if (savedApp) setApp(savedApp)
+      setFormDirty(false)
 
       if (opts?.submit) {
         const submitRes = await axios.post(
@@ -383,6 +386,7 @@ export default function ClientApplicationFillPage() {
                       onSave={(answers, opts) => saveStep(answers, opts)}
                       onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
+                      onDirtyChange={setFormDirty}
                       saveExitLabel="Save"
                       showSubmit={!submitted}
                       allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}
