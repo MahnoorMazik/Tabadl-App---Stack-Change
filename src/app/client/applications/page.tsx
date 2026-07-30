@@ -124,10 +124,11 @@ export default function ClientApplicationsPage() {
 
   useEffect(() => {
     if (authLoading || !user) return
-    const timer = setInterval(() => {
-      void fetchApplications(true)
-    }, 12000)
-    return () => clearInterval(timer)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void fetchApplications(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [authLoading, user, fetchApplications])
 
   useEffect(() => {

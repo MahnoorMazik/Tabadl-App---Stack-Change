@@ -229,3 +229,39 @@ export async function upsertStepAnswers(params: {
     }
   })
 }
+
+/** Stable snapshot for comparing application detail — skip re-render when unchanged. */
+export function wizardApplicationDetailFingerprint(app: {
+  status: string
+  updatedAt?: string | Date | null
+  adminNotes?: string | null
+  currentStepIndex: number
+  progress: { completedSteps: number; totalSteps: number }
+  steps: Array<{
+    id: string
+    approvalStatus?: string | null
+    rejectionNote?: string | null
+    fields: Array<{
+      fieldId: string
+      answer: { value: string | null; fileUrl: string | null }
+    }>
+  }>
+}): string {
+  return JSON.stringify({
+    status: app.status,
+    updatedAt: app.updatedAt ? String(app.updatedAt) : null,
+    adminNotes: app.adminNotes ?? null,
+    currentStepIndex: app.currentStepIndex,
+    progress: app.progress,
+    steps: app.steps.map((s) => ({
+      id: s.id,
+      approvalStatus: s.approvalStatus ?? null,
+      rejectionNote: s.rejectionNote ?? null,
+      answers: s.fields.map((f) => [
+        f.fieldId,
+        f.answer?.value ?? null,
+        f.answer?.fileUrl ?? null,
+      ]),
+    })),
+  })
+}

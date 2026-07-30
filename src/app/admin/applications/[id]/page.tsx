@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { format } from 'date-fns'
@@ -93,6 +93,8 @@ export default function AdminApplicationDetailPage() {
   const [addPayment, setAddPayment] = useState(false)
   const [addingStep, setAddingStep] = useState(false)
   const [reviewSaving, setReviewSaving] = useState(false)
+  const [formDirty, setFormDirty] = useState(false)
+  const [serverSyncVersion, setServerSyncVersion] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -141,6 +143,23 @@ export default function AdminApplicationDetailPage() {
 
   const currentStep = app?.steps[stepIndex]
 
+  const buildAnswersPayload = (
+    answers: Record<string, string>,
+    fields: AppDetail['steps'][number]['fields']
+  ) =>
+    fields.map((field) => {
+      const raw =
+        answers[field.fieldId] ??
+        field.answer?.value ??
+        field.answer?.fileUrl ??
+        ''
+      const trimmed = String(raw).trim()
+      return {
+        fieldId: field.fieldId,
+        value: trimmed || null,
+      }
+    })
+
   const saveAnswers = async (
     answers: Record<string, string>,
     opts?: { goNext?: boolean }
@@ -156,20 +175,15 @@ export default function AdminApplicationDetailPage() {
       const res = await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
         currentStepIndex: nextIndex,
-        answers: Object.entries(answers).map(([fieldId, value]) => ({
-          fieldId,
-          value: value || null,
-        })),
+        answers: buildAnswersPayload(answers, currentStep.fields),
       })
       const savedApp = res.data?.data?.application as AppDetail | undefined
+      setFormDirty(false)
+      setServerSyncVersion((v) => v + 1)
       if (savedApp) {
         setApp(savedApp)
         if (opts?.goNext) {
           setStepIndex(nextIndex)
-        } else {
-          setStepIndex(
-            Math.min(savedApp.currentStepIndex ?? stepIndex, Math.max(0, savedApp.steps.length - 1))
-          )
         }
       }
       setSaveIndicator('saved')
@@ -261,6 +275,8 @@ export default function AdminApplicationDetailPage() {
         stepApproval: { wizardStepId: currentStep.id, status: 'APPROVED' },
       })
       setApp(res.data?.data?.application as AppDetail)
+      setServerSyncVersion((v) => v + 1)
+      setFormDirty(false)
       toast({
         title: 'Step approved',
         description: 'The client cannot change approved answers on this step.',
@@ -275,6 +291,17 @@ export default function AdminApplicationDetailPage() {
       setReviewSaving(false)
     }
   }
+
+  const stepNavItems = useMemo(
+    () =>
+      app?.steps.map((step) => ({
+        id: step.id,
+        formName: step.formName,
+        paymentRequired: step.paymentRequired,
+        filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
+      })) ?? [],
+    [app?.steps]
+  )
 
   if (loading) {
     return (
@@ -299,13 +326,6 @@ export default function AdminApplicationDetailPage() {
     app.steps.map((s) => s.formTemplateId).filter(Boolean) as string[]
   )
   const availableForms = forms.filter((f) => !existingTemplateIds.has(f.id))
-
-  const stepNavItems = app.steps.map((step) => ({
-    id: step.id,
-    formName: step.formName,
-    paymentRequired: step.paymentRequired,
-    filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
-  }))
 
   const currentStepHasSaved =
     currentStep?.fields.some((f) => f.answer?.value || f.answer?.fileUrl) ?? false
@@ -410,6 +430,7 @@ export default function AdminApplicationDetailPage() {
             <CardContent className="pt-5">
               {currentStep ? (
                 <ApplicationStepForm
+                  key={currentStep.id}
                   formName={currentStep.formName}
                   fields={currentStep.fields}
                   stepIndex={stepIndex}
@@ -423,6 +444,8 @@ export default function AdminApplicationDetailPage() {
                   saveIndicator={saveIndicator}
                   engaging
                   saveExitLabel="Save"
+                  onDirtyChange={setFormDirty}
+                  serverSyncVersion={serverSyncVersion}
                   headerActions={
                     <>
                       {currentStep.approvalStatus === 'APPROVED' && (

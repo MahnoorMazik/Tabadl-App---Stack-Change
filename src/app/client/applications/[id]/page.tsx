@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { format } from 'date-fns'
@@ -34,6 +34,7 @@ import {
   firstBlockingApprovalStepBefore,
   maxAccessibleStepIndex,
 } from '@/lib/wizards/wizard-step-approval-rules'
+import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
 
 type AppDetail = {
   id: string
@@ -109,7 +110,9 @@ export default function ClientApplicationFillPage() {
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [submitted, setSubmitted] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
+  const [serverSyncVersion, setServerSyncVersion] = useState(0)
   const latestFormValuesRef = useRef<Record<string, string>>({})
+  const appFingerprintRef = useRef<string | null>(null)
 
   const load = useCallback(
     async (silent = false) => {
@@ -117,6 +120,11 @@ export default function ClientApplicationFillPage() {
       try {
         const res = await axios.get(`/api/client/wizard-applications/${id}`)
         const detail = res.data?.data?.application as AppDetail
+        const fingerprint = wizardApplicationDetailFingerprint(detail)
+
+        if (silent && fingerprint === appFingerprintRef.current) return
+
+        appFingerprintRef.current = fingerprint
         setApp(detail)
         if (!silent) {
           const maxIdx = Math.max(0, detail.steps.length - 1)
@@ -144,12 +152,14 @@ export default function ClientApplicationFillPage() {
 
   useEffect(() => {
     if (authLoading || !user) return
+    // Background refresh only after submit — not while client is filling the form.
+    if (!submitted) return
     const timer = setInterval(() => {
       if (formDirty || saving) return
       void load(true)
-    }, 12000)
+    }, 60000)
     return () => clearInterval(timer)
-  }, [authLoading, user, load, formDirty, saving])
+  }, [authLoading, user, load, submitted, formDirty, saving])
 
   const currentStep = app?.steps[stepIndex]
 
@@ -222,8 +232,12 @@ export default function ClientApplicationFillPage() {
         answers: answersPayload,
       })
       const savedApp = patchRes.data?.data?.application as AppDetail | undefined
-      if (savedApp) setApp(savedApp)
       setFormDirty(false)
+      setServerSyncVersion((v) => v + 1)
+      if (savedApp) {
+        appFingerprintRef.current = wizardApplicationDetailFingerprint(savedApp)
+        setApp(savedApp)
+      }
 
       if (opts?.submit) {
         const submitRes = await axios.post(
@@ -234,7 +248,10 @@ export default function ClientApplicationFillPage() {
           }
         )
         const submittedApp = submitRes.data?.data?.application as AppDetail | undefined
-        if (submittedApp) setApp(submittedApp)
+        if (submittedApp) {
+          appFingerprintRef.current = wizardApplicationDetailFingerprint(submittedApp)
+          setApp(submittedApp)
+        }
         setSubmitted(true)
         toast({
           title: 'Application submitted',
@@ -250,10 +267,6 @@ export default function ClientApplicationFillPage() {
       }
       if (opts?.goNext) {
         setStepIndex(nextIndex)
-      } else if (savedApp) {
-        setStepIndex(
-          Math.min(savedApp.currentStepIndex ?? stepIndex, Math.max(0, savedApp.steps.length - 1))
-        )
       }
       if (!opts?.exit) {
         setTimeout(() => setSaveIndicator('idle'), 1500)
@@ -270,13 +283,16 @@ export default function ClientApplicationFillPage() {
     }
   }
 
-  const stepNavItems =
-    app?.steps.map((step) => ({
-      id: step.id,
-      formName: step.formName,
-      paymentRequired: step.paymentRequired,
-      filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
-    })) ?? []
+  const stepNavItems = useMemo(
+    () =>
+      app?.steps.map((step) => ({
+        id: step.id,
+        formName: step.formName,
+        paymentRequired: step.paymentRequired,
+        filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
+      })) ?? [],
+    [app?.steps]
+  )
 
   const goToStep = (index: number) => {
     if (!app) return
@@ -369,6 +385,7 @@ export default function ClientApplicationFillPage() {
                 <CardContent className="pb-6">
                   {currentStep ? (
                     <ApplicationStepForm
+                      key={currentStep.id}
                       formName={currentStep.formName}
                       fields={currentStep.fields}
                       stepIndex={stepIndex}
@@ -387,6 +404,7 @@ export default function ClientApplicationFillPage() {
                       onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
                       onDirtyChange={setFormDirty}
+                      serverSyncVersion={serverSyncVersion}
                       saveExitLabel="Save"
                       showSubmit={!submitted}
                       allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}

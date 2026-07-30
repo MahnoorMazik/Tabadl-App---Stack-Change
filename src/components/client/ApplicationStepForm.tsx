@@ -59,6 +59,8 @@ export interface ApplicationStepFormProps {
   latestValuesRef?: React.MutableRefObject<Record<string, string>>
   /** Fired when the user edits fields (true) or values sync from server (false). */
   onDirtyChange?: (dirty: boolean) => void
+  /** Increment after a successful save to force syncing saved answers from server. */
+  serverSyncVersion?: number
 }
 
 export function ApplicationStepForm({
@@ -85,12 +87,15 @@ export function ApplicationStepForm({
   allowSubmit = true,
   latestValuesRef,
   onDirtyChange,
+  serverSyncVersion = 0,
 }: ApplicationStepFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const valuesRef = useRef<Record<string, string>>({})
   const fieldsRef = useRef(fields)
   fieldsRef.current = fields
+  const isDirtyRef = useRef(false)
+  const lastServerSyncVersionRef = useRef(serverSyncVersion)
 
   /** Only re-sync from server when step or saved answers change — not on every parent re-render. */
   const fieldsSyncKey = useMemo(
@@ -110,11 +115,31 @@ export function ApplicationStepForm({
     valuesRef.current = next
     if (latestValuesRef) latestValuesRef.current = next
     setValues(next)
-    if (fromServer) onDirtyChange?.(false)
+    if (fromServer) {
+      isDirtyRef.current = false
+      onDirtyChange?.(false)
+    }
   }
 
+  const stepFromSyncKey = (key: string) => key.split('|', 1)[0]
+
   useEffect(() => {
-    if (lastSyncedKeyRef.current === fieldsSyncKey) return
+    const forced = serverSyncVersion !== lastServerSyncVersionRef.current
+    if (forced) lastServerSyncVersionRef.current = serverSyncVersion
+
+    if (!forced && lastSyncedKeyRef.current === fieldsSyncKey) return
+
+    const prevKey = lastSyncedKeyRef.current
+    if (
+      !forced &&
+      isDirtyRef.current &&
+      prevKey !== null &&
+      stepFromSyncKey(prevKey) === stepFromSyncKey(fieldsSyncKey)
+    ) {
+      lastSyncedKeyRef.current = fieldsSyncKey
+      return
+    }
+
     lastSyncedKeyRef.current = fieldsSyncKey
 
     const initial: Record<string, string> = {}
@@ -123,14 +148,17 @@ export function ApplicationStepForm({
     }
     syncValues(initial, true)
     setErrors({})
-  }, [fieldsSyncKey])
+  }, [fieldsSyncKey, serverSyncVersion])
 
   const setValue = (fieldId: string, value: string) => {
     const next = { ...valuesRef.current, [fieldId]: value }
     valuesRef.current = next
     if (latestValuesRef) latestValuesRef.current = next
     setValues(next)
-    onDirtyChange?.(true)
+    if (!isDirtyRef.current) {
+      isDirtyRef.current = true
+      onDirtyChange?.(true)
+    }
     setErrors((prev) => {
       if (!prev[fieldId]) return prev
       const next = { ...prev }
