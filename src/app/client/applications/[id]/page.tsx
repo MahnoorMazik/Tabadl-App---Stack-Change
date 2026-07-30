@@ -35,6 +35,7 @@ import {
   maxAccessibleStepIndex,
   hasPendingStepApproval,
   resolveClientStepIndexAfterUpdate,
+  shouldLockClientStepByApproval,
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
 
@@ -207,17 +208,11 @@ export default function ClientApplicationFillPage() {
 
   const currentStep = app?.steps[stepIndex]
 
-  const stepHasSavedAnswers = (step: AppDetail['steps'][number]) =>
-    step.fields.some((f) => f.answer?.value || f.answer?.fileUrl)
-
-  /** Read-only after full application submit, or when admin approved this approval step. */
+  /** Read-only after full application submit, or when an approval-required step is pending/approved. */
   const isStepReadOnlyForClient = (index: number) => {
     if (!app || applicationLocked) return applicationLocked
-    const step = app.steps[index]
-    if (!step?.approvalRequired) return false
-    return (
-      step.approvalStatus === 'APPROVED' && stepHasSavedAnswers(step)
-    )
+    if (!app.steps[index]) return false
+    return shouldLockClientStepByApproval(app.steps, index)
   }
 
   const buildAnswersPayload = (

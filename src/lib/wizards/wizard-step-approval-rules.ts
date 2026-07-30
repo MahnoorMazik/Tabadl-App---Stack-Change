@@ -3,6 +3,22 @@ export type StepApprovalGate = {
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
 }
 
+export function shouldLockClientStepByApproval(
+  steps: StepApprovalGate[],
+  index: number
+): boolean {
+  const step = steps[index]
+  if (!step) return false
+
+  if (step.approvalStatus === 'REJECTED') return false
+
+  return steps.some((candidate, candidateIndex) => {
+    if (candidateIndex < index) return false
+    if (!candidate.approvalRequired) return false
+    return candidate.approvalStatus === 'PENDING' || candidate.approvalStatus === 'APPROVED'
+  })
+}
+
 /** First step index (0-based) before `targetIndex` that blocks access, or null. */
 export function firstBlockingApprovalStepBefore(
   steps: StepApprovalGate[],
