@@ -37,6 +37,7 @@ import {
 } from '@/lib/wizards/wizard-status'
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import { any } from 'zod'
 
 type AppDetail = {
   id: string
@@ -74,7 +75,7 @@ type AppDetail = {
       placeholder?: string | null
       answer: { value: string | null; fileUrl: string | null }
     }>
-  }>
+  }>  | any
   progress: { totalSteps: number; completedSteps: number }
 }
 

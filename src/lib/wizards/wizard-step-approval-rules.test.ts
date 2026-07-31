@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shouldLockClientStepByApproval } from './wizard-step-approval-rules'
+import { shouldLockClientStepByApproval, StepApprovalGate } from './wizard-step-approval-rules'
 
 test('locks the current step once it is sent for admin approval', () => {
   const steps = [
@@ -16,7 +16,7 @@ test('locks the current step once it is sent for admin approval', () => {
     },
   ]
 
-  assert.equal(shouldLockClientStepByApproval(steps, 1), true)
+  assert.equal(shouldLockClientStepByApproval(steps as StepApprovalGate[], 1), true)
 })
 
 test('locks earlier steps when a later approval-required step is pending approval', () => {
@@ -33,7 +33,7 @@ test('locks earlier steps when a later approval-required step is pending approva
     },
   ]
 
-  assert.equal(shouldLockClientStepByApproval(steps, 0), true)
+  assert.equal(shouldLockClientStepByApproval(steps as StepApprovalGate[], 0), true)
 })
 
 test('locks the current and earlier steps when a later approval-required step is approved', () => {
@@ -50,8 +50,8 @@ test('locks the current and earlier steps when a later approval-required step is
     },
   ]
 
-  assert.equal(shouldLockClientStepByApproval(steps, 0), true)
-  assert.equal(shouldLockClientStepByApproval(steps, 1), true)
+  assert.equal(shouldLockClientStepByApproval(steps as StepApprovalGate[], 0), true)
+  assert.equal(shouldLockClientStepByApproval(steps as StepApprovalGate[], 1), true)
 })
 
 test('keeps rejected steps editable', () => {
@@ -68,6 +68,6 @@ test('keeps rejected steps editable', () => {
     },
   ]
 
-  assert.equal(shouldLockClientStepByApproval(steps, 0), false)
-  assert.equal(shouldLockClientStepByApproval(steps, 1), true)
+  assert.equal(shouldLockClientStepByApproval(steps as StepApprovalGate[], 0), false)
+  assert.equal(shouldLockClientStepByApproval(steps as StepApprovalGate[], 1), true)
 })

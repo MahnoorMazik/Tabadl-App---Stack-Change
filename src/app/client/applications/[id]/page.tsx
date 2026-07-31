@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ApplicationStepForm } from '@/components/client/ApplicationStepForm'
+import { ApplicationStepForm, StepField } from '@/components/client/ApplicationStepForm'
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import {
   ArrowLeft,
@@ -428,7 +428,7 @@ export default function ClientApplicationFillPage() {
                     <ApplicationStepForm
                       key={currentStep.id}
                       formName={currentStep.formName}
-                      fields={currentStep.fields}
+                      fields={currentStep.fields as StepField[]}
                       stepIndex={stepIndex}
                       totalSteps={app.steps.length}
                       paymentRequired={currentStep.paymentRequired}
