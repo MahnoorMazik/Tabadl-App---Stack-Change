@@ -118,14 +118,18 @@ export async function GET(request: NextRequest) {
         where: { applicationId: { in: applications.map((a) => a.id) } },
         select: { applicationId: true, wizardStepId: true, status: true },
       })
-      const byApp = new Map<string, typeof freshReviews>()
+      type StepReviewLite = {
+        wizardStepId: string
+        status: (typeof freshReviews)[number]['status']
+      }
+      const byApp = new Map<string, StepReviewLite[]>()
       for (const review of freshReviews) {
         const list = byApp.get(review.applicationId) ?? []
-        list.push(review)
+        list.push({ wizardStepId: review.wizardStepId, status: review.status })
         byApp.set(review.applicationId, list)
       }
       for (const app of applications) {
-        ;(app as { stepReviews: typeof freshReviews }).stepReviews =
+        ;(app as { stepReviews: StepReviewLite[] }).stepReviews =
           byApp.get(app.id) ?? app.stepReviews
       }
     }
