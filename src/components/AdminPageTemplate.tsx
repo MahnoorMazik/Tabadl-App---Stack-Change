@@ -10,7 +10,6 @@ import { ProfileDropdown } from '@/components/ProfileDropdown'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import { PushAutoSubscribe } from '@/components/PushAutoSubscribe'
 import { AdminPageAccessTracker } from '@/components/audit/AdminPageAccessTracker'
-import { PwaInstallCapture } from '@/hooks/usePwaInstall'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import Link from 'next/link'
@@ -126,7 +125,6 @@ export function AdminPageTemplate({
     <div className="h-screen bg-gray-50 dark:bg-background flex overflow-hidden relative">
       <PushAutoSubscribe />
       <AdminPageAccessTracker />
-      <PwaInstallCapture />
       {/* Mobile backdrop */}
       {isMobileSidebarOpen && (
         <div 

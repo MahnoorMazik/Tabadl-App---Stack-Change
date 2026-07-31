@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Sheet,
@@ -75,8 +76,10 @@ function draftFromWizard(wizard: WizardListItem): WizardDraft {
     steps: wizard.steps.map((step) => ({
       id: step.id,
       formTemplateId: step.formTemplateId,
+      formName: step.formName,
       paymentRequired: step.paymentRequired,
       approvalRequired: step.approvalRequired,
+      adminUseOnly: step.adminUseOnly ?? false,
     })),
   }
 }
@@ -136,7 +139,7 @@ export function CreateWizardModal({
 
     if (editingWizard) {
       setDraft(draftFromWizard(editingWizard))
-      setModalStep(1)
+      setModalStep(2)
       setShowValidation(false)
     }
 
@@ -325,6 +328,14 @@ export function CreateWizardModal({
 
   const handleCreate = async () => {
     setShowValidation(true)
+    if (!draft.name.trim()) {
+      toast({
+        title: 'Name required',
+        description: 'Enter an application name before saving.',
+        variant: 'destructive',
+      })
+      return
+    }
     if (draft.steps.length === 0 || draft.steps.some((s) => !s.formTemplateId)) {
       toast({
         title: 'Incomplete steps',
@@ -333,20 +344,29 @@ export function CreateWizardModal({
       })
       return
     }
-    if (!draft.areaOfInterest || !draft.name.trim()) return
+    if (!isEdit && (!draft.areaOfInterest || !draft.name.trim())) return
 
     setSaving(true)
-    const payload = {
-      name: draft.name.trim(),
-      areaOfInterest: draft.areaOfInterest,
-      serviceIds: [],
-      steps: draft.steps.map((step, index) => ({
-        formTemplateId: step.formTemplateId,
-        paymentRequired: step.paymentRequired,
-        approvalRequired: step.approvalRequired,
-        sortOrder: index,
-      })),
-    }
+    const stepsPayload = draft.steps.map((step, index) => ({
+      formTemplateId: step.formTemplateId,
+      paymentRequired: step.paymentRequired,
+      approvalRequired: step.approvalRequired,
+      adminUseOnly: step.adminUseOnly ?? false,
+      sortOrder: index,
+    }))
+
+    // Edit: preserve areaOfInterest + serviceIds — do not send serviceIds (avoids clearing)
+    const payload = isEdit
+      ? {
+          name: draft.name.trim(),
+          steps: stepsPayload,
+        }
+      : {
+          name: draft.name.trim(),
+          areaOfInterest: draft.areaOfInterest,
+          serviceIds: [] as string[],
+          steps: stepsPayload,
+        }
 
     try {
       if (isEdit && editingWizard) {
@@ -354,7 +374,7 @@ export function CreateWizardModal({
         const wizard = mapApiWizard(res.wizard)
         onUpdated?.(wizard)
         toast({
-          title: 'Wizard updated',
+          title: 'Application updated',
           description: `${wizard.name} saved with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
         })
       } else {
@@ -471,227 +491,306 @@ export function CreateWizardModal({
     }
   }
 
+  const stepsList = (
+    <div className="space-y-4">
+      {stepsError && (
+        <p className="text-xs text-destructive">
+          Please create a form using the Template Builder first.
+        </p>
+      )}
+
+      {draft.steps.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            No steps added yet. Create a form using the Template Builder — it will
+            automatically appear as a step.
+          </p>
+          <Button
+            type="button"
+            className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
+            onClick={() => setBuilderOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add step
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
+              onClick={() => setBuilderOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add step
+            </Button>
+          </div>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={draft.steps.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {draft.steps.map((step, index) => (
+                  <SortableWizardStep
+                    key={step.id}
+                    step={step}
+                    index={index}
+                    canRemove={draft.steps.length > 1}
+                    formsForArea={formsForArea}
+                    usedFormIds={usedFormIds}
+                    onUpdate={updateStep}
+                    onRemove={removeStep}
+                    onEditForm={handleEditForm}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </>
+      )}
+    </div>
+  )
+
+  const selectedService = AREA_OF_INTEREST_OPTIONS.find(
+    (o) => o.key === draft.areaOfInterest
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto border-emerald-100/80 bg-linear-to-b from-emerald-50/40 via-background to-background">
-        <DialogHeader className="space-y-3 gap-0">
-          <DialogTitle className="text-lg tracking-tight">
-            {isEdit ? 'Edit Application Steps' : 'Create Application Steps'}
-          </DialogTitle>
-          <DialogDescription className="text-sm">
-            {modalStep === 1
-              ? 'Name your wizard and pick the service it belongs to.'
-              : 'Add and order form steps for this wizard.'}
-          </DialogDescription>
-          {/* <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
-                modalStep === 1
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-muted text-muted-foreground'
-              )}
-            >
-              1 · Basics
-            </span>
-            <div className="h-px flex-1 bg-border" />
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
-                modalStep === 2
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-muted text-muted-foreground'
-              )}
-            >
-              2 · Steps
-            </span>
-          </div> */}
-        </DialogHeader>
+      <DialogContent
+        className={cn(
+          'max-h-[90vh] overflow-y-auto',
+          isEdit
+            ? [
+                'sm:max-w-3xl border-border bg-background p-0 gap-0',
+                // Modern open/close: soft fade + rise instead of default zoom snap
+                'duration-300 ease-out',
+                'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+                'data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-2',
+                'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
+              ].join(' ')
+            : 'sm:max-w-xl border-emerald-100/80 bg-linear-to-b from-emerald-50/40 via-background to-background'
+        )}
+      >
+        {isEdit ? (
+          <>
+            <DialogTitle className="sr-only">Edit Application</DialogTitle>
+            <DialogDescription className="sr-only">
+              Edit application name and steps.
+            </DialogDescription>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : modalStep === 1 ? (
-          <div className="space-y-6 py-1">
-            <div className="space-y-2">
-              <Label htmlFor="wizard-name" className="text-sm font-medium">
-                Wizard name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="wizard-name"
-                value={draft.name}
-                onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="e.g. Commercial registration application"
-                className="h-10 bg-background focus-visible:ring-emerald-600/30"
-              />
-              {setupError && !draft.name.trim() && (
-                <p className="text-xs text-destructive">Wizard name is required.</p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">
-                  Service <span className="text-destructive">*</span>
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  One wizard per service — CR and PR each have their own live form.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {AREA_OF_INTEREST_OPTIONS.map((option) => {
-                  const selected = draft.areaOfInterest === option.key
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => setAreaOfInterest(option.key)}
-                      className={cn(
-                        'group relative flex justify-start flex-col rounded-xl border dark:bg-card p-4 text-left transition-all cursor-pointer',
-                        'hover:border-emerald-500 hover:bg-primary/10 hover:shadow-md hover:shadow-emerald-500/10',
-                        'focus-visible:outline-none',
-                        selected && 'border-emerald-500 hover:shadow-emerald-500/10 bg-emerald-500/10'
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-base">{option.label}</span>
-                        <Badge
-                          variant="secondary"
-                          className="text-[12px] bg-gray-100 border-gray-300 shrink-0"
-                        >
-                          {option.key}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                        {option.description}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
-                        {selected ? 'Selected →' : 'Select service →'}
-                      </p>
-                    </button>
-                  )
-                })}
-              </div>
-              {setupError && !draft.areaOfInterest && (
-                <p className="text-xs text-destructive">Please select CR or PR.</p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 py-2">
-            {stepsError && (
-              <p className="text-xs text-destructive">
-                Please create a form using the Template Builder first.
-              </p>
-            )}
-
-            {draft.steps.length === 0 ? (
-              /* ── No steps yet: prompt user to use Template Builder ── */
-              <div className="rounded-lg border border-dashed border-border p-8 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  No steps added yet. Create a form using the Template Builder — it will automatically appear as a step.
-                </p>
-                <Button
-                  type="button"
-                  className="bg-primary hover:bg-primary/90 cursor-pointer"
-                  onClick={() => setBuilderOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />Add step
-                </Button>
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
               </div>
             ) : (
-              /* ── Steps exist: show them with disabled form name, no dropdown ── */
-              <>
-                <div className="flex justify-end">
+              <div className="px-6 py-5">
+                <Card className="flex flex-col overflow-hidden py-0 gap-0 border-border/80 shadow-sm">
+                  <div className="flex-1 overflow-y-auto min-h-0 max-h-[min(520px,65vh)]">
+                    <div className="p-4 space-y-4 border-b bg-muted/20">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-lg font-semibold">Edit Application</h2>
+                        {selectedService && (
+                          <p className="text-sm text-muted-foreground">
+                            {selectedService.label}
+                            <span className="text-muted-foreground/80"> ({selectedService.key})</span>
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="wizard-name-edit">
+                          Application name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="wizard-name-edit"
+                          value={draft.name}
+                          onChange={(e) =>
+                            setDraft((prev) => ({ ...prev, name: e.target.value }))
+                          }
+                          placeholder="e.g. Commercial registration application"
+                          className="h-10 bg-background"
+                          aria-invalid={showValidation && !draft.name.trim()}
+                        />
+                        {showValidation && !draft.name.trim() && (
+                          <p className="text-xs text-destructive">
+                            Application name is required.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <CardContent className="p-4 space-y-3">
+                      <h2 className="text-lg font-semibold mb-1">Application steps</h2>
+                      {stepsList}
+                    </CardContent>
+                  </div>
+
+                  <div className="shrink-0 border-t bg-card px-4 py-4">
+                    <Button
+                      type="button"
+                      className="w-full bg-emerald-700 hover:bg-emerald-800 h-11 text-base font-semibold cursor-pointer"
+                      onClick={handleCreate}
+                      disabled={saving || loading || draft.steps.length === 0}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving…
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <DialogHeader className="space-y-3 gap-0">
+              <DialogTitle className="text-lg tracking-tight">
+                Create Application Steps
+              </DialogTitle>
+              <DialogDescription className="text-sm">
+                {modalStep === 1
+                  ? 'Name your wizard and pick the service it belongs to.'
+                  : 'Add and order form steps for this wizard.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : modalStep === 1 ? (
+              <div className="space-y-6 py-1">
+                <div className="space-y-2">
+                  <Label htmlFor="wizard-name" className="text-sm font-medium">
+                    Wizard name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="wizard-name"
+                    value={draft.name}
+                    onChange={(e) =>
+                      setDraft((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    placeholder="e.g. Commercial registration application"
+                    className="h-10 bg-background focus-visible:ring-emerald-600/30"
+                  />
+                  {setupError && !draft.name.trim() && (
+                    <p className="text-xs text-destructive">Wizard name is required.</p>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium">
+                      Service <span className="text-destructive">*</span>
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      One wizard per service — CR and PR each have their own live form.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {AREA_OF_INTEREST_OPTIONS.map((option) => {
+                      const selected = draft.areaOfInterest === option.key
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => setAreaOfInterest(option.key)}
+                          className={cn(
+                            'group relative flex justify-start flex-col rounded-xl border dark:bg-card p-4 text-left transition-all cursor-pointer',
+                            'hover:border-emerald-500 hover:bg-primary/10 hover:shadow-md hover:shadow-emerald-500/10',
+                            'focus-visible:outline-none',
+                            selected &&
+                              'border-emerald-500 hover:shadow-emerald-500/10 bg-emerald-500/10'
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-base">{option.label}</span>
+                            <Badge
+                              variant="secondary"
+                              className="text-[12px] bg-gray-100 border-gray-300 shrink-0"
+                            >
+                              {option.key}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                            {option.description}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
+                            {selected ? 'Selected →' : 'Select service →'}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {setupError && !draft.areaOfInterest && (
+                    <p className="text-xs text-destructive">Please select CR or PR.</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 py-2">{stepsList}</div>
+            )}
+
+            <DialogFooter
+              className={`gap-2 ${modalStep === 2 ? 'sm:justify-between' : 'sm:justify-end'}`}
+            >
+              {modalStep === 2 ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowValidation(false)
+                      setModalStep(1)
+                    }}
+                    disabled={saving}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
                   <Button
                     type="button"
                     className="bg-primary hover:bg-primary/90 cursor-pointer"
-                    onClick={() => setBuilderOpen(true)}
+                    onClick={handleCreate}
+                    disabled={saving || loading || draft.steps.length === 0}
                   >
-                   <Plus className="h-4 w-4 mr-1" />Add step
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating…
+                      </>
+                    ) : (
+                      'Create Wizard'
+                    )}
                   </Button>
-                </div>
-
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  className="bg-primary hover:bg-primary/90 cursor-pointer"
+                  onClick={handleNext}
+                  disabled={loading}
                 >
-                  <SortableContext
-                    items={draft.steps.map((s) => s.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-3">
-                      {draft.steps.map((step, index) => (
-                        <SortableWizardStep
-                          key={step.id}
-                          step={step}
-                          index={index}
-                          canRemove={draft.steps.length > 1}
-                          formsForArea={formsForArea}
-                          usedFormIds={usedFormIds}
-                          onUpdate={updateStep}
-                          onRemove={removeStep}
-                          onEditForm={handleEditForm}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              </>
-            )}
-          </div>
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              )}
+            </DialogFooter>
+          </>
         )}
-
-        <DialogFooter className={`gap-2 ${modalStep === 2 ? 'sm:justify-between' : 'sm:justify-end'}`}>
-          {modalStep === 2 ? (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setShowValidation(false)
-                  setModalStep(1)
-                }}
-                disabled={saving}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </Button>
-              <Button
-                type="button"
-                className="bg-primary hover:bg-primary/90 cursor-pointer"
-                onClick={handleCreate}
-                disabled={saving || loading || draft.steps.length === 0}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {isEdit ? 'Saving…' : 'Creating…'}
-                  </>
-                ) : isEdit ? (
-                  'Save Changes'
-                ) : (
-                  'Create Wizard'
-                )}
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              className="bg-primary hover:bg-primary/90 cursor-pointer"
-              onClick={handleNext}
-              disabled={loading}
-            >
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          )}
-        </DialogFooter>
       </DialogContent>
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="sm:max-w-2xl border-border bg-linear-to-b from-muted/40 via-background to-background">

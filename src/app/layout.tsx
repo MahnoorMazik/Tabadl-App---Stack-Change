@@ -12,7 +12,7 @@ import { DocumentFixer } from "./_document-fixer";
 import { HydrationErrorSuppressor } from "./_hydration-error-suppressor";
 import { NavigationLoader } from "@/components/NavigationLoader";
 import { SupportChatWidget } from "@/components/SupportChatWidget";
-import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { PwaInstallCapture } from "@/hooks/usePwaInstall";
 import { PublicWhatsAppButton } from "@/components/PublicWhatsAppButton";
 import { ManifestSwitcher } from "@/components/ManifestSwitcher";
 
@@ -129,8 +129,8 @@ export default function RootLayout({
                 <Suspense fallback={null}>
                   <SupportChatWidget />
                 </Suspense>
-                {/* PWA Install Prompt - only active on admin pages; install only via profile dropdown */}
-                <PWAInstallPrompt />
+                {/* Capture install prompt for profile Install App section (no auto popup) */}
+                <PwaInstallCapture />
                 {/* WhatsApp floating button - above other FABs so it stays visible */}
                 <PublicWhatsAppButton />
                 </NotificationProvider>

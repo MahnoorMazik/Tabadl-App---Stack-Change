@@ -63,6 +63,7 @@ type AppDetail = {
     formTemplateId?: string
     paymentRequired: boolean
     approvalRequired?: boolean
+    adminUseOnly?: boolean
     approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
     rejectionNote?: string | null
     fields: Array<{
@@ -341,6 +342,7 @@ export default function AdminApplicationDetailPage() {
         id: step.id,
         formName: step.formName,
         paymentRequired: step.paymentRequired,
+        adminUseOnly: step.adminUseOnly,
         filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
       })) ?? [],
     [app?.steps]
@@ -582,6 +584,11 @@ export default function AdminApplicationDetailPage() {
                   serverSyncVersion={serverSyncVersion}
                   headerActions={
                     <>
+                      {currentStep.adminUseOnly && (
+                        <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                          Admin only
+                        </Badge>
+                      )}
                       {currentStep.approvalStatus === 'APPROVED' && (
                         <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
                           Approved

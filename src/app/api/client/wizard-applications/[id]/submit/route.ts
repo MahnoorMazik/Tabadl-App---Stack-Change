@@ -124,13 +124,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       const wizardStep = await db.applicationWizardStep.findFirst({
         where: { id: parsedBody.data.wizardStepId },
-        select: { approvalRequired: true },
+        select: { approvalRequired: true, adminUseOnly: true },
       })
 
       const editCheck = await assertClientMayEditStepAnswers({
         applicationId: id,
         wizardStepId: parsedBody.data.wizardStepId,
         approvalRequired: wizardStep?.approvalRequired ?? false,
+        adminUseOnly: wizardStep?.adminUseOnly ?? false,
       })
       if (!editCheck.ok) {
         return addCorsHeaders(

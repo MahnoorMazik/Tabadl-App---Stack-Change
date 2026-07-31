@@ -116,13 +116,14 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
     { title: 'Import Clients', icon: UserPlus, href: '/admin/clients/import', permission: `${Module.CLIENTS}.${Action.IMPORT}` }
   ],
   [Module.APPLICATIONS]: [
-    { title: 'Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
+    { title: 'Create Application', icon: Layers, href: '/admin/services/wizards', permission: `${Module.SERVICES}.${Action.VIEW}` },
+    { title: 'All Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
+    
   ],
   [Module.SERVICES]: [
     { title: 'Services Catalog', icon: Briefcase, href: '/admin/services', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Packages', icon: Package, href: '/admin/services/packages', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Add-on Services', icon: PlusCircle, href: '/admin/services/add-ons', permission: `${Module.SERVICES}.${Action.VIEW}` },
-    { title: 'Wizards', icon: Layers, href: '/admin/services/wizards', permission: `${Module.SERVICES}.${Action.VIEW}` },
   ],
   [Module.DOCUMENTS]: [
     { title: 'Document Library', icon: FolderOpen, href: '/admin/documents', permission: `${Module.DOCUMENTS}.${Action.VIEW}` },

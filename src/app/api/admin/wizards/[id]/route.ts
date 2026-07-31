@@ -126,6 +126,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           sortOrder: number
           paymentRequired: boolean
           approvalRequired: boolean
+          adminUseOnly: boolean
         }>
       | undefined
 

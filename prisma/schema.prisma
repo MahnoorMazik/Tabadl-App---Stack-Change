@@ -416,6 +416,7 @@ model ApplicationWizardStep {
   sortOrder       Int               @default(0)
   paymentRequired  Boolean           @default(false)
   approvalRequired Boolean           @default(false)
+  adminUseOnly     Boolean           @default(false)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)

@@ -128,6 +128,7 @@ export async function mapWizardApplicationDetail(
       sortOrder: step.sortOrder,
       paymentRequired: step.paymentRequired,
       approvalRequired: step.approvalRequired,
+      adminUseOnly: step.adminUseOnly,
       approvalStatus: review?.status ?? null,
       rejectionNote: review?.rejectionNote ?? null,
       index,

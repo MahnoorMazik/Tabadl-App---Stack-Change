@@ -8,6 +8,7 @@ export interface WizardStepDraft {
   formTemplateId: string
   paymentRequired: boolean
   approvalRequired: boolean
+  adminUseOnly: boolean
   source?: 'library' | 'new'
   fieldCount?: number
   formName?: string
@@ -33,6 +34,7 @@ export interface WizardListItem {
     formName: string
     paymentRequired: boolean
     approvalRequired: boolean
+    adminUseOnly: boolean
   }>
   createdAt: string
 }
@@ -52,6 +54,7 @@ export function createEmptyWizardStep(): WizardStepDraft {
     formTemplateId: '',
     paymentRequired: false,
     approvalRequired: false,
+    adminUseOnly: false,
   }
 }
 
@@ -70,6 +73,7 @@ export function mapApiWizard(wizard: {
     formName: string
     paymentRequired: boolean
     approvalRequired: boolean
+    adminUseOnly?: boolean
   }>
   createdAt: string | Date
 }): WizardListItem {
@@ -91,6 +95,7 @@ export function mapApiWizard(wizard: {
       formName: step.formName,
       paymentRequired: step.paymentRequired,
       approvalRequired: step.approvalRequired,
+      adminUseOnly: step.adminUseOnly ?? false,
     })),
     createdAt:
       typeof wizard.createdAt === 'string'

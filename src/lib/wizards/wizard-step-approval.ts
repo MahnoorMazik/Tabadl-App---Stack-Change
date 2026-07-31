@@ -60,11 +60,78 @@ export async function getStepReview(applicationId: string, wizardStepId: string)
   })
 }
 
+/**
+ * If an approval-required step has answers but no review row yet,
+ * create a PENDING review so admin list/detail can show & approve it.
+ */
+export async function ensurePendingStepReviewsForApplications(
+  applicationIds: string[]
+) {
+  const uniqueIds = [...new Set(applicationIds.filter(Boolean))]
+  if (uniqueIds.length === 0) return 0
+
+  const apps = await db.wizardApplication.findMany({
+    where: { id: { in: uniqueIds }, isDeleted: false },
+    select: {
+      id: true,
+      wizard: {
+        select: {
+          steps: {
+            where: { approvalRequired: true },
+            select: { id: true },
+          },
+        },
+      },
+      answers: { select: { wizardStepId: true, value: true, fileUrl: true } },
+      stepReviews: { select: { wizardStepId: true } },
+    },
+  })
+
+  let created = 0
+  for (const app of apps) {
+    const answered = new Set(
+      app.answers
+        .filter((a) => Boolean(a.value?.trim()) || Boolean(a.fileUrl?.trim()))
+        .map((a) => a.wizardStepId)
+    )
+    const reviewed = new Set(app.stepReviews.map((r) => r.wizardStepId))
+
+    for (const step of app.wizard.steps) {
+      if (!answered.has(step.id) || reviewed.has(step.id)) continue
+      await db.wizardApplicationStepReview.upsert({
+        where: {
+          applicationId_wizardStepId: {
+            applicationId: app.id,
+            wizardStepId: step.id,
+          },
+        },
+        create: {
+          applicationId: app.id,
+          wizardStepId: step.id,
+          status: WizardStepApprovalStatus.PENDING,
+        },
+        update: {},
+      })
+      created += 1
+    }
+  }
+
+  return created
+}
+
 export async function assertClientMayEditStepAnswers(params: {
   applicationId: string
   wizardStepId: string
   approvalRequired: boolean
+  adminUseOnly?: boolean
 }) {
+  if (params.adminUseOnly) {
+    return {
+      ok: false as const,
+      message: 'This step can only be completed by an administrator.',
+    }
+  }
+
   if (!params.approvalRequired) return { ok: true as const }
 
   const review = await getStepReview(params.applicationId, params.wizardStepId)

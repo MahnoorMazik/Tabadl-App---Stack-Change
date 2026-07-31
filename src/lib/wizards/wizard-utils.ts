@@ -92,6 +92,7 @@ export function mapWizardDetail(
       formName: step.formTemplate.name,
       paymentRequired: step.paymentRequired,
       approvalRequired: step.approvalRequired,
+      adminUseOnly: step.adminUseOnly,
       sortOrder: step.sortOrder,
     })),
   }
@@ -109,6 +110,7 @@ export async function replaceWizardRelations(
       sortOrder: number
       paymentRequired: boolean
       approvalRequired: boolean
+      adminUseOnly: boolean
     }>
   }
 ) {
@@ -157,6 +159,7 @@ export async function replaceWizardRelations(
           sortOrder: step.sortOrder,
           paymentRequired: step.paymentRequired,
           approvalRequired: step.approvalRequired,
+          adminUseOnly: step.adminUseOnly ?? false,
         })),
       })
     }
