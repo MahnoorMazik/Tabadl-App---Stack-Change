@@ -5,8 +5,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { GripVertical, Trash2, CreditCard, Pencil } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { GripVertical, Trash2, Pencil } from 'lucide-react'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { WizardStepDraft } from './types'
 
@@ -26,7 +26,7 @@ export function SortableWizardStep({
   index,
   canRemove,
   formsForArea,
-  usedFormIds,
+  usedFormIds: _usedFormIds,
   onUpdate,
   onRemove,
   onEditForm,
@@ -45,24 +45,21 @@ export function SortableWizardStep({
     transition,
   }
 
-  // Resolve form name from formsForArea or stored formName on the draft
   const selectedForm = formsForArea.find((f) => f.id === step.formTemplateId)
   const displayName =
     selectedForm?.name ??
-    (step as any).formName ??
+    step.formName ??
     (step.formTemplateId ? 'Unknown form' : '')
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-md border border-border p-3 space-y-3 bg-card ${
+      className={`rounded-xl border bg-white dark:bg-card p-3.5 space-y-3 shadow-sm ${
         isDragging ? 'opacity-80 shadow-md z-10 ring-1 ring-border' : ''
       }`}
     >
-      {/* Header row: drag handle + Step N | right controls */}
       <div className="flex items-center gap-2">
-        {/* Left: drag + label */}
         <div className="flex items-center gap-1 min-w-0">
           <button
             type="button"
@@ -76,9 +73,7 @@ export function SortableWizardStep({
           <p className="text-sm font-medium">Step {index + 1}</p>
         </div>
 
-        {/* Right: Edit Form | Is payment required + toggle | trash */}
         <div className="flex flex-1 items-center justify-end gap-3 flex-wrap">
-          {/* Edit Form button */}
           {step.formTemplateId && onEditForm && (
             <button
               type="button"
@@ -91,40 +86,6 @@ export function SortableWizardStep({
             </button>
           )}
 
-          {/* Payment required */}
-          <div className="flex items-center gap-2">
-            <Label
-              htmlFor={`payment-${step.id}`}
-              className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
-            >
-              Is payment required
-            </Label>
-            <Switch
-              id={`payment-${step.id}`}
-              checked={step.paymentRequired}
-              onCheckedChange={(checked) =>
-                onUpdate(step.id, { paymentRequired: checked })
-              }
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Label
-              htmlFor={`approval-${step.id}`}
-              className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
-            >
-              Approval required
-            </Label>
-            <Switch
-              id={`approval-${step.id}`}
-              checked={step.approvalRequired}
-              onCheckedChange={(checked) =>
-                onUpdate(step.id, { approvalRequired: checked })
-              }
-            />
-          </div>
-
-          {/* Delete */}
           {canRemove && (
             <Button
               type="button"
@@ -140,8 +101,7 @@ export function SortableWizardStep({
         </div>
       </div>
 
-      {/* Form — disabled read-only input showing the form name */}
-      <div className="w-1/2 space-y-1.5">
+      <div className="w-full sm:w-1/2 space-y-1.5">
         <Label className="text-sm font-medium">Form</Label>
         <Input
           value={displayName}
@@ -150,6 +110,56 @@ export function SortableWizardStep({
           placeholder="No form assigned"
           className="bg-muted/80 text-muted-foreground cursor-not-allowed disabled:opacity-80 disabled:cursor-not-allowed"
         />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 pt-1 border-t border-border/60">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={`payment-${step.id}`}
+            checked={step.paymentRequired}
+            onCheckedChange={(checked) =>
+              onUpdate(step.id, { paymentRequired: checked === true })
+            }
+          />
+          <Label
+            htmlFor={`payment-${step.id}`}
+            className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
+          >
+            Payment required
+          </Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={`approval-${step.id}`}
+            checked={step.approvalRequired}
+            onCheckedChange={(checked) =>
+              onUpdate(step.id, { approvalRequired: checked === true })
+            }
+          />
+          <Label
+            htmlFor={`approval-${step.id}`}
+            className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
+          >
+            Approval required
+          </Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={`admin-use-${step.id}`}
+            checked={Boolean(step.adminUseOnly)}
+            onCheckedChange={(checked) =>
+              onUpdate(step.id, { adminUseOnly: checked === true })
+            }
+          />
+          <Label
+            htmlFor={`admin-use-${step.id}`}
+            className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
+          >
+            Admin Use Only
+          </Label>
+        </div>
       </div>
     </div>
   )

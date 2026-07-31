@@ -106,12 +106,6 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: PlusCircle,
         href: '/admin/services/add-ons',
         permission: `${Module.SERVICES}.${Action.VIEW}`
-      },
-      {
-        title: 'Wizards',
-        icon: Layers,
-        href: '/admin/services/wizards',
-        permission: `${Module.SERVICES}.${Action.VIEW}`
       }
     ]
   },
@@ -120,6 +114,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     icon: FileText,
     permission: `${Module.APPLICATIONS}.${Action.VIEW}`,
     children: [
+      {
+        title: t('admin.sidebar.createApplication'),
+        icon: Layers,
+        href: '/admin/services/wizards',
+        permission: `${Module.SERVICES}.${Action.VIEW}`
+      },
       {
         title: t('admin.sidebar.allApplications'),
         icon: FileText,

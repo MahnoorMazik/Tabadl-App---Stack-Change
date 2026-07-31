@@ -10,6 +10,7 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 import { requireAuth } from '@/lib/rbac-middleware'
+import { ensurePendingStepReviewsForApplications } from '@/lib/wizards/wizard-step-approval'
 
 export const OPTIONS = () => handleCorsPreflight()
 
@@ -85,7 +86,11 @@ export async function GET(request: NextRequest) {
             areaOfInterest: true,
             steps: {
               orderBy: { sortOrder: 'asc' },
-              select: { id: true },
+              select: {
+                id: true,
+                approvalRequired: true,
+                formTemplate: { select: { name: true } },
+              },
             },
           },
         },
@@ -96,36 +101,67 @@ export async function GET(request: NextRequest) {
           select: { wizardStepId: true, value: true, fileUrl: true },
         },
         stepReviews: {
-          where: { status: WizardStepApprovalStatus.PENDING },
           select: {
             wizardStepId: true,
-            wizardStep: {
-              select: {
-                formTemplate: { select: { name: true } },
-              },
-            },
+            status: true,
           },
         },
       },
     })
+
+    // Backfill missing PENDING reviews for answered approval steps
+    const created = await ensurePendingStepReviewsForApplications(
+      applications.map((a) => a.id)
+    )
+    if (created > 0) {
+      const freshReviews = await db.wizardApplicationStepReview.findMany({
+        where: { applicationId: { in: applications.map((a) => a.id) } },
+        select: { applicationId: true, wizardStepId: true, status: true },
+      })
+      type StepReviewLite = {
+        wizardStepId: string
+        status: (typeof freshReviews)[number]['status']
+      }
+      const byApp = new Map<string, StepReviewLite[]>()
+      for (const review of freshReviews) {
+        const list = byApp.get(review.applicationId) ?? []
+        list.push({ wizardStepId: review.wizardStepId, status: review.status })
+        byApp.set(review.applicationId, list)
+      }
+      for (const app of applications) {
+        ;(app as { stepReviews: StepReviewLite[] }).stepReviews =
+          byApp.get(app.id) ?? app.stepReviews
+      }
+    }
 
     const mapped = applications.map((app) => {
       const answeredSteps = new Set(
         app.answers.filter((a) => a.value || a.fileUrl).map((a) => a.wizardStepId)
       )
       const totalSteps = app.wizard.steps.length
-      const stepIndexById = new Map(
-        app.wizard.steps.map((step, index) => [step.id, index])
+      const reviewByStepId = new Map(
+        app.stepReviews.map((r) => [r.wizardStepId, r.status])
       )
-      const pendingApprovals = app.stepReviews.map((review) => {
-        const stepIndex = stepIndexById.get(review.wizardStepId) ?? 0
-        return {
-          wizardStepId: review.wizardStepId,
-          stepIndex,
-          stepNumber: stepIndex + 1,
-          formName: review.wizardStep.formTemplate.name,
-        }
-      })
+
+      const pendingApprovals = app.wizard.steps
+        .map((step, stepIndex) => {
+          if (!step.approvalRequired) return null
+          if (!answeredSteps.has(step.id)) return null
+
+          const status = reviewByStepId.get(step.id) ?? null
+          if (status === WizardStepApprovalStatus.APPROVED) return null
+          if (status === WizardStepApprovalStatus.REJECTED) return null
+
+          return {
+            wizardStepId: step.id,
+            stepIndex,
+            stepNumber: stepIndex + 1,
+            formName: step.formTemplate.name,
+            status: 'PENDING' as const,
+          }
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+
       pendingApprovals.sort((a, b) => a.stepIndex - b.stepIndex)
 
       return {

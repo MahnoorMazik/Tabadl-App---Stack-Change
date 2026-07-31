@@ -12,11 +12,13 @@ import { ApplicationStepForm, StepField } from '@/components/client/ApplicationS
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import {
   ArrowLeft,
+  ArrowRight,
   Loader2,
   CheckCircle2,
   Clock,
   AlertCircle,
   FileText,
+  Lock,
   Pin,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -32,7 +34,9 @@ import {
   canClientAccessStepIndex,
   findUnapprovedRequiredStepIndex,
   firstBlockingApprovalStepBefore,
+  lastClientFillableStepIndex,
   maxAccessibleStepIndex,
+  nextClientFillableStepIndex,
   hasPendingStepApproval,
   resolveClientStepIndexAfterUpdate,
   shouldLockClientStepByApproval,
@@ -55,6 +59,7 @@ type AppDetail = {
     formName: string
     paymentRequired: boolean
     approvalRequired?: boolean
+    adminUseOnly?: boolean
     approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
     rejectionNote?: string | null
     fields: Array<{
@@ -236,6 +241,15 @@ export default function ClientApplicationFillPage() {
   ) => {
     if (!app || !currentStep) return
 
+    if (currentStep.adminUseOnly) {
+      toast({
+        title: 'Admin only',
+        description: 'This step can only be completed by an administrator.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (opts?.submit && findUnapprovedRequiredStepIndex(app.steps) !== null) {
       toast({
         title: 'Approval required',
@@ -245,8 +259,12 @@ export default function ClientApplicationFillPage() {
       return
     }
 
-    if (opts?.goNext && !canClientAccessStepIndex(app.steps, stepIndex + 1)) {
-      const block = firstBlockingApprovalStepBefore(app.steps, stepIndex + 1)
+    const targetNextIndex = opts?.goNext
+      ? Math.min(stepIndex + 1, app.steps.length - 1)
+      : stepIndex
+
+    if (opts?.goNext && !canClientAccessStepIndex(app.steps, targetNextIndex)) {
+      const block = firstBlockingApprovalStepBefore(app.steps, targetNextIndex)
       toast({
         title: 'Next step locked',
         description:
@@ -261,9 +279,7 @@ export default function ClientApplicationFillPage() {
     setSaving(true)
     setSaveIndicator('saving')
     try {
-      const nextIndex = opts?.goNext
-        ? Math.min(stepIndex + 1, app.steps.length - 1)
-        : stepIndex
+      const nextIndex = opts?.goNext ? targetNextIndex : stepIndex
 
       const answersPayload = buildAnswersPayload(answers, currentStep.fields)
 
@@ -325,12 +341,15 @@ export default function ClientApplicationFillPage() {
     }
   }
 
+  const lastFillableIndex = app ? lastClientFillableStepIndex(app.steps) : 0
+
   const stepNavItems = useMemo(
     () =>
       app?.steps.map((step) => ({
         id: step.id,
         formName: step.formName,
         paymentRequired: step.paymentRequired,
+        adminUseOnly: step.adminUseOnly,
         filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
       })) ?? [],
     [app?.steps]
@@ -351,6 +370,20 @@ export default function ClientApplicationFillPage() {
       return
     }
     setStepIndex(index)
+  }
+
+  const continuePastAdminOnlyStep = () => {
+    if (!app) return
+    const next = nextClientFillableStepIndex(app.steps, stepIndex)
+    if (next === null) {
+      toast({
+        title: 'No further steps',
+        description:
+          'Please wait for an administrator to complete this step, or go back to earlier steps.',
+      })
+      return
+    }
+    goToStep(next)
   }
 
   const areaLabel = app ? getAreaLabel(app.areaOfInterest) : ''
@@ -424,7 +457,44 @@ export default function ClientApplicationFillPage() {
               <Card className="shadow-md overflow-hidden">
                 <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
                 <CardContent className="pb-6">
-                  {currentStep ? (
+                  {currentStep?.adminUseOnly ? (
+                    <div className="flex flex-col items-center text-center py-10 px-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 border border-slate-200 mb-4">
+                        <Lock className="h-6 w-6 text-slate-500" />
+                      </div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        Step {stepIndex + 1} of {app.steps.length} · Admin only
+                      </p>
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        {currentStep.formName}
+                      </h3>
+                      <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+                        This step can only be completed by an administrator. Please continue with
+                        the remaining available steps.
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center gap-2 mt-8">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => goToStep(Math.max(0, stepIndex - 1))}
+                          disabled={stepIndex <= 0}
+                        >
+                          <ArrowLeft className="h-4 w-4 mr-1.5" />
+                          Back
+                        </Button>
+                        {nextClientFillableStepIndex(app.steps, stepIndex) !== null && (
+                          <Button
+                            type="button"
+                            className="bg-emerald-700 hover:bg-emerald-800"
+                            onClick={continuePastAdminOnlyStep}
+                          >
+                            Continue
+                            <ArrowRight className="h-4 w-4 ml-1.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : currentStep ? (
                     <ApplicationStepForm
                       key={currentStep.id}
                       formName={currentStep.formName}
@@ -435,7 +505,7 @@ export default function ClientApplicationFillPage() {
                       approvalRequired={currentStep.approvalRequired}
                       approvalStatus={currentStep.approvalStatus ?? null}
                       rejectionNote={currentStep.rejectionNote}
-                      isLastStep={stepIndex >= app.steps.length - 1}
+                      isLastStep={stepIndex >= lastFillableIndex}
                       readOnly={isStepReadOnlyForClient(stepIndex)}
                       saving={saving}
                       saveIndicator={saveIndicator}

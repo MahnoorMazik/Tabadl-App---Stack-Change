@@ -166,6 +166,7 @@ export const POST = withFormBuilderAuth(async (request) => {
             sortOrder: step.sortOrder,
             paymentRequired: step.paymentRequired,
             approvalRequired: step.approvalRequired,
+            adminUseOnly: step.adminUseOnly,
           })),
         },
         services: {

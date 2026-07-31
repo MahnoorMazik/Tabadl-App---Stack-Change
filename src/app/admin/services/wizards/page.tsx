@@ -215,7 +215,7 @@ export default function WizardsPage() {
 
   return (
     <AdminPageTemplate
-      title="Wizards"
+      title="Create Application"
       description=""
       icon={<Layers className="h-5 w-5 text-emerald-600" />}
       showConstruction={false}
@@ -346,7 +346,7 @@ export default function WizardsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
+                          {/* <Button
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -355,7 +355,7 @@ export default function WizardsPage() {
                             aria-label="Preview wizard"
                           >
                             <Eye className="h-4 w-4" />
-                          </Button>
+                          </Button> */}
                           <Button
                             type="button"
                             variant="ghost"
