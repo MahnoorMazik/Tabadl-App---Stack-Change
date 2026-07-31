@@ -28,6 +28,8 @@ interface AdminPageTemplateProps {
   requiredPermission?: string
   requiredPermissions?: string[]
   actions?: ReactNode
+  /** When true, content uses full main width instead of max-w-6xl. */
+  fullWidth?: boolean
 }
 
 export function AdminPageTemplate({ 
@@ -38,7 +40,8 @@ export function AdminPageTemplate({
   showConstruction = true,
   requiredPermission,
   requiredPermissions,
-  actions
+  actions,
+  fullWidth = false,
 }: AdminPageTemplateProps) {
   const { user, loading, permissionsLoading } = useAuth()
   const router = useRouter()
@@ -184,7 +187,7 @@ export function AdminPageTemplate({
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="max-w-6xl mx-auto">
+          <div className={fullWidth ? 'w-full mx-auto' : 'max-w-6xl mx-auto'}>
             {children || (showConstruction && (
               <Card className="h-full">
                 <CardHeader>
