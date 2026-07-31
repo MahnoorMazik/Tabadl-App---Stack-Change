@@ -36,8 +36,11 @@ function generateMessageId(applicationId?: string) {
 export type ApplicationEmailType =
   | "SUBMITTED"
   | "IN_PROGRESS"
+  | "UNDER_REVIEW"
+  | "HARD_COPY_REQUIRED"
   | "APPROVED"
-  | "REJECTED";
+  | "REJECTED"
+  | "COMPLETED";
 
 export interface ApplicationEmailPayload {
   applicationId?: string;
@@ -45,6 +48,7 @@ export interface ApplicationEmailPayload {
   status?: string;
   recipientEmail?: string;
   serviceName?: string;
+  adminNotes?: string;
 }
 
 const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -78,7 +82,7 @@ async function ensureTransporter(): Promise<Transporter<SMTPTransport.Options>> 
 
 export async function sendApplicationStatusEmail(
   payload: ApplicationEmailPayload
-) {
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const tr = await ensureTransporter();
 
   const where = payload.applicationId
@@ -94,7 +98,8 @@ export async function sendApplicationStatusEmail(
     };
   }
 
-  const application = await db.application.findUnique({
+  // ✅ FIXED: Use wizardApplication instead of application
+  const application = await db.wizardApplication.findUnique({
     where,
     include: {
       client: {
@@ -114,18 +119,19 @@ export async function sendApplicationStatusEmail(
   }
 
   const rawStatus = payload.status || application.status;
-  const statusKey =
-    rawStatus === 'PENDING'
-      ? 'SUBMITTED'
-      : rawStatus === 'IN_PROGRESS'
-      ? 'IN_PROGRESS'
-      : rawStatus === 'APPROVED'
-      ? 'APPROVED'
-      : rawStatus === 'REJECTED'
-      ? 'REJECTED'
-      : 'SUBMITTED';
+  
+  // Map statuses correctly
+  const statusKey = 
+    rawStatus === 'PENDING' ? 'SUBMITTED' :
+    rawStatus === 'IN_PROGRESS' ? 'IN_PROGRESS' :
+    rawStatus === 'UNDER_REVIEW' ? 'UNDER_REVIEW' :
+    rawStatus === 'HARD_COPY_REQUIRED' ? 'HARD_COPY_REQUIRED' :
+    rawStatus === 'APPROVED' ? 'APPROVED' :
+    rawStatus === 'REJECTED' ? 'REJECTED' :
+    rawStatus === 'COMPLETED' ? 'COMPLETED' :
+    'SUBMITTED';
 
-  const template = APPLICATION_EMAILS[statusKey as ApplicationEmailType];
+  const template = APPLICATION_EMAILS[statusKey as keyof typeof APPLICATION_EMAILS];
 
   if (!template) {
     return {
@@ -134,10 +140,20 @@ export async function sendApplicationStatusEmail(
     };
   }
 
+  const displayStatus = rawStatus.replace(/_/g, ' ').toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
   const detailRows = [
     {
       label: 'Application ID',
       value: application.applicationNumber || application.id,
+    },
+    {
+      label: 'Service Type',
+      // ✅ FIXED: Use areaOfInterest directly from wizardApplication
+      value: payload.serviceName || application.areaOfInterest || 'N/A',
     },
     {
       label: 'Submitted On',
@@ -145,10 +161,17 @@ export async function sendApplicationStatusEmail(
     },
     {
       label: 'Current Status',
-      value: rawStatus.replace(/_/g, ' '),
+      value: displayStatus,
       isLast: true,
     },
   ];
+
+  if (payload.adminNotes) {
+    detailRows.splice(3, 0, {
+      label: 'Admin Notes',
+      value: payload.adminNotes,
+    });
+  }
 
   const emailHtml = template.buildHtml({
     clientName: application.client?.name || undefined,
@@ -171,13 +194,11 @@ export async function sendApplicationStatusEmail(
     await tr.verify();
     console.log('SMTP connection successful');
 
-    // Generate unique identifiers
     const messageId = generateMessageId(application.id);
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 6);
     const appIdShort = application.id.substring(0, 8);
     
-    // CRITICAL: Make subject COMPLETELY unique to break threading
     const uniqueSubject = `${template.subject} [${application.applicationNumber || appIdShort}-${randomSuffix}]`;
 
     const info = await tr.sendMail({
@@ -188,26 +209,20 @@ export async function sendApplicationStatusEmail(
       to: recipient,
       subject: uniqueSubject,
       html: emailHtml,
-      // ADD THIS: Attach the logo using CID
       attachments: [LOGO_ATTACHMENT],
       headers: {
-        // CRITICAL: These headers tell email clients this is a new thread
         'Message-ID': messageId,
-        'References': '', // Empty = start new thread
-        'In-Reply-To': '', // Empty = start new thread
+        'References': '',
+        'In-Reply-To': '',
         'X-Mailer': 'Tabadl Alkon System',
         'X-Entity-Ref-ID': `app-${application.id}-${timestamp}`,
         'X-Thread-ID': `new-${application.id}-${timestamp}`,
         'Auto-Submitted': 'auto-generated',
         'X-Application-ID': application.id,
         'X-Email-Type': statusKey,
-        // Gmail specific: Force new thread
         'X-GM-THRID': '',
-        // Prevent auto-grouping
         'X-Google-Original-From': 'Tabadl Alkon',
-        // Add a random header to make it unique
         'X-Unique-ID': `${application.id}-${timestamp}-${randomSuffix}`,
-        // Outlook specific
         'X-MS-Exchange-Organization-Network-Message-Id': messageId,
       },
     });

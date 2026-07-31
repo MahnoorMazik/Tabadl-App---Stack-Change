@@ -29,6 +29,9 @@ import {
   User,
   Calendar,
   Phone,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -137,6 +140,7 @@ export default function AdminApplicationDetailPage() {
   const [reviewSaving, setReviewSaving] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
+  const [emailStatus, setEmailStatus] = useState<{ sent: boolean; message: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -146,6 +150,7 @@ export default function AdminApplicationDetailPage() {
       setApp(detail)
       setAdminNotes(detail.adminNotes ?? '')
       setStepIndex(Math.min(detail.currentStepIndex ?? 0, Math.max(0, detail.steps.length - 1)))
+      setEmailStatus(null)
     } catch {
       toast({ title: 'Application not found', variant: 'destructive' })
       router.replace('/admin/applications')
@@ -243,16 +248,64 @@ export default function AdminApplicationDetailPage() {
     }
   }
 
+  // ✅ FIXED: Using /api/admin/wizard-applications/ path
   const updateStatus = async (status: string) => {
     if (!app) return
-    setStatusSaving(true)
-    try {
-      await axios.patch(`/api/admin/wizard-applications/${app.id}`, { status })
-      toast({ title: 'Status updated — client will see this' })
-      await load()
-    } catch (error: any) {
+    
+    if (status === app.status) {
       toast({
-        title: 'Status update failed',
+        title: 'No change',
+        description: 'Application already has this status',
+        variant: 'default',
+      })
+      return
+    }
+
+    setStatusSaving(true)
+    setEmailStatus(null)
+    
+    try {
+      const response = await axios.patch(
+        `/api/admin/wizard-applications/${app.id}/status`,
+        { 
+          status,
+          adminNotes: adminNotes.trim() || undefined,
+          sendEmail: true,
+        }
+      )
+      
+      const data = response.data.data
+      
+      if (data.emailSent) {
+        setEmailStatus({
+          sent: true,
+          message: `✅ Email notification sent to ${app.client.email}`,
+        })
+      } else {
+        setEmailStatus({
+          sent: false,
+          message: `⚠️ Status updated but email failed to send. Error: ${data.emailError || 'Unknown error'}`,
+        })
+      }
+      
+      toast({ 
+        title: `✅ Status updated to ${status}`,
+        description: data.emailSent 
+          ? `Email notification sent to ${app.client.email}` 
+          : '⚠️ Status updated but email failed to send',
+        variant: data.emailSent ? 'default' : 'destructive',
+        duration: 5000,
+      })
+      
+      await load()
+      
+    } catch (error: any) {
+      setEmailStatus({
+        sent: false,
+        message: `❌ Status update failed: ${error.response?.data?.error?.message || error.message}`,
+      })
+      toast({
+        title: '❌ Status update failed',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -418,7 +471,6 @@ export default function AdminApplicationDetailPage() {
     >
       <div className="flex flex-col xl:flex-row gap-5 items-start max-w-7xl">
         <div className="flex-1 min-w-0 space-y-4 w-full">
-          {/* Overview */}
           <Card className="border-border/80 shadow-sm py-0">
             <CardContent className="py-5 px-5 space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -427,9 +479,6 @@ export default function AdminApplicationDetailPage() {
                     Overview
                   </h2>
                   <div className='flex items-center gap-3'>
-                    {/* <p className="text-base font-semibold mt-0.5 text-gray-500">
-                      {app.wizard.name}
-                    </p> */}
                     <p className="inline-flex items-center gap-1.5">
                       <span className="text-gray-500 text-sm">Updated on: </span>
                       <span className="text-gray-600 font-medium text-sm">
@@ -463,36 +512,25 @@ export default function AdminApplicationDetailPage() {
                       <SelectItem value="COMPLETED">Completed</SelectItem>
                     </SelectContent>
                   </Select>
-                  {/* <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600">
-                    <span className="text-slate-400 font-medium">Updated</span>
-                    {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
-                  </span> */}
+                  
+                  {emailStatus && (
+                    <div className={cn(
+                      'text-xs flex items-center gap-1.5 px-2 py-1 rounded-md',
+                      emailStatus.sent 
+                        ? 'text-green-700 bg-green-50 border border-green-200' 
+                        : 'text-red-700 bg-red-50 border border-red-200'
+                    )}>
+                      {emailStatus.sent ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3" />
+                      )}
+                      <span className="truncate max-w-[200px]">{emailStatus.message}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-900">
-                  <span className="text-indigo-500 font-medium">Client</span>
-                  {app.client.name}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
-                  <span className="text-slate-400 font-medium">Email</span>
-                  {app.client.email}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs text-violet-900">
-                  <span className="text-violet-500 font-medium">AOI</span>
-                  {app.areaOfInterest} · {areaOfInterestDisplayLabel(app.areaOfInterest)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900">
-                  <span className="text-emerald-600 font-medium">Progress</span>
-                  {app.progress.completedSteps}/{app.progress.totalSteps} filled
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono text-slate-600">
-                  {app.applicationNumber}
-                </span>
-              </div> */}
-
-              {/* Client profile strip — same layout as reference, theme + app fields */}
               <div className="flex flex-wrap items-center gap-4">
                 <span className="inline-flex items-center gap-1.5">
                   <span className='text-gray-500 text-sm'>
@@ -504,9 +542,7 @@ export default function AdminApplicationDetailPage() {
                 </span>
 
                 <span className="inline-flex items-center gap-1.5">
-                  <span className='text-gray-500 text-sm'>
-                    Email:
-                  </span>
+                  <Mail className="h-3.5 w-3.5 text-gray-400" />
                   <span className="text-gray-600 font-medium text-sm">
                     {app.client.email}
                   </span>
@@ -532,18 +568,6 @@ export default function AdminApplicationDetailPage() {
                   </span>
                   <span className="text-gray-600 font-medium text-sm">{app.applicationNumber}</span>
                 </span>
-
-                {/* {phone && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>
-                      Phone: <span className="text-foreground">{phone}</span>
-                    </span>
-                  </span>
-                )} */}
-
-                {/* <span>
-                  Primary ID: <span className="text-foreground">{primaryId}</span>
-                </span> */}
               </div>
             </CardContent>
           </Card>
@@ -560,73 +584,72 @@ export default function AdminApplicationDetailPage() {
             <div className="flex-1 min-w-0 w-full space-y-4">
               <Card className="pt-0 pb-0 shadow-md overflow-hidden">
                 <h2 className="text-lg font-semibold mb-3 px-6 pt-5">{areaLabel}</h2>
-            <CardContent className="pt-0 pb-5">
-              {currentStep ? (
-                <ApplicationStepForm
-                key={currentStep.id}
-                  formName={currentStep.formName}
-                  fields={currentStep.fields}
-                  stepIndex={stepIndex}
-                  totalSteps={app.steps.length}
-                  paymentRequired={currentStep.paymentRequired}
-                  approvalRequired={currentStep.approvalRequired}
-                  approvalStatus={currentStep.approvalStatus ?? null}
-                  rejectionNote={currentStep.rejectionNote}
-                  isLastStep={stepIndex >= app.steps.length - 1}
-                  saving={saving}
-                  saveIndicator={saveIndicator}
-                  engaging
-                  saveExitLabel="Save"
-                  onDirtyChange={setFormDirty}
-                  serverSyncVersion={serverSyncVersion}
-                  headerActions={
-                    <>
-                      {currentStep.approvalStatus === 'APPROVED' && (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-                          Approved
-                        </Badge>
-                      )}
-                      {currentStep.approvalStatus === 'REJECTED' && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          Rejected
-                        </Badge>
-                      )}
-                      {showStepReviewActions && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="bg-emerald-700 hover:bg-emerald-800"
-                          disabled={reviewSaving || saving}
-                          onClick={() => void approveStep()}
-                        >
-                          {reviewSaving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            'Approve'
+                <CardContent className="pt-0 pb-5">
+                  {currentStep ? (
+                    <ApplicationStepForm
+                      key={currentStep.id}
+                      formName={currentStep.formName}
+                      fields={currentStep.fields}
+                      stepIndex={stepIndex}
+                      totalSteps={app.steps.length}
+                      paymentRequired={currentStep.paymentRequired}
+                      approvalRequired={currentStep.approvalRequired}
+                      approvalStatus={currentStep.approvalStatus ?? null}
+                      rejectionNote={currentStep.rejectionNote}
+                      isLastStep={stepIndex >= app.steps.length - 1}
+                      saving={saving}
+                      saveIndicator={saveIndicator}
+                      engaging
+                      saveExitLabel="Save"
+                      onDirtyChange={setFormDirty}
+                      serverSyncVersion={serverSyncVersion}
+                      headerActions={
+                        <>
+                          {currentStep.approvalStatus === 'APPROVED' && (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                              Approved
+                            </Badge>
                           )}
-                        </Button>
-                      )}
-                    </>
-                  }
-                  onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
-                  onSave={async (answers, opts) => {
-                    await saveAnswers(answers, { goNext: opts?.goNext })
-                  }}
-                  onSaveAndExit={async (answers) => {
-                    await saveAnswers(answers)
-                  }}
-                  showSubmit={false}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
-              )}
-            </CardContent>
+                          {currentStep.approvalStatus === 'REJECTED' && (
+                            <Badge variant="destructive" className="text-[10px]">
+                              Rejected
+                            </Badge>
+                          )}
+                          {showStepReviewActions && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-emerald-700 hover:bg-emerald-800"
+                              disabled={reviewSaving || saving}
+                              onClick={() => void approveStep()}
+                            >
+                              {reviewSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Approve'
+                              )}
+                            </Button>
+                          )}
+                        </>
+                      }
+                      onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
+                      onSave={async (answers, opts) => {
+                        await saveAnswers(answers, { goNext: opts?.goNext })
+                      }}
+                      onSaveAndExit={async (answers) => {
+                        await saveAnswers(answers)
+                      }}
+                      showSubmit={false}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
+                  )}
+                </CardContent>
               </Card>
             </div>
           </div>
         </div>
 
-        {/* Sticky note panel — right */}
         <aside className="w-full xl:w-72 shrink-0 xl:sticky xl:top-20">
           <div className="relative rotate-1 hover:rotate-0 transition-transform">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
