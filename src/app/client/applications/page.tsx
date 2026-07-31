@@ -1,665 +1,555 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { ClientSidebar } from '@/components/client-sidebar'
-import { ProfileDropdown } from '@/components/ProfileDropdown'
-import { NotificationDropdown } from '@/components/NotificationDropdown'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getErrorMessage } from '@/lib/error-utils'
-import { 
-  ClipboardList, 
-  Menu, 
-  Eye, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  FileText,
-  Calendar,
-  User,
-  Plus
-} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import axios from 'axios'
 import { format } from 'date-fns'
-import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  AREA_OF_INTEREST_OPTIONS,
+  AreaOfInterestKey,
+  areaOfInterestDisplayLabel,
+} from '@/components/admin/forms/types'
+import {
+  ClipboardList,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  Loader2,
+  ArrowRight,
+  Plus,
+  ListChecks,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { useLocale } from '@/contexts/LocaleContext'
+import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
+import { MobileLayout } from '@/lib/mobile-layout-utils'
+import { cn } from '@/lib/utils'
+import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
+
+type ApplicationItem = {
+  id: string
+  applicationNumber: string
+  status: string
+  areaOfInterest: string
+  submittedAt: string | null
+  updatedAt: string
+  adminNotes?: string | null
+  wizard: { id: string; name: string; areaOfInterest: string }
+  progress: { totalSteps: number; completedSteps: number; currentStepIndex: number }
+}
+
+const LAUNCH_MIN_MS = 1400
+const PAGE_SIZE = 10
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge className={cn('border hover:opacity-100 px-2 py-0.5 font-medium rounded-md', wizardStatusClasses(status))}>
+      {status === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
+      {(status === 'APPROVED' || status === 'COMPLETED') && (
+        <CheckCircle className="h-3 w-3 mr-1" />
+      )}
+      {status === 'REJECTED' && <AlertCircle className="h-3 w-3 mr-1" />}
+      {status === 'DRAFT' && <FileText className="h-3 w-3 mr-1" />}
+      {status === 'HARD_COPY_REQUIRED' && <FileText className="h-3 w-3 mr-1" />}
+      {wizardStatusLabel(status)}
+    </Badge>
+  )
+}
 
 export default function ClientApplicationsPage() {
-  const { user, token, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const { t } = useLocale()
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [applications, setApplications] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedApplication, setSelectedApplication] = useState<any>(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    type: '',
-    companyName: '',
-    licenseType: '',
-    visaType: '',
-    bankName: '',
-    serviceDetails: '',
-    description: '',
-    notes: '',
-  })
+  const router = useRouter()
+  const {
+    isSidebarCollapsed,
+    isMobileSidebarOpen,
+    toggleMobileSidebar,
+    toggleDesktopSidebar,
+    closeMobileSidebar,
+  } = useMobileSidebar()
+  const [activeTab, setActiveTab] = useState<'new' | 'applied'>('new')
+  const [applications, setApplications] = useState<ApplicationItem[]>([])
+  const [loadingApps, setLoadingApps] = useState(true)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [launch, setLaunch] = useState<{
+    area: AreaOfInterestKey
+    label: string
+    continuing: boolean
+  } | null>(null)
+
+  const fetchApplications = useCallback(async (silent = false) => {
+    if (!silent) setLoadingApps(true)
+    try {
+      const res = await axios.get('/api/client/wizard-applications')
+      setApplications(res.data?.data?.applications ?? [])
+    } catch (error: any) {
+      if (!silent) {
+        setApplications([])
+        const message =
+          error.response?.data?.error?.message ||
+          error.response?.data?.error ||
+          'Failed to load applications'
+        toast({
+          title: 'Could not load applications',
+          description: typeof message === 'string' ? message : 'Please sign in as a client and try again.',
+          variant: 'destructive',
+        })
+      }
+    } finally {
+      if (!silent) setLoadingApps(false)
+    }
+  }, [toast])
 
   useEffect(() => {
-    if (token) {
-      fetchApplications()
-    }
-  }, [token])
+    if (!authLoading && user) void fetchApplications()
+  }, [authLoading, user, fetchApplications])
 
-  const fetchApplications = async () => {
-    try {
-      setLoading(true)
-      const response = await axios.get('/api/applications', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      // Handle structured response format
-      const applications = response.data.data?.applications || response.data.applications || []
-      setApplications(applications)
-    } catch (error: any) {
-      console.error('Error fetching applications:', error)
-      setError(t('client.applications.loadFailed') || 'Failed to load applications')
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (authLoading || !user) return
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void fetchApplications(true)
     }
-  }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [authLoading, user, fetchApplications])
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><Clock className="h-3 w-3 mr-1" />{t('admin.applications.pending')}</Badge>
-      case 'APPROVED':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200"><CheckCircle className="h-3 w-3 mr-1" />{t('admin.applications.approved')}</Badge>
-      case 'REJECTED':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200"><AlertCircle className="h-3 w-3 mr-1" />{t('admin.applications.rejected')}</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
-  const getApplicationType = (type: string) => {
-    switch (type) {
-      case 'COMPANY_REGISTRATION':
-        return 'Company Registration'
-      case 'TRADE_LICENSE':
-        return 'Trade License'
-      case 'VISA_PROCESSING':
-        return 'Visa Processing'
-      case 'BANK_ACCOUNT':
-        return 'Bank Account'
-      case 'PRO_SERVICES':
-        return 'PRO Services'
-      case 'OTHER':
-        return 'Other'
-      default:
-        return type
-    }
-  }
+  const filteredApplications = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return applications
+    return applications.filter((app) => {
+      const areaLabel = areaOfInterestDisplayLabel(app.areaOfInterest).toLowerCase()
+      return (
+        app.wizard.name.toLowerCase().includes(q) ||
+        app.applicationNumber.toLowerCase().includes(q) ||
+        app.areaOfInterest.toLowerCase().includes(q) ||
+        areaLabel.includes(q) ||
+        app.status.toLowerCase().includes(q) ||
+        (app.adminNotes?.toLowerCase().includes(q) ?? false)
+      )
+    })
+  }, [applications, search])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.type) {
-      toast({
-        title: t('common.error'),
-        description: t('client.applications.selectType') || 'Please select an application type',
-        variant: 'destructive',
-      })
-      return
-    }
+  const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedApplications = filteredApplications.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  )
+
+  const draftForArea = (area: AreaOfInterestKey) =>
+    applications.find((a) => a.areaOfInterest === area && a.status === 'DRAFT')
+
+  const beginApplication = async (area: AreaOfInterestKey, label: string) => {
+    if (launch) return
+
+    const draft = draftForArea(area)
+    setLaunch({ area, label, continuing: Boolean(draft) })
+
+    const minWait = new Promise((resolve) => setTimeout(resolve, LAUNCH_MIN_MS))
 
     try {
-      setIsSubmitting(true)
-      await axios.post('/api/applications', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      let appId: string
 
-      toast({
-        title: t('common.success'),
-        description: t('client.applications.submitted') || 'Application submitted successfully!',
-      })
+      if (draft) {
+        appId = draft.id
+      } else {
+        const check = await axios.get(`/api/client/wizards?areaOfInterest=${area}`)
+        const flow = check.data?.data?.merged
+        if (!flow?.totalSteps) {
+          toast({
+            title: 'No application available',
+            description: `There is no active form for ${label} yet. Please check back later.`,
+            variant: 'destructive',
+          })
+          setLaunch(null)
+          return
+        }
 
-      setIsDialogOpen(false)
-      setFormData({
-        type: '',
-        companyName: '',
-        licenseType: '',
-        visaType: '',
-        bankName: '',
-        serviceDetails: '',
-        description: '',
-        notes: '',
-      })
-      fetchApplications()
+        const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
+        const app = res.data?.data?.application
+        if (!app?.id) {
+          throw new Error('Could not start application')
+        }
+        appId = app.id
+      }
+
+      await minWait
+      router.push(`/client/applications/${appId}`)
     } catch (error: any) {
-      console.error('Error submitting application:', error)
       toast({
-        title: t('common.error'),
-        description: getErrorMessage(error),
+        title: 'Could not open application',
+        description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
-    } finally {
-      setIsSubmitting(false)
+      setLaunch(null)
     }
-  }
-
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('common.loading')}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Alert variant="destructive" className="max-w-md">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{t('client.applications.loginRequired') || 'Please log in to view your applications.'}</AlertDescription>
-        </Alert>
-      </div>
-    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex relative">
-      {/* Mobile backdrop */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
-      )}
+    <MobileLayout
+      isSidebarCollapsed={isSidebarCollapsed}
+      isMobileSidebarOpen={isMobileSidebarOpen}
+      onToggleMobile={toggleMobileSidebar}
+      onToggleDesktop={toggleDesktopSidebar}
+      onCloseMobile={closeMobileSidebar}
+      title="Applications"
+      description="Start a new application or track ones you already applied"
+      icon={<ClipboardList className="h-5 w-5 text-emerald-600" />}
+    >
+      <ApplicationLaunchOverlay
+        open={Boolean(launch)}
+        areaLabel={launch?.label}
+        mode={launch?.continuing ? 'continue' : 'start'}
+      />
 
-      {/* Sidebar - Hidden on mobile, overlay when open */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        ${isSidebarCollapsed ? 'w-16' : 'w-64'} 
-        transition-all duration-300 flex-shrink-0
-        ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <ClientSidebar 
-          isCollapsed={isSidebarCollapsed} 
-          onToggle={() => {
-            setIsSidebarCollapsed(!isSidebarCollapsed)
-            setIsMobileSidebarOpen(false)
-          }} 
-        />
-      </aside>
-
-      <div className="flex-1 flex flex-col w-full lg:w-auto">
-        <header className="bg-white border-b">
-          <div className="px-4 sm:px-6 py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => {
-                    setIsMobileSidebarOpen(!isMobileSidebarOpen)
-                    setIsSidebarCollapsed(false)
-                  }}
-                  className="lg:hidden"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="hidden lg:flex"
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
-                <div className="min-w-0">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 truncate">
-                    <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0" />
-                    <span className="truncate">{t('client.sidebar.applicationManagement')}</span>
-                  </h1>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">{t('client.applications.description') || 'Track and manage your applications'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-xs sm:text-sm">
-                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">{t('client.applications.newApplication') || 'New Application'}</span>
-                      <span className="sm:hidden">{t('common.add')}</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{t('client.applications.submitNew') || 'Submit New Application'}</DialogTitle>
-                      <DialogDescription>
-                        {t('client.applications.submitDescription') || 'Fill in the details below to submit a new application'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="type">{t('client.applications.applicationType') || 'Application Type'} *</Label>
-                        <Select
-                          value={formData.type}
-                          onValueChange={(value) => setFormData({ ...formData, type: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('client.applications.selectApplicationType') || 'Select application type'} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="COMPANY_REGISTRATION">{t('client.applications.companyRegistration') || 'Company Registration'}</SelectItem>
-                            <SelectItem value="TRADE_LICENSE">{t('client.applications.tradeLicense') || 'Trade License'}</SelectItem>
-                            <SelectItem value="VISA_PROCESSING">{t('client.applications.visaProcessing') || 'Visa Processing'}</SelectItem>
-                            <SelectItem value="BANK_ACCOUNT">{t('client.applications.bankAccount') || 'Bank Account'}</SelectItem>
-                            <SelectItem value="PRO_SERVICES">{t('client.applications.proServices') || 'PRO Services'}</SelectItem>
-                            <SelectItem value="OTHER">{t('common.other') || 'Other'}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {formData.type === 'COMPANY_REGISTRATION' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="companyName">{t('auth.companyName')}</Label>
-                          <Input
-                            id="companyName"
-                            value={formData.companyName}
-                            onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                            placeholder="Enter company name"
-                          />
-                        </div>
-                      )}
-
-                      {formData.type === 'TRADE_LICENSE' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="licenseType">{t('client.applications.licenseType') || 'License Type'}</Label>
-                          <Input
-                            id="licenseType"
-                            value={formData.licenseType}
-                            onChange={(e) => setFormData({ ...formData, licenseType: e.target.value })}
-                            placeholder={t('client.applications.enterLicenseType') || 'Enter license type'}
-                          />
-                        </div>
-                      )}
-
-                      {formData.type === 'VISA_PROCESSING' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="visaType">{t('client.applications.visaType') || 'Visa Type'}</Label>
-                          <Input
-                            id="visaType"
-                            value={formData.visaType}
-                            onChange={(e) => setFormData({ ...formData, visaType: e.target.value })}
-                            placeholder={t('client.applications.enterVisaType') || 'Enter visa type'}
-                          />
-                        </div>
-                      )}
-
-                      {formData.type === 'BANK_ACCOUNT' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="bankName">{t('client.applications.bankName') || 'Bank Name'}</Label>
-                          <Input
-                            id="bankName"
-                            value={formData.bankName}
-                            onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                            placeholder={t('client.applications.enterBankName') || 'Enter bank name'}
-                          />
-                        </div>
-                      )}
-
-                      {(formData.type === 'PRO_SERVICES' || formData.type === 'OTHER') && (
-                        <div className="space-y-2">
-                          <Label htmlFor="serviceDetails">{t('client.applications.serviceDetails') || 'Service Details'}</Label>
-                          <Input
-                            id="serviceDetails"
-                            value={formData.serviceDetails}
-                            onChange={(e) => setFormData({ ...formData, serviceDetails: e.target.value })}
-                            placeholder={t('client.applications.enterServiceDetails') || 'Enter service details'}
-                          />
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <Label htmlFor="description">{t('common.description')}</Label>
-                        <Textarea
-                          id="description"
-                          value={formData.description}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          placeholder={t('client.applications.enterDescription') || 'Enter application description'}
-                          rows={3}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="notes">{t('client.applications.additionalNotes') || 'Additional Notes'}</Label>
-                        <Textarea
-                          id="notes"
-                          value={formData.notes}
-                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                          placeholder={t('client.applications.enterNotes') || 'Any additional notes or requirements'}
-                          rows={2}
-                        />
-                      </div>
-
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsDialogOpen(false)}
-                          disabled={isSubmitting}
-                        >
-                          {t('common.cancel')}
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                          {isSubmitting ? t('client.applications.submitting') || 'Submitting...' : t('client.applications.submitApplication') || 'Submit Application'}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-                <NotificationDropdown />
-                <ProfileDropdown />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('client.applications.totalApplications')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{applications.length}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.pending')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {applications.filter(app => app.status === 'PENDING').length}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.approved')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {applications.filter(app => app.status === 'APPROVED').length}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.rejected')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
-                    {applications.filter(app => app.status === 'REJECTED').length}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Applications Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('client.sidebar.allApplications')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                  </div>
-                ) : error ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                ) : applications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('client.applications.noApplicationsYet') || 'No Applications Yet'}</h3>
-                    <p className="text-gray-600 mb-4">{t('client.applications.noApplicationsMessage') || "You haven't submitted any applications yet."}</p>
-                    <Button>
-                      <FileText className="h-4 w-4 mr-2" />
-                      {t('client.applications.submitNew')}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto -mx-4 sm:mx-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[120px]">{t('client.applications.applicationId') || 'Application ID'}</TableHead>
-                          <TableHead className="min-w-[140px]">{t('admin.applications.type')}</TableHead>
-                          <TableHead className="min-w-[100px]">{t('admin.applications.status')}</TableHead>
-                          <TableHead className="min-w-[120px]">{t('admin.applications.submittedDate')}</TableHead>
-                          <TableHead className="min-w-[120px]">{t('admin.applications.assignedTo')}</TableHead>
-                          <TableHead className="min-w-[100px]">{t('admin.applications.actions')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {applications.map((application) => (
-                        <TableRow key={application.id}>
-                          <TableCell className="font-medium">
-                            {application.applicationNumber || `APP-${application.id.slice(-8).toUpperCase()}`}
-                          </TableCell>
-                          <TableCell>{getApplicationType(application.type)}</TableCell>
-                          <TableCell>{getStatusBadge(application.status)}</TableCell>
-                          <TableCell>
-                            {format(new Date(application.createdAt), 'MMM dd, yyyy')}
-                          </TableCell>
-                          <TableCell className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            {application.assignedTo?.name || t('admin.applications.unassigned')}
-                          </TableCell>
-                          <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedApplication(application)
-                                setIsViewDialogOpen(true)
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              {t('client.applications.viewDetails') || 'View Details'}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+      {authLoading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        </div>
+      ) : (
+        <div className="max-w-6xl mx-auto">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as 'new' | 'applied')}
+            className="space-y-4"
+          >
+            <TabsList className="gap-3 flex justify-end ml-auto h-auto bg-transparent p-0 rounded-none shadow-none">
+              <TabsTrigger
+                value="new"
+                className={cn(
+                  'gap-2 px-4 py-2.5 rounded-md text-sm font-medium w-auto flex-none border shadow-none',
+                  'transition-[color,background-color,border-color] duration-200 ease-out cursor-pointer',
+                  'data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-800',
+                  'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
+                  'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
+                  'data-[state=inactive]:border-gray-300',
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border'
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
-
-      {/* View Application Details Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-emerald-600" />
-              Application Details
-            </DialogTitle>
-            <DialogDescription>
-              View complete information about this application
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedApplication && (
-            <div className="space-y-6">
-              {/* Application Header */}
-              <div className="flex items-start justify-between pb-4 border-b">
-                <div>
-                  <p className="text-sm text-gray-500">Application ID</p>
-                  <p className="text-lg font-semibold">
-                    {selectedApplication.applicationNumber || `APP-${selectedApplication.id.slice(-8).toUpperCase()}`}
-                  </p>
-                </div>
-                <div className="text-right">
-                  {getStatusBadge(selectedApplication.status)}
-                </div>
-              </div>
-
-              {/* Application Info Grid */}
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Application Type</p>
-                  <p className="text-base">{getApplicationType(selectedApplication.type)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Submitted Date</p>
-                  <p className="text-base flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    {format(new Date(selectedApplication.createdAt), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Assigned To</p>
-                  <p className="text-base flex items-center gap-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    {selectedApplication.assignedTo?.name || 'Unassigned'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Last Updated</p>
-                  <p className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-400" />
-                    {format(new Date(selectedApplication.updatedAt), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-              </div>
-
-              {/* Type-Specific Details */}
-              {selectedApplication.companyName && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Company Name</p>
-                  <p className="text-base">{selectedApplication.companyName}</p>
-                </div>
-              )}
-              {selectedApplication.licenseType && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">License Type</p>
-                  <p className="text-base">{selectedApplication.licenseType}</p>
-                </div>
-              )}
-              {selectedApplication.visaType && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Visa Type</p>
-                  <p className="text-base">{selectedApplication.visaType}</p>
-                </div>
-              )}
-              {selectedApplication.bankName && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Bank Name</p>
-                  <p className="text-base">{selectedApplication.bankName}</p>
-                </div>
-              )}
-              {selectedApplication.serviceDetails && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Service Details</p>
-                  <p className="text-base">{selectedApplication.serviceDetails}</p>
-                </div>
-              )}
-
-              {/* Description */}
-              {selectedApplication.description && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Description</p>
-                  <p className="text-base text-gray-700">{selectedApplication.description}</p>
-                </div>
-              )}
-
-              {/* Notes */}
-              {selectedApplication.notes && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Additional Notes</p>
-                  <p className="text-base text-gray-700">{selectedApplication.notes}</p>
-                </div>
-              )}
-
-              {/* Rejection Reason */}
-              {selectedApplication.status === 'REJECTED' && selectedApplication.rejectionReason && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <p className="font-semibold mb-1">Rejection Reason:</p>
-                    <p>{selectedApplication.rejectionReason}</p>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Approval Details */}
-              {selectedApplication.status === 'APPROVED' && (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-800">
-                    <p className="font-semibold mb-1">Application Approved</p>
-                    {selectedApplication.approvedBy && (
-                      <p className="text-sm">
-                        Approved by: {selectedApplication.approvedBy.name}
-                      </p>
+              >
+                <FileText className="h-4 w-4" />
+                New application
+              </TabsTrigger>
+              <TabsTrigger
+                value="applied"
+                className={cn(
+                  'gap-2 px-4 py-2.5 rounded-md text-sm font-medium w-auto flex-none border shadow-none',
+                  'transition-[color,background-color,border-color] duration-200 ease-out cursor-pointer',
+                  'data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-800',
+                  'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
+                  'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
+                  'data-[state=inactive]:border-gray-300',
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border'
+                )}
+              >
+                <ListChecks className="h-4 w-4" />
+                Applied applications
+                {applications.length > 0 && (
+                  <Badge
+                    className={cn(
+                      'text-[11px] h-5 min-w-5 px-1.5 justify-center border transition-colors duration-200 ease-out',
+                      activeTab === 'applied'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-500'
+                        : 'bg-gray-100 border-gray-300 text-gray-700'
                     )}
-                    {selectedApplication.approvedAt && (
-                      <p className="text-sm">
-                        on {format(new Date(selectedApplication.approvedAt), 'MMM dd, yyyy')}
-                      </p>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          )}
+                  >
+                    {applications.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsViewDialogOpen(false)}
+            <TabsContent
+              value="new"
+              forceMount
+              className={cn(
+                'mt-0 outline-none transition-opacity duration-200 ease-out',
+                'data-[state=inactive]:hidden data-[state=active]:animate-in data-[state=active]:fade-in-0'
+              )}
             >
-              Close
-            </Button>
-            {selectedApplication?.status === 'APPROVED' && (
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                <FileText className="h-4 w-4 mr-2" />
-                Download Documents
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Start a new application</CardTitle>
+                  <CardDescription className="text-muted-foreground text-sm">
+                    Choose your area of interest — we&apos;ll open the active application wizard
+                    for that service right away.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {AREA_OF_INTEREST_OPTIONS.map((option) => {
+                      const draft = draftForArea(option.key)
+                      const isLaunching = launch?.area === option.key
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          disabled={Boolean(launch)}
+                          onClick={() => void beginApplication(option.key, option.label)}
+                          className={cn(
+                            'group relative flex justify-start flex-col rounded-xl border bg-white dark:bg-card p-4 text-left transition-all cursor-pointer hover:border-primary/30 hover:bg-primary/10',
+                            'hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/10',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+                            isLaunching && 'border-emerald-500 ring-2 ring-emerald-500/30',
+                            launch && !isLaunching && 'opacity-60 pointer-events-none'
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-base">{option.label}</span>
 
-    </div>
+                            <div className="flex items-center gap-2">
+                              {draft && (
+                                <Badge className="text-[12px] bg-amber-100 text-amber-900 border-amber-200 w-fit">
+                                  Draft in progress
+                                </Badge>
+                              )}
+                              <Badge variant="secondary" className="text-[12px] bg-gray-100 border-gray-300">
+                                {option.key}
+                              </Badge>
+                            </div>
+
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                            {option.description}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
+                            {draft ? 'Continue draft →' : 'Start application →'}
+                          </p>
+                          
+                        </button>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent
+              value="applied"
+              forceMount
+              className={cn(
+                'mt-0 outline-none transition-opacity duration-200 ease-out',
+                'data-[state=inactive]:hidden data-[state=active]:animate-in data-[state=active]:fade-in-0'
+              )}
+            >
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <CardTitle>Applied applications</CardTitle>
+                      <CardDescription className="mt-0.5">
+                        {loadingApps
+                          ? 'Loading…'
+                          : filteredApplications.length === 0
+                            ? search
+                              ? 'No results found'
+                              : 'No applications yet'
+                            : `${filteredApplications.length} application${filteredApplications.length === 1 ? '' : 's'}${search ? ' found' : ''}. Track status and continue drafts anytime.`}
+                      </CardDescription>
+                    </div>
+                    <div className="relative sm:w-64">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search applications…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-8 h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {loadingApps ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                    </div>
+                  ) : applications.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-10 text-center space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        No applications yet. Start one from the New application tab.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setActiveTab('new')}
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Start new application
+                      </Button>
+                    </div>
+                  ) : filteredApplications.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                      No applications match your search.
+                    </div>
+                  ) : (
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Application</TableHead>
+                            <TableHead>Area</TableHead>
+                            <TableHead>Progress</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Admin update</TableHead>
+                            <TableHead className="w-28">Updated</TableHead>
+                            <TableHead className="w-28 text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedApplications.map((app) => {
+                            const isDraft = app.status === 'DRAFT'
+                            return (
+                              <TableRow key={app.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium max-w-52">
+                                  <div className="flex flex-col gap-1 min-w-0">
+                                    <span className="truncate block">{app.wizard.name}</span>
+                                    <span className="text-xs text-muted-foreground font-normal">
+                                      {app.applicationNumber}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-normal">
+                                    {app.areaOfInterest} ·{' '}
+                                    {areaOfInterestDisplayLabel(app.areaOfInterest)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                    {app.progress.completedSteps}/{app.progress.totalSteps}{' '}
+                                    step{app.progress.totalSteps === 1 ? '' : 's'}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <StatusBadge status={app.status} />
+                                </TableCell>
+                                <TableCell className="max-w-[220px]">
+                                  {app.adminNotes ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="rounded-md bg-amber-100 border border-amber-200/80 px-2 py-1.5 shadow-sm text-xs text-amber-950 truncate cursor-default max-w-[200px]">
+                                          {app.adminNotes}
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="top"
+                                        className="max-w-xs whitespace-pre-wrap break-words bg-amber-50 text-amber-950 border border-amber-200"
+                                      >
+                                        {app.adminNotes}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(app.updatedAt), 'dd/MM/yyyy')}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 border rounded-md text-sm font-medium cursor-pointer"
+                                      onClick={() =>
+                                        router.push(`/client/applications/${app.id}`)
+                                      }
+                                      aria-label={isDraft ? 'Continue application' : 'View application'}
+                                    >
+                                      {isDraft ? (
+                                        <ArrowRight className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+
+                      {filteredApplications.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-between border-t pt-4 mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            Page {safePage} of {totalPages} &mdash;{' '}
+                            {filteredApplications.length} record
+                            {filteredApplications.length === 1 ? '' : 's'}
+                          </p>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPage((p) => Math.max(1, p - 1))}
+                              disabled={safePage === 1}
+                              aria-label="Previous page"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                              <Button
+                                key={p}
+                                type="button"
+                                variant={p === safePage ? 'default' : 'outline'}
+                                size="icon"
+                                className={`h-8 w-8 text-xs ${
+                                  p === safePage
+                                    ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
+                                    : ''
+                                }`}
+                                onClick={() => setPage(p)}
+                                aria-label={`Page ${p}`}
+                              >
+                                {p}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={safePage === totalPages}
+                              aria-label="Next page"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+    </MobileLayout>
   )
 }

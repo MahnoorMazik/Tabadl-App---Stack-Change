@@ -12,7 +12,7 @@ import {
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard, CreditCard, Bot,
   ChevronDown, ChevronRight, Menu, Calculator, Receipt, 
   PieChart, TrendingDown, Building, Bell, Calendar, Eye, Upload,
-  AlertCircle, Clock, ListTodo, UserCircle, LogOut, Globe, Briefcase, Package, PlusCircle
+  AlertCircle, Clock, ListTodo, UserCircle, LogOut, Globe, Briefcase, Package, PlusCircle, Layers
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -116,13 +116,13 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
     { title: 'Import Clients', icon: UserPlus, href: '/admin/clients/import', permission: `${Module.CLIENTS}.${Action.IMPORT}` }
   ],
   [Module.APPLICATIONS]: [
-    { title: 'All Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
-    { title: 'Tasks', icon: CheckCircle, href: '/admin/applications/tasks', permission: `${Module.TASKS}.${Action.VIEW}` }
+    { title: 'Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
   ],
   [Module.SERVICES]: [
     { title: 'Services Catalog', icon: Briefcase, href: '/admin/services', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Packages', icon: Package, href: '/admin/services/packages', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'Add-on Services', icon: PlusCircle, href: '/admin/services/add-ons', permission: `${Module.SERVICES}.${Action.VIEW}` },
+    { title: 'Wizards', icon: Layers, href: '/admin/services/wizards', permission: `${Module.SERVICES}.${Action.VIEW}` },
   ],
   [Module.DOCUMENTS]: [
     { title: 'Document Library', icon: FolderOpen, href: '/admin/documents', permission: `${Module.DOCUMENTS}.${Action.VIEW}` },
@@ -263,8 +263,8 @@ export function DynamicSidebar({ className, isCollapsed = false, onToggle }: Dyn
 
     const accessibleModules = permissionChecker.getAccessibleModules()
     
-    // Hide applications, financials, reports, and documents modules
-    const hiddenModules = [Module.APPLICATIONS, Module.FINANCIAL, Module.REPORTS, Module.DOCUMENTS]
+    // Hide financials, reports, and documents modules (Applications is visible)
+    const hiddenModules = [Module.FINANCIAL, Module.REPORTS, Module.DOCUMENTS]
     const filteredModules = accessibleModules.filter(module => !hiddenModules.includes(module))
     
     return filteredModules

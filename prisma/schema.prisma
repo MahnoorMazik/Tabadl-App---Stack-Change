@@ -26,6 +26,9 @@ model User {
   updatedAt            DateTime           @updatedAt
   approvedApplications Application[]      @relation("ApplicationApprovedBy")
   assignedApplications Application[]      @relation("ApplicationAssignedTo")
+  assignedWizardApplications WizardApplication[] @relation("WizardApplicationAssignedTo")
+  wizardAnswerUpdates  WizardApplicationAnswer[] @relation("WizardAnswerUpdatedBy")
+  wizardStepReviews    WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
   clientProfile        Client?
   reviewedDocs         Document[]         @relation("DocumentReviewer")
   uploadedDocs         Document[]         @relation("DocumentUploader")
@@ -44,6 +47,8 @@ model User {
   pushSubscriptions    PushSubscription[]
   auditLogs            AuditLog[]
   pageAccessLogs       PageAccessLog[]
+  formTemplates        FormTemplate[]     @relation("FormTemplateCreatedBy")
+  applicationWizards   ApplicationWizard[] @relation("ApplicationWizardCreatedBy")
   // NextAuth relations
   accounts             Account[]
   sessions             Session[]
@@ -173,6 +178,7 @@ model Client {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   applications     Application[]
+  wizardApplications WizardApplication[]
   group            ClientGroup?  @relation(fields: [groupId], references: [id])
   user             User          @relation(fields: [userId], references: [id])
   invoices         Invoice[]
@@ -255,6 +261,8 @@ model BusinessService {
   category    ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   packages    PackageService[]
   addOns      AdditionalService[]
+  formTemplateService  FormTemplateService?
+  wizardServices       ApplicationWizardService[]
 
   @@index([categoryId, sortOrder])
   @@map("business_services")
@@ -304,6 +312,207 @@ model AdditionalService {
   service     BusinessService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@map("additional_services")
+}
+
+model FormField {
+  id             String              @id @default(cuid())
+  label          String
+  type           FormFieldType
+  options        String?
+  helpText       String?
+  placeholder    String?
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  templateFields FormTemplateField[]
+  wizardAnswers  WizardApplicationAnswer[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("form_fields")
+}
+
+model FormTemplate {
+  id              String                @id @default(cuid())
+  name            String
+  description     String?
+  areaOfInterest  AreaOfInterest?
+  isActive        Boolean               @default(true)
+  isDeleted       Boolean               @default(false)
+  deletedAt       DateTime?
+  createdById     String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  createdBy       User                  @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
+  fields          FormTemplateField[]
+  services        FormTemplateService[]
+  wizardSteps     ApplicationWizardStep[]
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("form_templates")
+}
+
+model FormTemplateField {
+  id            String       @id @default(cuid())
+  templateId    String
+  fieldId       String
+  sortOrder     Int          @default(0)
+  isRequired    Boolean      @default(false)
+  labelOverride String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  template      FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  field         FormField    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, fieldId])
+  @@index([templateId, sortOrder])
+  @@index([fieldId])
+  @@map("form_template_fields")
+}
+
+model FormTemplateService {
+  id         String          @id @default(cuid())
+  templateId String
+  serviceId  String
+  createdAt  DateTime        @default(now())
+  template   FormTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  service    BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, serviceId])
+  @@unique([serviceId])
+  @@index([templateId])
+  @@map("form_template_services")
+}
+
+model ApplicationWizard {
+  id             String                     @id @default(cuid())
+  name           String
+  areaOfInterest AreaOfInterest
+  isActive       Boolean                    @default(true)
+  isDeleted      Boolean                    @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  createdBy      User                       @relation("ApplicationWizardCreatedBy", fields: [createdById], references: [id])
+  steps          ApplicationWizardStep[]
+  services       ApplicationWizardService[]
+  applications   WizardApplication[]
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("application_wizards")
+}
+
+model ApplicationWizardStep {
+  id              String            @id @default(cuid())
+  wizardId        String
+  formTemplateId  String
+  sortOrder       Int               @default(0)
+  paymentRequired  Boolean           @default(false)
+  approvalRequired Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+  answers          WizardApplicationAnswer[]
+  stepReviews      WizardApplicationStepReview[]
+
+  @@unique([wizardId, formTemplateId])
+  @@index([wizardId, sortOrder])
+  @@index([formTemplateId])
+  @@map("application_wizard_steps")
+}
+
+model WizardApplication {
+  id                String                  @id @default(cuid())
+  applicationNumber String                  @unique
+  clientId          String
+  wizardId          String
+  areaOfInterest    AreaOfInterest
+  status            WizardApplicationStatus @default(DRAFT)
+  currentStepIndex  Int                     @default(0)
+  adminNotes        String?
+  submittedAt       DateTime?
+  assignedToId      String?
+  isDeleted         Boolean                 @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  client            Client                  @relation(fields: [clientId], references: [id])
+  wizard            ApplicationWizard       @relation(fields: [wizardId], references: [id], onDelete: Restrict)
+  assignedTo        User?                   @relation("WizardApplicationAssignedTo", fields: [assignedToId], references: [id])
+  answers           WizardApplicationAnswer[]
+  stepReviews       WizardApplicationStepReview[]
+
+  @@index([isDeleted])
+  @@index([clientId, isDeleted])
+  @@index([wizardId])
+  @@index([status])
+  @@index([areaOfInterest])
+  @@map("wizard_applications")
+}
+
+model WizardApplicationAnswer {
+  id            String                @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  fieldId       String
+  value         String?
+  fileUrl       String?
+  updatedById   String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  application   WizardApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  wizardStep    ApplicationWizardStep @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  field         FormField             @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  updatedBy     User?                 @relation("WizardAnswerUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([applicationId, wizardStepId, fieldId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@index([fieldId])
+  @@map("wizard_application_answers")
+}
+
+model WizardApplicationStepReview {
+  id            String                    @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  status        WizardStepApprovalStatus  @default(PENDING)
+  rejectionNote String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  application   WizardApplication         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  wizardStep    ApplicationWizardStep     @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  reviewedBy    User?                     @relation("WizardStepReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([applicationId, wizardStepId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@index([status])
+  @@map("wizard_application_step_reviews")
+}
+
+model ApplicationWizardService {
+  id        String            @id @default(cuid())
+  wizardId  String
+  serviceId String
+  createdAt DateTime          @default(now())
+  wizard    ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  service   BusinessService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([wizardId, serviceId])
+  @@index([wizardId])
+  @@index([serviceId])
+  @@map("application_wizard_services")
 }
 
 model PaymentPhaseTemplate {
@@ -833,6 +1042,22 @@ enum ApplicationStatus {
   COMPLETED
 }
 
+enum WizardStepApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WizardApplicationStatus {
+  DRAFT
+  PENDING
+  IN_PROGRESS
+  HARD_COPY_REQUIRED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
 enum DocumentStatus {
   PENDING
   APPROVED
@@ -886,4 +1111,23 @@ enum LeadStatusType {
   WON
   LOST
   OTHER
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  EMAIL
+  PHONE
+  DATE
+  SELECT
+  CHECKBOX
+  RADIO
+  FILE
+}
+
+enum AreaOfInterest {
+  CR
+  PR
+  GR
 }

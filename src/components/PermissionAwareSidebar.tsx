@@ -11,7 +11,7 @@ import {
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard,
   ChevronDown, ChevronRight, Menu, X, Globe, Tag, History, Activity, Bell, CreditCard, Bot,
-  Briefcase, Package, PlusCircle
+  Briefcase, Package, PlusCircle, Layers
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -106,6 +106,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: PlusCircle,
         href: '/admin/services/add-ons',
         permission: `${Module.SERVICES}.${Action.VIEW}`
+      },
+      {
+        title: 'Wizards',
+        icon: Layers,
+        href: '/admin/services/wizards',
+        permission: `${Module.SERVICES}.${Action.VIEW}`
       }
     ]
   },
@@ -119,12 +125,6 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: FileText,
         href: '/admin/applications',
         permission: `${Module.APPLICATIONS}.${Action.VIEW}`
-      },
-      {
-        title: t('admin.sidebar.tasks'),
-        icon: CheckCircle,
-        href: '/admin/applications/tasks',
-        permission: `${Module.TASKS}.${Action.VIEW}`
       }
     ]
   },
@@ -447,7 +447,6 @@ export function PermissionAwareSidebar({ className, isCollapsed = false, onToggl
 
     // Hide applications, financials, reports, and documents sections
     const hiddenModuleTitles = [
-      t('admin.sidebar.applications'),
       t('admin.sidebar.financial'),
       t('admin.sidebar.reports'),
       t('admin.sidebar.documents')
