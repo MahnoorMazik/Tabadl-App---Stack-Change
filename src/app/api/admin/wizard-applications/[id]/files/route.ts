@@ -25,7 +25,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const authResult = await requireAuth(request)
     if ('error' in authResult) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHENTICATION_ERROR, authResult.error, authResult.status, {
+        createErrorResponse(
+          ErrorCodes.AUTHENTICATION_ERROR,
+          authResult.error || 'Authentication required',
+          authResult.status || 401,
+          {
           requestId,
         })
       )
@@ -56,21 +60,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const formData = await request.formData()
     const raw = formData.get('file')
-    const file =
-      raw instanceof File
-        ? raw
-        : raw instanceof Blob
-          ? new File([raw], (raw as File).name || 'upload.bin', {
-              type: raw.type || 'application/octet-stream',
-            })
-          : null
-    if (!file || file.size <= 0) {
+    if (!(raw instanceof File) || raw.size <= 0) {
       return addCorsHeaders(
         createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'No file provided', 400, {
           requestId,
         })
       )
     }
+    const file = raw
 
     const result = await saveWizardApplicationFile({ applicationId: id, file })
     if (!result.ok) {
@@ -84,8 +81,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return addCorsHeaders(
       createSuccessResponse({ file: result.data }, 200, { requestId })
     )
-  } catch (error) {
-    logError(error, { requestId, route: 'POST /api/admin/wizard-applications/[id]/files' })
+  } catch (error: unknown) {
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: 'POST /api/admin/wizard-applications/[id]/files',
+      method: 'POST',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to upload file', 500, {
         requestId,

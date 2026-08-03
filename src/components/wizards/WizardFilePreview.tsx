@@ -149,7 +149,6 @@ export function WizardFilePreview({
             )}
             {!loading && !error && previewUrl && isImage && (
               <div className="h-full overflow-auto flex items-center justify-center p-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={previewUrl}
                   alt={displayName}
