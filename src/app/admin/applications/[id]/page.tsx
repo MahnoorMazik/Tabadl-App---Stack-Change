@@ -65,6 +65,7 @@ type AppDetail = {
     formTemplateId?: string
     paymentRequired: boolean
     approvalRequired?: boolean
+    adminUseOnly?: boolean
     approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
     rejectionNote?: string | null
     fields: Array<{
@@ -248,7 +249,6 @@ export default function AdminApplicationDetailPage() {
     }
   }
 
-  // ✅ FIXED: Using /api/admin/wizard-applications/ path
   const updateStatus = async (status: string) => {
     if (!app) return
     
@@ -393,6 +393,7 @@ export default function AdminApplicationDetailPage() {
         id: step.id,
         formName: step.formName,
         paymentRequired: step.paymentRequired,
+        adminUseOnly: step.adminUseOnly,
         filled: step.fields.some((f) => f.answer?.value || f.answer?.fileUrl),
       })) ?? [],
     [app?.steps]
@@ -589,7 +590,18 @@ export default function AdminApplicationDetailPage() {
                     <ApplicationStepForm
                       key={currentStep.id}
                       formName={currentStep.formName}
-                      fields={currentStep.fields}
+                      fields={currentStep.fields.map((field) => ({
+                        id: field.fieldId,
+                        required: field.isRequired ?? false,
+                        fieldId: field.fieldId,
+                        label: field.label,
+                        type: field.type,
+                        isRequired: field.isRequired,
+                        options: field.options,
+                        helpText: field.helpText,
+                        placeholder: field.placeholder,
+                        answer: field.answer,
+                      }))}
                       stepIndex={stepIndex}
                       totalSteps={app.steps.length}
                       paymentRequired={currentStep.paymentRequired}
@@ -605,6 +617,11 @@ export default function AdminApplicationDetailPage() {
                       serverSyncVersion={serverSyncVersion}
                       headerActions={
                         <>
+                          {currentStep.adminUseOnly && (
+                            <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                              Admin only
+                            </Badge>
+                          )}
                           {currentStep.approvalStatus === 'APPROVED' && (
                             <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
                               Approved

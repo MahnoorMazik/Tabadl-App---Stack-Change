@@ -15,6 +15,7 @@ import {
 } from '@/components/admin/forms/types'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
 
+
 export default function EditFormPage() {
   const params = useParams()
   const router = useRouter()
@@ -143,7 +144,6 @@ export default function EditFormPage() {
       description="Update fields, services, and preview the client form"
       icon={<ClipboardList className="h-5 w-5 text-emerald-600" />}
       showConstruction={false}
-      fullWidth
       requiredPermission={`${Module.SERVICES}.${Action.VIEW}`}
       actions={
         <Link href="/admin/services/forms">

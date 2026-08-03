@@ -406,6 +406,7 @@ model ApplicationWizard {
 }
 
 model ApplicationWizardStep {
+<<<<<<< HEAD
   id               String                        @id @default(cuid())
   wizardId         String
   formTemplateId   String
@@ -416,6 +417,19 @@ model ApplicationWizardStep {
   approvalRequired Boolean                       @default(false)
   formTemplate     FormTemplate                  @relation(fields: [formTemplateId], references: [id])
   wizard           ApplicationWizard             @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+=======
+  id              String            @id @default(cuid())
+  wizardId        String
+  formTemplateId  String
+  sortOrder       Int               @default(0)
+  paymentRequired  Boolean           @default(false)
+  approvalRequired Boolean           @default(false)
+  adminUseOnly     Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+>>>>>>> origin/dev
   answers          WizardApplicationAnswer[]
   stepReviews      WizardApplicationStepReview[]
 

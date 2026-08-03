@@ -141,6 +141,7 @@ export default function AdminClientApplicationsPage() {
             stepId={selected?.id || 'temp'}
             stepNumber={1}
             totalSteps={3}
+            stepIndex={0}
             formName="Client Application Step"
             fields={[
               { id: 'fullName', fieldId: 'fullName', label: 'Full name', type: 'TEXT', required: true },

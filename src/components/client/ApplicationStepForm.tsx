@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export interface StepField {
+  id: string
+  required: boolean
   fieldId: string
   label: string
   type: string
@@ -27,11 +29,15 @@ export interface StepField {
   helpText?: string | null
   placeholder?: string | null
   answer?: { value: string | null; fileUrl: string | null }
-}
+} 
 
 export interface ApplicationStepFormProps {
   formName: string
   fields: StepField[]
+  stepId?: string
+  stepNumber?: number
+  isAdminActingOnBehalf?: boolean
+  onSaveExit?: (answers: Record<string, string>) => void | Promise<void>
   stepIndex: number
   totalSteps: number
   paymentRequired?: boolean

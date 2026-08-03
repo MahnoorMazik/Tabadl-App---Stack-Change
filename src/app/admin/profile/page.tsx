@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast'
 import { parsePhoneNumber } from '@/lib/phone-normalization'
 import { toAvatarUrl } from '@/lib/avatar-utils'
 import { cn } from '@/lib/utils'
+import { PwaInstallSection } from '@/components/PwaInstallSection'
 
 // Helper function to get flag emoji from country code (same as signup page)
 function getCountryFlag(code: string, name?: string): string {
@@ -796,6 +797,9 @@ export default function AdminProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Install App — on-demand PWA install (no login popup) */}
+        <PwaInstallSection />
 
         {/* Password Change Section */}
         <Card>

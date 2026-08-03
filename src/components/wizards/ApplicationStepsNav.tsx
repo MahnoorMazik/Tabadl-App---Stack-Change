@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Lock, Search } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ export type ApplicationStepNavItem = {
   formName: string
   filled?: boolean
   paymentRequired?: boolean
+  adminUseOnly?: boolean
 }
 
 type ApplicationStepsNavProps = {
@@ -37,11 +38,29 @@ function StepNode({
   index,
   active,
   filled,
+  adminLocked,
 }: {
   index: number
   active: boolean
   filled: boolean
+  adminLocked?: boolean
 }) {
+  if (adminLocked && !filled) {
+    return (
+      <span
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+          active
+            ? 'border-slate-500 bg-slate-500 text-white shadow-sm'
+            : 'border-slate-300 bg-slate-100 text-slate-500'
+        )}
+        aria-hidden
+      >
+        <Lock className="h-3.5 w-3.5" />
+      </span>
+    )
+  }
+
   if (filled) {
     return (
       <span
@@ -136,7 +155,12 @@ export function ApplicationStepsNav({
                 />
               )}
               <div className="absolute left-0 top-2 z-[1]">
-                <StepNode index={index} active={active} filled={!!step.filled} />
+                <StepNode
+                  index={index}
+                  active={active}
+                  filled={!!step.filled}
+                  adminLocked={!!step.adminUseOnly}
+                />
               </div>
               <button
                 ref={active ? activeRef : undefined}
@@ -149,36 +173,53 @@ export function ApplicationStepsNav({
                   'group w-full rounded-lg py-2 px-3 text-left transition-colors',
                   !accessible && 'opacity-50 cursor-not-allowed',
                   accessible && !active && 'hover:bg-muted/50',
-                  active
-                    ? 'bg-emerald-50/90 ring-1 ring-inset ring-emerald-200/80'
-                    : ''
+                  active && step.adminUseOnly
+                    ? 'bg-slate-50 ring-1 ring-inset ring-slate-200'
+                    : active
+                      ? 'bg-emerald-50/90 ring-1 ring-inset ring-emerald-200/80'
+                      : ''
                 )}
               >
                 <span className="min-w-0 block">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span
                       className={cn(
                         'block text-xs font-semibold uppercase tracking-wider',
-                        active ? 'text-emerald-700' : 'text-muted-foreground'
+                        active && step.adminUseOnly
+                          ? 'text-slate-600'
+                          : active
+                            ? 'text-emerald-700'
+                            : 'text-muted-foreground'
                       )}
                     >
                       Step {index + 1}
                     </span>
-                    {step.paymentRequired && (
-                      <span className="inline-block mt-1 text-[10px] font-medium text-amber-800 bg-amber-100/80 border border-amber-200/60 rounded px-1.5 py-px">
-                        Payment
-                      </span>
-                    )}
-                    {!accessible && (
-                      <span className="inline-block mt-1 text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
-                        Locked
-                      </span>
-                    )}
+                    <span className="flex flex-wrap gap-1 justify-end">
+                      {step.paymentRequired && (
+                        <span className="inline-block text-[10px] font-medium text-amber-800 bg-amber-100/80 border border-amber-200/60 rounded px-1.5 py-px">
+                          Payment
+                        </span>
+                      )}
+                      {step.adminUseOnly && (
+                        <span className="inline-block text-[10px] font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
+                          Admin only
+                        </span>
+                      )}
+                      {!accessible && !step.adminUseOnly && (
+                        <span className="inline-block text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
+                          Locked
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <span
                     className={cn(
                       'block truncate text-sm leading-snug mt-0.5 mb-2',
-                      active ? 'font-semibold text-emerald-950' : 'font-medium text-foreground'
+                      active && step.adminUseOnly
+                        ? 'font-semibold text-slate-900'
+                        : active
+                          ? 'font-semibold text-emerald-950'
+                          : 'font-medium text-foreground'
                     )}
                   >
                     {step.formName}
@@ -225,6 +266,7 @@ export function ApplicationStepsNav({
                     disabled={!canSelect(i)}
                   >
                     Step {i + 1}: {step.formName}
+                    {step.adminUseOnly ? ' (Admin only)' : ''}
                     {step.filled ? ' ✓' : ''}
                   </SelectItem>
                 )

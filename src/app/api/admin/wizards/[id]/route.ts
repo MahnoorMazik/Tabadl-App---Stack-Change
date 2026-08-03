@@ -125,6 +125,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           formTemplateId: string
           sortOrder: number
           paymentRequired: boolean
+          approvalRequired: boolean
+          adminUseOnly: boolean
         }>
       | undefined
 

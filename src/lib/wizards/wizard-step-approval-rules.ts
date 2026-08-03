@@ -1,6 +1,7 @@
 export type StepApprovalGate = {
   approvalRequired?: boolean
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+  adminUseOnly?: boolean
 }
 
 export function shouldLockClientStepByApproval(
@@ -95,4 +96,25 @@ export function maxAccessibleStepIndex(steps: StepApprovalGate[]): number {
     if (canClientAccessStepIndex(steps, i)) return i
   }
   return 0
+}
+
+/** Next step a client can fill (skips admin-only steps). */
+export function nextClientFillableStepIndex(
+  steps: StepApprovalGate[],
+  fromIndex: number
+): number | null {
+  for (let i = fromIndex + 1; i < steps.length; i++) {
+    if (steps[i]?.adminUseOnly) continue
+    if (!canClientAccessStepIndex(steps, i)) continue
+    return i
+  }
+  return null
+}
+
+/** Last step the client is expected to fill/submit (skips trailing admin-only). */
+export function lastClientFillableStepIndex(steps: StepApprovalGate[]): number {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if (!steps[i]?.adminUseOnly) return i
+  }
+  return Math.max(0, steps.length - 1)
 }

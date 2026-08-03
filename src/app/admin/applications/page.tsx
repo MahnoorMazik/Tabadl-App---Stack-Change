@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
-import { useRouter } from 'next/navigation'
 import { AdminPageTemplate } from '@/components/AdminPageTemplate'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,14 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  FileText,
-  Search,
-  Eye,
-  Clock,
-  CheckCircle,
-  AlertCircle,
+  FileText,Search,
   Loader2,
-  Play,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
@@ -64,7 +57,6 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function AdminApplicationsPage() {
-  const router = useRouter()
   const { toast } = useToast()
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -303,12 +295,21 @@ export default function AdminApplicationsPage() {
                         </TableCell>
                         <TableCell>
                           {app.hasPendingApproval && app.pendingApprovals?.length ? (
-                            <Badge className="bg-sky-100 text-sky-900 border-sky-200">
-                              {/* <ShieldCheck className="h-3 w-3 mr-1" /> */}
-                              {app.pendingApprovalCount === 1
-                                ? `Step ${app.pendingApprovals[0].stepNumber} - pending`
-                                : `${app.pendingApprovalCount} steps pending`}
-                            </Badge>
+                            <div className="flex flex-col gap-1">
+                              {app.pendingApprovals.slice(0, 2).map((pending) => (
+                                <Badge
+                                  key={pending.wizardStepId}
+                                  className="w-fit bg-sky-100 text-sky-900 border-sky-200 hover:bg-sky-100"
+                                >
+                                  Step {pending.stepNumber} · pending
+                                </Badge>
+                              ))}
+                              {(app.pendingApprovalCount ?? 0) > 2 && (
+                                <span className="text-[11px] text-sky-800">
+                                  +{(app.pendingApprovalCount ?? 0) - 2} more
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
@@ -323,12 +324,19 @@ export default function AdminApplicationsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 border"
-                              onClick={() => router.push(`/admin/applications/${app.id}`)}
+                              onClick={() =>
+                                window.open(
+                                  `/admin/applications/${app.id}`,
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )
+                              }
                               aria-label={
                                 app.hasPendingApproval ? 'Review application' : 'View application'
                               }
                             >
-                              <Eye className="h-4 w-4" />
+                              <FileText className="h-4 w-4" />
+                              <span className="sr-only">Edit application</span>
                             </Button>
                           </div>
                         </TableCell>

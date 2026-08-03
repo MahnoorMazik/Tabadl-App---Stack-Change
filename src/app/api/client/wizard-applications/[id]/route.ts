@@ -196,13 +196,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const wizardStep = await db.applicationWizardStep.findFirst({
       where: { id: parsed.data.wizardStepId },
-      select: { approvalRequired: true },
+      select: { approvalRequired: true, adminUseOnly: true },
     })
 
     const editCheck = await assertClientMayEditStepAnswers({
       applicationId: id,
       wizardStepId: parsed.data.wizardStepId,
       approvalRequired: wizardStep?.approvalRequired ?? false,
+      adminUseOnly: wizardStep?.adminUseOnly ?? false,
     })
     if (!editCheck.ok) {
       return addCorsHeaders(
@@ -234,11 +235,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       currentStepIndex: parsed.data.currentStepIndex,
     })
 
+    const savedAnswers = await db.wizardApplicationAnswer.findMany({
+      where: { applicationId: id, wizardStepId: parsed.data.wizardStepId },
+      select: { value: true, fileUrl: true },
+    })
+
     await syncStepReviewAfterClientSave({
       applicationId: id,
       wizardStepId: parsed.data.wizardStepId,
       approvalRequired: wizardStep?.approvalRequired ?? false,
-      answers: parsed.data.answers,
+      answers: savedAnswers.length > 0 ? savedAnswers : parsed.data.answers,
     })
 
     const detail = await getWizardApplicationDetail(id)

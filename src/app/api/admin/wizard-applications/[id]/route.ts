@@ -18,7 +18,7 @@ import {
   upsertStepAnswers,
 } from '@/lib/wizards/wizard-application-utils'
 import { isWizardStepInWizard } from '@/lib/wizards/merged-area-wizard'
-import { setStepApproval } from '@/lib/wizards/wizard-step-approval'
+import { setStepApproval, ensurePendingStepReviewsForApplications } from '@/lib/wizards/wizard-step-approval'
 import { maxAccessibleStepIndex } from '@/lib/wizards/wizard-step-approval-rules'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -92,9 +92,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
       )
     }
 
+    await ensurePendingStepReviewsForApplications([id])
+    const refreshed = await getWizardApplicationDetail(id)
+
     return addCorsHeaders(
       createSuccessResponse(
-        { application: await mapWizardApplicationDetail(detail) },
+        { application: await mapWizardApplicationDetail(refreshed ?? detail) },
         200,
         { requestId, message: 'Application retrieved' }
       )
