@@ -1125,6 +1125,7 @@ enum FormFieldType {
   CHECKBOX
   RADIO
   FILE
+  INSTRUCTION
 }
 
 enum AreaOfInterest {

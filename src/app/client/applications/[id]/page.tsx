@@ -42,6 +42,7 @@ import {
   shouldLockClientStepByApproval,
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
+import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
 
 type AppDetail = {
   id: string
@@ -220,24 +221,13 @@ export default function ClientApplicationFillPage() {
 
   const buildAnswersPayload = (
     answers: Record<string, string>,
-    fields: AppDetail['steps'][number]['fields']
-  ) =>
-    fields.map((field) => {
-      const raw =
-        answers[field.fieldId] ??
-        field.answer?.value ??
-        field.answer?.fileUrl ??
-        ''
-      const trimmed = String(raw).trim()
-      return {
-        fieldId: field.fieldId,
-        value: trimmed || null,
-      }
-    })
+    fields: AppDetail['steps'][number]['fields'],
+    fileNames?: Record<string, string>
+  ) => buildWizardAnswersPayload(answers, fields, fileNames)
 
   const saveStep = async (
     answers: Record<string, string>,
-    opts?: { goNext?: boolean; submit?: boolean; exit?: boolean }
+    opts?: { goNext?: boolean; submit?: boolean; exit?: boolean; fileNames?: Record<string, string> }
   ) => {
     if (!app || !currentStep) return
 
@@ -281,7 +271,11 @@ export default function ClientApplicationFillPage() {
     try {
       const nextIndex = opts?.goNext ? targetNextIndex : stepIndex
 
-      const answersPayload = buildAnswersPayload(answers, currentStep.fields)
+      const answersPayload = buildAnswersPayload(
+        answers,
+        currentStep.fields,
+        opts?.fileNames
+      )
 
       const patchRes = await axios.patch(`/api/client/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
@@ -510,9 +504,13 @@ export default function ClientApplicationFillPage() {
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
+                      applicationId={app.id}
+                      fileUploadBasePath="/api/client/wizard-applications"
                       onBack={() => goToStep(Math.max(0, stepIndex - 1))}
                       onSave={(answers, opts) => saveStep(answers, opts)}
-                      onSaveAndExit={(answers) => saveStep(answers)}
+                      onSaveAndExit={(answers, opts) =>
+                        saveStep(answers, { fileNames: opts?.fileNames })
+                      }
                       latestValuesRef={latestFormValuesRef}
                       onDirtyChange={setFormDirty}
                       serverSyncVersion={serverSyncVersion}

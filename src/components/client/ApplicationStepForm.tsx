@@ -17,6 +17,10 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowLeft, ArrowRight, Check, Save, Clock, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import axios from 'axios'
+import { WizardFilePreview } from '@/components/wizards/WizardFilePreview'
+import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
+import { isWizardFileUrl } from '@/lib/wizards/wizard-file-utils'
 
 export interface StepField {
   id: string
@@ -49,8 +53,14 @@ export interface ApplicationStepFormProps {
   saving?: boolean
   saveIndicator?: 'idle' | 'saving' | 'saved'
   onBack?: () => void
-  onSave?: (answers: Record<string, string>, opts?: { goNext?: boolean; submit?: boolean }) => void | Promise<void>
-  onSaveAndExit?: (answers: Record<string, string>) => void | Promise<void>
+  onSave?: (
+    answers: Record<string, string>,
+    opts?: { goNext?: boolean; submit?: boolean; fileNames?: Record<string, string> }
+  ) => void | Promise<void>
+  onSaveAndExit?: (
+    answers: Record<string, string>,
+    opts?: { fileNames?: Record<string, string> }
+  ) => void | Promise<void>
   /** Label for secondary save button (default: Save & exit) */
   saveExitLabel?: string
   showSubmit?: boolean
@@ -67,6 +77,10 @@ export interface ApplicationStepFormProps {
   onDirtyChange?: (dirty: boolean) => void
   /** Increment after a successful save to force syncing saved answers from server. */
   serverSyncVersion?: number
+  /** Wizard application id — required for FILE field uploads. */
+  applicationId?: string
+  /** Upload API prefix, e.g. /api/client/wizard-applications or /api/admin/wizard-applications */
+  fileUploadBasePath?: string
 }
 
 export function ApplicationStepForm({
@@ -94,10 +108,15 @@ export function ApplicationStepForm({
   latestValuesRef,
   onDirtyChange,
   serverSyncVersion = 0,
+  applicationId,
+  fileUploadBasePath,
 }: ApplicationStepFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
+  const [fileNames, setFileNames] = useState<Record<string, string>>({})
+  const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const valuesRef = useRef<Record<string, string>>({})
+  const fileNamesRef = useRef<Record<string, string>>({})
   const fieldsRef = useRef(fields)
   fieldsRef.current = fields
   const isDirtyRef = useRef(false)
@@ -149,10 +168,23 @@ export function ApplicationStepForm({
     lastSyncedKeyRef.current = fieldsSyncKey
 
     const initial: Record<string, string> = {}
+    const initialNames: Record<string, string> = {}
     for (const field of fieldsRef.current) {
-      initial[field.fieldId] = field.answer?.value ?? field.answer?.fileUrl ?? ''
+      if (field.type === 'FILE') {
+        const url = field.answer?.fileUrl ?? ''
+        const name =
+          field.answer?.value && !isWizardFileUrl(field.answer.value)
+            ? field.answer.value
+            : ''
+        initial[field.fieldId] = url || field.answer?.value || ''
+        if (name) initialNames[field.fieldId] = name
+      } else {
+        initial[field.fieldId] = field.answer?.value ?? field.answer?.fileUrl ?? ''
+      }
     }
     syncValues(initial, true)
+    fileNamesRef.current = initialNames
+    setFileNames(initialNames)
     setErrors({})
   }, [fieldsSyncKey, serverSyncVersion])
 
@@ -167,23 +199,83 @@ export function ApplicationStepForm({
     }
     setErrors((prev) => {
       if (!prev[fieldId]) return prev
-      const next = { ...prev }
-      delete next[fieldId]
-      return next
+      const nextErrors = { ...prev }
+      delete nextErrors[fieldId]
+      return nextErrors
     })
   }
 
+  const setFileName = (fieldId: string, name: string) => {
+    const next = { ...fileNamesRef.current, [fieldId]: name }
+    fileNamesRef.current = next
+    setFileNames(next)
+  }
+
   const getCurrentValues = () => ({ ...valuesRef.current })
+  const getCurrentFileNames = () => ({ ...fileNamesRef.current })
 
   const validate = (currentValues: Record<string, string>) => {
     const nextErrors: Record<string, string> = {}
     for (const field of fields) {
-      if (field.isRequired && !String(currentValues[field.fieldId] ?? '').trim()) {
+      if (field.type === 'INSTRUCTION') continue
+      const raw = String(currentValues[field.fieldId] ?? '').trim()
+      const hasFile =
+        field.type === 'FILE' &&
+        (isWizardFileUrl(raw) || Boolean(field.answer?.fileUrl))
+      if (field.isRequired && !raw && !hasFile) {
         nextErrors[field.fieldId] = 'Required'
       }
     }
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
+  }
+
+  const handleFileUpload = async (fieldId: string, file: File | undefined) => {
+    if (!file) return
+    if (!applicationId || !fileUploadBasePath) {
+      setErrors((prev) => ({
+        ...prev,
+        [fieldId]: 'File upload is not available for this form.',
+      }))
+      return
+    }
+
+    setUploadingFieldId(fieldId)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      // Do not set Content-Type manually — browser must add the multipart boundary.
+      const res = await axios.post(
+        `${fileUploadBasePath}/${applicationId}/files`,
+        formData
+      )
+      const uploaded = res.data?.data?.file as
+        | { url: string; originalName: string }
+        | undefined
+      if (!uploaded?.url) {
+        throw new Error('Upload failed')
+      }
+      setValue(fieldId, uploaded.url)
+      setFileName(fieldId, uploaded.originalName || file.name)
+
+      // Persist immediately so admin can see the document without a separate Save click
+      const nextValues = { ...valuesRef.current, [fieldId]: uploaded.url }
+      const nextNames = {
+        ...fileNamesRef.current,
+        [fieldId]: uploaded.originalName || file.name,
+      }
+      await onSave?.(nextValues, { fileNames: nextNames })
+    } catch (error: any) {
+      setErrors((prev) => ({
+        ...prev,
+        [fieldId]:
+          error.response?.data?.error?.message ||
+          error.message ||
+          'Upload failed',
+      }))
+    } finally {
+      setUploadingFieldId(null)
+    }
   }
 
   const handleContinue = async () => {
@@ -198,11 +290,12 @@ export function ApplicationStepForm({
     await onSave?.(currentValues, {
       goNext: canAdvance,
       submit: wantsSubmit,
+      fileNames: getCurrentFileNames(),
     })
   }
 
   const handleSaveExit = async () => {
-    await onSaveAndExit?.(getCurrentValues())
+    await onSaveAndExit?.(getCurrentValues(), { fileNames: getCurrentFileNames() })
   }
 
   const progressPct = totalSteps > 0 ? Math.round(((stepIndex + 1) / totalSteps) * 100) : 0
@@ -297,7 +390,36 @@ export function ApplicationStepForm({
       )}
 
       <div className={cn('space-y-3', engaging && 'space-y-4')}>
-        {fields.map((field, idx) => (
+        {fields.map((field, idx) => {
+          if (field.type === 'INSTRUCTION') {
+            return (
+              <div
+                key={field.fieldId}
+                className={cn(
+                  'rounded-xl border border-sky-200 bg-sky-50 px-4 py-3.5',
+                  engaging && 'shadow-sm'
+                )}
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-[10px] font-semibold">
+                    i
+                  </span>
+                  <div className="min-w-0 space-y-1">
+                    {field.label?.trim() && (
+                      <p className="text-sm font-semibold text-sky-950">{field.label}</p>
+                    )}
+                    {field.helpText?.trim() ? (
+                      <p className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed">
+                        {field.helpText}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          return (
           <div
             key={field.fieldId}
             className={cn(
@@ -307,16 +429,14 @@ export function ApplicationStepForm({
                 : 'bg-card'
             )}
           >
-            <Label className={cn(engaging ? 'text-sm font-medium' : 'text-sm')}>
-              <span className="text-muted-foreground/70 mr-1.5 text-xs font-normal">
+            <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm')}>
+              <span className="text-muted-foreground/70 mr-0.5 text-xs font-normal">
                 {idx + 1}.
               </span>
               {field.label}
               {field.isRequired && <span className="text-destructive ml-0.5">*</span>}
+              <FieldHelpTooltip text={field.helpText} />
             </Label>
-            {field.helpText && (
-              <p className="text-xs text-muted-foreground">{field.helpText}</p>
-            )}
 
             {field.type === 'TEXTAREA' ? (
               <Textarea
@@ -357,25 +477,77 @@ export function ApplicationStepForm({
               </div>
             ) : field.type === 'FILE' ? (
               <div className="space-y-2">
-                <Input
-                  type="text"
-                  value={values[field.fieldId] ?? ''}
-                  onChange={(e) => setValue(field.fieldId, e.target.value)}
-                  placeholder="File URL or path"
-                  disabled={readOnly}
-                  className={engaging ? 'focus-visible:ring-emerald-500 disabled:opacity-80 disabled:cursor-not-allowed disabled:bg-gray-100' : undefined}
-                />
-                {!readOnly && (
-                  <Input
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      setValue(field.fieldId, file.name)
-                    }}
+                {(isWizardFileUrl(values[field.fieldId]) ||
+                  isWizardFileUrl(field.answer?.fileUrl)) && (
+                  <WizardFilePreview
+                    fileUrl={
+                      isWizardFileUrl(values[field.fieldId])
+                        ? values[field.fieldId]
+                        : field.answer?.fileUrl
+                    }
+                    fileName={
+                      fileNames[field.fieldId] ||
+                      (field.answer?.value && !isWizardFileUrl(field.answer.value)
+                        ? field.answer.value
+                        : null)
+                    }
                   />
                 )}
+                {!isWizardFileUrl(values[field.fieldId]) &&
+                  !isWizardFileUrl(field.answer?.fileUrl) &&
+                  Boolean(
+                    (values[field.fieldId] || field.answer?.value || '').trim()
+                  ) && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+                      <p className="font-medium truncate">
+                        {values[field.fieldId] || field.answer?.value}
+                      </p>
+                      <p className="text-xs text-amber-800/80 mt-0.5">
+                        Filename was saved, but the file itself is not available for preview.
+                        Please re-upload the document.
+                      </p>
+                    </div>
+                  )}
+                {!readOnly && (
+                  <div className="space-y-1.5">
+                    <Input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                      disabled={uploadingFieldId === field.fieldId || saving}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        void handleFileUpload(field.fieldId, file)
+                        e.target.value = ''
+                      }}
+                      className={
+                        engaging
+                          ? 'cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-emerald-800 hover:file:bg-emerald-100'
+                          : undefined
+                      }
+                    />
+                    {uploadingFieldId === field.fieldId && (
+                      <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Uploading…
+                      </p>
+                    )}
+                    {!applicationId || !fileUploadBasePath ? (
+                      <p className="text-xs text-amber-700">
+                        Save is available after the application is loaded.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        PDF, PNG, or JPG · max 10MB
+                      </p>
+                    )}
+                  </div>
+                )}
+                {readOnly &&
+                  !isWizardFileUrl(values[field.fieldId]) &&
+                  !isWizardFileUrl(field.answer?.fileUrl) &&
+                  !(values[field.fieldId] || field.answer?.value || '').trim() && (
+                    <p className="text-sm text-muted-foreground">No file uploaded.</p>
+                  )}
               </div>
             ) : (
               <Input
@@ -402,7 +574,8 @@ export function ApplicationStepForm({
               <p className="text-xs text-destructive">{errors[field.fieldId]}</p>
             )}
           </div>
-        ))}
+          )
+        })}
 
         {fields.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-6">
