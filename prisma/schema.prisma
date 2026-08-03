@@ -7,46 +7,107 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Prisma excerpt — Support Tickets (from Zypher ERP schema)
+// Add relation on User: supportTicketsCreated SupportTicket[] @relation("SupportTicketCreatedBy")
+
+model SupportTicket {
+  id           Int                   @id @default(autoincrement())
+  title        String
+  description  String
+  status       SupportTicketStatus   @default(NEW)
+  priority     SupportTicketPriority @default(MEDIUM) // Add this
+  category     String? // Add this
+  createdById  Int
+  assignedToId Int? // Add this
+  clientId     Int? // Add this
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  resolvedAt   DateTime?
+  closedAt     DateTime?
+
+  createdBy   User                      @relation("createdTickets", fields: [createdById], references: [id])
+  assignedTo  User?                     @relation("assignedTickets", fields: [assignedToId], references: [id])
+  client      Client?                   @relation(fields: [clientId], references: [id])
+  attachments SupportTicketAttachment[]
+  messages    SupportTicketMessage[]
+}
+
+model SupportTicketMessage {
+  id         Int           @id @default(autoincrement())
+  ticketId   Int
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User          @relation(fields: [userId], references: [id])
+  message    String        @db.Text
+  isInternal Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([ticketId])
+  @@map("support_ticket_messages")
+}
+
+model SupportTicketAttachment {
+  id        Int           @id @default(autoincrement())
+  ticketId  Int
+  fileName  String
+  filePath  String
+  fileSize  Int
+  fileType  String
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_ticket_attachments")
+}
+
+enum SupportTicketStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
 model User {
-  id                   String             @id @default(cuid())
-  email                String
-  name                 String?
-  passwordHash         String
-  role                 UserRole           @default(CLIENT)
-  staffType            StaffType?
-  isActive             Boolean            @default(true)
-  isDeleted            Boolean            @default(false)
-  deletedAt            DateTime?
-  lastLoginAt          DateTime?
-  tokenVersion         Int                @default(0)
-  phone                String?
-  avatar               String?
-  customRoleId         String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  approvedApplications Application[]      @relation("ApplicationApprovedBy")
-  assignedApplications Application[]      @relation("ApplicationAssignedTo")
-  clientProfile        Client?
-  reviewedDocs         Document[]         @relation("DocumentReviewer")
-  uploadedDocs         Document[]         @relation("DocumentUploader")
-  approvedExpenses     Expense[]          @relation("ExpenseApprover")
-  createdExpenses      Expense[]          @relation("ExpenseCreator")
-  assignedLeads        Lead[]
-  notifications              Notification[]
-  notificationPreferences    NotificationPreference[]
-  notificationSettings       NotificationSettings?
-  assignedTasks              Task[]
-  customRole                 Role?              @relation(fields: [customRoleId], references: [id])
-  sentMessages         Message[]          @relation("MessageSender")
-  leadNotes            LeadNote[]
-  leadFollowUps        LeadFollowUp[]
-  createdLeads         Lead[]             @relation("LeadCreator")
-  pushSubscriptions    PushSubscription[]
-  auditLogs            AuditLog[]
-  pageAccessLogs       PageAccessLog[]
+  id                      String                   @id @default(cuid())
+  email                   String
+  name                    String?
+  passwordHash            String
+  role                    UserRole                 @default(CLIENT)
+  staffType               StaffType?
+  isActive                Boolean                  @default(true)
+  isDeleted               Boolean                  @default(false)
+  deletedAt               DateTime?
+  lastLoginAt             DateTime?
+  tokenVersion            Int                      @default(0)
+  phone                   String?
+  avatar                  String?
+  customRoleId            String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  approvedApplications    Application[]            @relation("ApplicationApprovedBy")
+  assignedApplications    Application[]            @relation("ApplicationAssignedTo")
+  clientProfile           Client?
+  reviewedDocs            Document[]               @relation("DocumentReviewer")
+  uploadedDocs            Document[]               @relation("DocumentUploader")
+  approvedExpenses        Expense[]                @relation("ExpenseApprover")
+  createdExpenses         Expense[]                @relation("ExpenseCreator")
+  assignedLeads           Lead[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  notificationSettings    NotificationSettings?
+  assignedTasks           Task[]
+  customRole              Role?                    @relation(fields: [customRoleId], references: [id])
+  sentMessages            Message[]                @relation("MessageSender")
+  leadNotes               LeadNote[]
+  leadFollowUps           LeadFollowUp[]
+  createdLeads            Lead[]                   @relation("LeadCreator")
+  pushSubscriptions       PushSubscription[]
+  auditLogs               AuditLog[]
+  pageAccessLogs          PageAccessLog[]
   // NextAuth relations
-  accounts             Account[]
-  sessions             Session[]
+  accounts                Account[]
+  sessions                Session[]
 
   @@index([email, isDeleted])
   @@index([isDeleted])
@@ -154,8 +215,8 @@ model Application {
 }
 
 model Client {
-  id               String        @id @default(cuid())
-  clientNumber     String        @unique
+  id               String                  @id @default(cuid())
+  clientNumber     String                  @unique
   name             String
   email            String
   phone            String?
@@ -166,22 +227,22 @@ model Client {
   country          String?
   city             String?
   howDidYouHear    String?
-  userId           String        @unique
+  userId           String                  @unique
   groupId          String?
-  isDeleted        Boolean       @default(false)
+  isDeleted        Boolean                 @default(false)
   deletedAt        DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
   applications     Application[]
-  group            ClientGroup?  @relation(fields: [groupId], references: [id])
-  user             User          @relation(fields: [userId], references: [id])
+  group            ClientGroup?            @relation(fields: [groupId], references: [id])
+  user             User                    @relation(fields: [userId], references: [id])
   invoices         Invoice[]
   paymentIntents   PaymentIntent[]
   leads            Lead[]
   payments         Payment[]
   profileDocuments ClientProfileDocument[]
   documents        Document[]
-  servicePackage   ServicePackage? @relation(fields: [servicePackageId], references: [id])
+  servicePackage   ServicePackage?         @relation(fields: [servicePackageId], references: [id])
   servicePackageId String?
 
   profileCompletionStatus ProfileCompletionStatus @default(INCOMPLETE)
@@ -194,32 +255,32 @@ model Client {
 }
 
 model Document {
-  id            String         @id @default(cuid())
-  filename      String
-  originalName  String
-  path          String
-  size          Int
-  mimeType      String
-  status        DocumentStatus @default(PENDING)
-  reviewNotes   String?
-  name          String? // Document name/title
-  description   String? // Document description
-  uploadedById  String
-  reviewedById  String?
-  applicationId String?
-  leadId        String?
-  clientId      String?
+  id                   String                      @id @default(cuid())
+  filename             String
+  originalName         String
+  path                 String
+  size                 Int
+  mimeType             String
+  status               DocumentStatus              @default(PENDING)
+  reviewNotes          String?
+  name                 String? // Document name/title
+  description          String? // Document description
+  uploadedById         String
+  reviewedById         String?
+  applicationId        String?
+  leadId               String?
+  clientId             String?
   profileRequirementId String?
-  isDeleted     Boolean        @default(false)
-  deletedAt     DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  application   Application?   @relation(fields: [applicationId], references: [id])
-  lead          Lead?          @relation(fields: [leadId], references: [id])
-  client        Client?        @relation(fields: [clientId], references: [id])
-  profileRequirement ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
-  reviewedBy    User?          @relation("DocumentReviewer", fields: [reviewedById], references: [id])
-  uploadedBy    User           @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  isDeleted            Boolean                     @default(false)
+  deletedAt            DateTime?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  application          Application?                @relation(fields: [applicationId], references: [id])
+  lead                 Lead?                       @relation(fields: [leadId], references: [id])
+  client               Client?                     @relation(fields: [clientId], references: [id])
+  profileRequirement   ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
+  reviewedBy           User?                       @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  uploadedBy           User                        @relation("DocumentUploader", fields: [uploadedById], references: [id])
 
   @@index([isDeleted])
   @@index([leadId, isDeleted])
@@ -229,30 +290,30 @@ model Document {
 }
 
 model ServiceCategory {
-  id          String           @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
-  slug        String           @unique
+  slug        String            @unique
   description String?
-  sortOrder   Int              @default(0)
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  sortOrder   Int               @default(0)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   services    BusinessService[]
 
   @@map("service_categories")
 }
 
 model BusinessService {
-  id          String           @id @default(cuid())
+  id          String              @id @default(cuid())
   categoryId  String
   name        String
-  slug        String           @unique
+  slug        String              @unique
   description String?
-  sortOrder   Int              @default(0)
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  category    ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  sortOrder   Int                 @default(0)
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  category    ServiceCategory     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   packages    PackageService[]
   addOns      AdditionalService[]
 
@@ -290,17 +351,17 @@ model PackageService {
 }
 
 model AdditionalService {
-  id          String          @id @default(cuid())
+  id          String           @id @default(cuid())
   serviceId   String?
   name        String
-  slug        String          @unique
+  slug        String           @unique
   description String?
   priceUsd    Float
   priceSar    Float
-  isActive    Boolean         @default(true)
-  sortOrder   Int             @default(0)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  isActive    Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   service     BusinessService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@map("additional_services")
@@ -398,20 +459,20 @@ model Expense {
 }
 
 model Invoice {
-  id              String          @id @default(cuid())
-  invoiceNumber   String          @unique
-  clientId        String
-  amount          Float
-  status          InvoiceStatus   @default(DRAFT)
-  dueDate         DateTime?
-  paidAt          DateTime?
-  isDeleted       Boolean         @default(false)
-  deletedAt       DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  client          Client          @relation(fields: [clientId], references: [id])
-  payments        Payment[]
-  paymentIntents  PaymentIntent[]
+  id             String          @id @default(cuid())
+  invoiceNumber  String          @unique
+  clientId       String
+  amount         Float
+  status         InvoiceStatus   @default(DRAFT)
+  dueDate        DateTime?
+  paidAt         DateTime?
+  isDeleted      Boolean         @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  client         Client          @relation(fields: [clientId], references: [id])
+  payments       Payment[]
+  paymentIntents PaymentIntent[]
 
   @@index([isDeleted])
   @@index([clientId, isDeleted])
@@ -426,7 +487,7 @@ model Payment {
   clientId             String
   invoiceId            String?
   status               String        @default("Success") // Pending, Success, Failed
-  gateway              String?       // EdfaPay, Manual, etc.
+  gateway              String? // EdfaPay, Manual, etc.
   edfaPayOrderId       String?
   edfaPayTransactionId String?
   edfaPayResponse      String?
@@ -597,16 +658,16 @@ model SupportMessage {
 }
 
 model SupportConversation {
-  id            String   @id @default(cuid())
-  visitorId     String   @unique
-  status        String   @default("bot") // bot | human | closed
-  channel       String   @default("website") // website | whatsapp | email
+  id            String    @id @default(cuid())
+  visitorId     String    @unique
+  status        String    @default("bot") // bot | human | closed
+  channel       String    @default("website") // website | whatsapp | email
   visitorName   String?
   visitorEmail  String?
   handedOffAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastMessageAt DateTime @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastMessageAt DateTime  @default(now())
 
   @@index([status, lastMessageAt])
   @@map("support_conversations")
@@ -721,13 +782,13 @@ model NotificationEventSetting {
 }
 
 model NotificationPreference {
-  id         String   @id @default(cuid())
-  userId     String
-  eventType  String   // LEAD_CREATION, LEAD_FOLLOWUP, CLIENT_CONVERSION
-  enabled    Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  eventType String // LEAD_CREATION, LEAD_FOLLOWUP, CLIENT_CONVERSION
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventType])
   @@index([userId])
@@ -735,12 +796,12 @@ model NotificationPreference {
 }
 
 model NotificationSettings {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  reminderMinutesBefore  Int      @default(15) // Send follow-up reminder this many minutes before scheduled time
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  reminderMinutesBefore Int      @default(15) // Send follow-up reminder this many minutes before scheduled time
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_settings")
 }

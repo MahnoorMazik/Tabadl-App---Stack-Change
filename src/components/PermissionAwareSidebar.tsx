@@ -373,6 +373,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: Phone,
         href: '/admin/help/contact',
         permission: `${Module.HELP}.${Action.VIEW}`
+      },
+      {
+        title: t('admin.sidebar.supportTickets'),
+        icon: Phone,
+        href: '/admin/help/support',
+        permission: `${Module.HELP}.${Action.VIEW}`
       }
     ]
   }

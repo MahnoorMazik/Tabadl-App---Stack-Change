@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { withPermission } from '@/lib/rbac-middleware'
-import { Module, Action, type Permission } from '@/lib/rbac'
-import { UserRole } from '@prisma/client'
-import { createUserSchema } from '@/lib/validations/users'
-import { userListSelect } from '@/lib/users/constants'
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { withPermission } from "@/lib/rbac-middleware";
+import { Module, Action, type Permission } from "@/lib/rbac";
+import { UserRole } from "@prisma/client";
+import { createUserSchema } from "@/lib/validations/users";
+import { userListSelect } from "@/lib/users/constants";
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -12,29 +12,32 @@ import {
   logError,
   ErrorCodes,
   getErrorSuggestion,
-} from '@/lib/error-handler'
-import { addCorsHeaders } from '@/lib/cors'
-import { z } from 'zod'
+} from "@/lib/error-handler";
+import { addCorsHeaders } from "@/lib/cors";
+import { unknown, z } from "zod";
 
-const viewPerm = [`${Module.USER_MANAGEMENT}.${Action.VIEW}` as Permission]
-const createPerm = [`${Module.USER_MANAGEMENT}.${Action.CREATE}` as Permission]
+const viewPerm = [`${Module.USER_MANAGEMENT}.${Action.VIEW}` as Permission];
+const createPerm = [`${Module.USER_MANAGEMENT}.${Action.CREATE}` as Permission];
 
 export const GET = withPermission(viewPerm)(async (request) => {
-  const requestId = getRequestId(request)
-  const { searchParams } = new URL(request.url)
+  const requestId = getRequestId(request);
+  const { searchParams } = new URL(request.url);
 
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)))
-  const search = (searchParams.get('search') || '').trim()
-  const roleFilter = searchParams.get('role') || 'ALL'
-  const sortBy = searchParams.get('sortBy') || 'createdAt'
-  const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc'
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+  );
+  const search = (searchParams.get("search") || "").trim();
+  const roleFilter = searchParams.get("role") || "ALL";
+  const sortBy = searchParams.get("sortBy") || "createdAt";
+  const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
 
   try {
-    const where: Record<string, unknown> = { isDeleted: false }
+    const where: Record<string, unknown> = { isDeleted: false };
 
     if (roleFilter === UserRole.STAFF || roleFilter === UserRole.CLIENT) {
-      where.role = roleFilter
+      where.role = roleFilter;
     }
 
     if (search) {
@@ -42,17 +45,17 @@ export const GET = withPermission(viewPerm)(async (request) => {
         { name: { contains: search } },
         { email: { contains: search } },
         { phone: { contains: search } },
-      ]
+      ];
     }
 
     const sortAllowlist: Record<string, string> = {
-      name: 'name',
-      email: 'email',
-      role: 'role',
-      createdAt: 'createdAt',
-      lastLoginAt: 'lastLoginAt',
-    }
-    const orderField = sortAllowlist[sortBy] || 'createdAt'
+      name: "name",
+      email: "email",
+      role: "role",
+      createdAt: "createdAt",
+      lastLoginAt: "lastLoginAt",
+    };
+    const orderField = sortAllowlist[sortBy] || "createdAt";
 
     const [users, total] = await Promise.all([
       db.user.findMany({
@@ -63,7 +66,7 @@ export const GET = withPermission(viewPerm)(async (request) => {
         take: limit,
       }),
       db.user.count({ where }),
-    ])
+    ]);
 
     return addCorsHeaders(
       createSuccessResponse(
@@ -78,48 +81,62 @@ export const GET = withPermission(viewPerm)(async (request) => {
           },
         },
         200,
-        { requestId, message: 'Users retrieved successfully' }
-      )
-    )
+        { requestId, message: "Users retrieved successfully" },
+      ),
+    );
   } catch (error: unknown) {
-    logError(error, {
+    const err = error instanceof Error ? error : new Error(String(error));
+
+    logError(err, {
       code: ErrorCodes.DATABASE_ERROR,
       requestId,
       userId: request.user?.userId,
-      endpoint: '/api/users',
-      method: 'GET',
-    })
+      endpoint: "/api/users",
+      method: "GET",
+    });
+
     return addCorsHeaders(
-      createErrorResponse(ErrorCodes.DATABASE_ERROR, 'Failed to retrieve users.', 500, {
-        requestId,
-        suggestion: getErrorSuggestion(ErrorCodes.DATABASE_ERROR),
-      })
-    )
+      createErrorResponse(
+        ErrorCodes.DATABASE_ERROR,
+        "Failed to retrieve users.",
+        500,
+        {
+          requestId,
+          suggestion: getErrorSuggestion(ErrorCodes.DATABASE_ERROR),
+        },
+      ),
+    );
   }
-})
+});
 
 export const POST = withPermission(createPerm)(async (request) => {
-  const requestId = getRequestId(request)
-  const actor = request.user!
+  const requestId = getRequestId(request);
+  const actor = request.user!;
 
   try {
-    const body = await request.json()
-    const data = createUserSchema.parse(body)
+    const body = await request.json();
+    const data = createUserSchema.parse(body);
 
     const existingUser = await db.user.findFirst({
       where: { email: data.email, isDeleted: false },
-    })
+    });
     if (existingUser) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.VALIDATION_ERROR, 'User with this email already exists.', 409, {
-          requestId,
-        })
-      )
+        createErrorResponse(
+          ErrorCodes.VALIDATION_ERROR,
+          "User with this email already exists.",
+          409,
+          {
+            requestId,
+          },
+        ),
+      );
     }
 
-    const { hashPassword, generateRandomPassword } = await import('@/lib/password')
-    const plainPassword = generateRandomPassword()
-    const passwordHash = await hashPassword(plainPassword)
+    const { hashPassword, generateRandomPassword } =
+      await import("@/lib/password");
+    const plainPassword = generateRandomPassword();
+    const passwordHash = await hashPassword(plainPassword);
 
     const newUser = await db.user.create({
       data: {
@@ -132,50 +149,65 @@ export const POST = withPermission(createPerm)(async (request) => {
         phone: data.phone || null,
       },
       select: userListSelect,
-    })
+    });
 
     try {
-      const { sendAccountCredentialsEmail } = await import('@/lib/email')
-      const roleLabel = newUser.customRole?.name ?? newUser.role
-      await sendAccountCredentialsEmail(newUser.email, newUser.name ?? newUser.email, plainPassword, roleLabel)
+      const { sendAccountCredentialsEmail } = await import("@/lib/email");
+      const roleLabel = newUser.customRole?.name ?? newUser.role;
+      await sendAccountCredentialsEmail(
+        newUser.email,
+        newUser.name ?? newUser.email,
+        plainPassword,
+        roleLabel,
+      );
     } catch (emailError) {
-      console.error('[UserCreate] Failed to send credentials email:', emailError)
+      console.error(
+        "[UserCreate] Failed to send credentials email:",
+        emailError,
+      );
     }
 
-    const { logCreateActivity } = await import('@/lib/activity-tracking')
+    const { logCreateActivity } = await import("@/lib/activity-tracking");
     await logCreateActivity(
       { userId: actor.userId },
-      'User',
+      "User",
       newUser.id,
       newUser.name ?? newUser.email,
-      { email: newUser.email, role: newUser.role, staffType: newUser.staffType },
-      request
-    )
+      {
+        email: newUser.email,
+        role: newUser.role,
+        staffType: newUser.staffType,
+      },
+      request,
+    );
 
     return addCorsHeaders(
-      createSuccessResponse(
-        { user: newUser },
-        201,
-        { requestId, message: 'User created successfully. Login credentials sent via email.' }
-      )
-    )
+      createSuccessResponse({ user: newUser }, 201, {
+        requestId,
+        message: "User created successfully. Login credentials sent via email.",
+      }),
+    );
   } catch (error: unknown) {
-    if (error instanceof z.ZodError) {
-      return addCorsHeaders(
-        createErrorResponse(ErrorCodes.VALIDATION_ERROR, error.issues[0]?.message || 'Validation failed.', 400, {
-          requestId,
-        })
-      )
-    }
-    logError(error, {
+    const err = error instanceof Error ? error : new Error(String(error));
+
+    logError(err, {
       code: ErrorCodes.DATABASE_ERROR,
       requestId,
-      userId: actor.userId,
-      endpoint: '/api/users',
-      method: 'POST',
-    })
+      userId: request.user?.userId,
+      endpoint: "/api/users",
+      method: "Post",
+    });
+
     return addCorsHeaders(
-      createErrorResponse(ErrorCodes.DATABASE_ERROR, 'Failed to create user.', 500, { requestId })
-    )
+      createErrorResponse(
+        ErrorCodes.DATABASE_ERROR,
+        "Failed to retrieve users.",
+        500,
+        {
+          requestId,
+          suggestion: getErrorSuggestion(ErrorCodes.DATABASE_ERROR),
+        },
+      ),
+    );
   }
-})
+});
