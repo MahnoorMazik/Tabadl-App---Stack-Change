@@ -8,57 +8,55 @@ datasource db {
 }
 
 model User {
-  id                   String             @id @default(cuid())
-  email                String
-  name                 String?
-  passwordHash         String
-  role                 UserRole           @default(CLIENT)
-  staffType            StaffType?
-  isActive             Boolean            @default(true)
-  isDeleted            Boolean            @default(false)
-  deletedAt            DateTime?
-  lastLoginAt          DateTime?
-  tokenVersion         Int                @default(0)
-  phone                String?
-  avatar               String?
-  customRoleId         String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  approvedApplications Application[]      @relation("ApplicationApprovedBy")
-  assignedApplications Application[]      @relation("ApplicationAssignedTo")
-  assignedWizardApplications WizardApplication[] @relation("WizardApplicationAssignedTo")
-  wizardAnswerUpdates  WizardApplicationAnswer[] @relation("WizardAnswerUpdatedBy")
-  wizardStepReviews    WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
-  clientProfile        Client?
-  reviewedDocs         Document[]         @relation("DocumentReviewer")
-  uploadedDocs         Document[]         @relation("DocumentUploader")
-  approvedExpenses     Expense[]          @relation("ExpenseApprover")
-  createdExpenses      Expense[]          @relation("ExpenseCreator")
-  assignedLeads        Lead[]
-  notifications              Notification[]
+  id                         String                        @id @default(cuid())
+  email                      String
+  name                       String?
+  passwordHash               String
+  role                       UserRole                      @default(CLIENT)
+  staffType                  StaffType?
+  isActive                   Boolean                       @default(true)
+  isDeleted                  Boolean                       @default(false)
+  deletedAt                  DateTime?
+  lastLoginAt                DateTime?
+  tokenVersion               Int                           @default(0)
+  phone                      String?
+  avatar                     String?
+  customRoleId               String?
+  createdAt                  DateTime                      @default(now())
+  updatedAt                  DateTime                      @updatedAt
+  accounts                   Account[]
+  applicationWizards         ApplicationWizard[]           @relation("ApplicationWizardCreatedBy")
+  assignedApplications       Application[]                 @relation("ApplicationAssignedTo")
+  approvedApplications       Application[]                 @relation("ApplicationApprovedBy")
+  auditLogs                  AuditLog[]
+  clientProfile              Client?
+  uploadedDocs               Document[]                    @relation("DocumentUploader")
+  reviewedDocs               Document[]                    @relation("DocumentReviewer")
+  createdExpenses            Expense[]                     @relation("ExpenseCreator")
+  approvedExpenses           Expense[]                     @relation("ExpenseApprover")
+  formTemplates              FormTemplate[]                @relation("FormTemplateCreatedBy")
+  leadFollowUps              LeadFollowUp[]
+  leadNotes                  LeadNote[]
+  createdLeads               Lead[]                        @relation("LeadCreator")
+  assignedLeads              Lead[]
+  sentMessages               Message[]                     @relation("MessageSender")
   notificationPreferences    NotificationPreference[]
   notificationSettings       NotificationSettings?
+  notifications              Notification[]
+  pageAccessLogs             PageAccessLog[]
+  pushSubscriptions          PushSubscription[]
+  sessions                   Session[]
   assignedTasks              Task[]
-  customRole                 Role?              @relation(fields: [customRoleId], references: [id])
-  sentMessages         Message[]          @relation("MessageSender")
-  leadNotes            LeadNote[]
-  leadFollowUps        LeadFollowUp[]
-  createdLeads         Lead[]             @relation("LeadCreator")
-  pushSubscriptions    PushSubscription[]
-  auditLogs            AuditLog[]
-  pageAccessLogs       PageAccessLog[]
-  formTemplates        FormTemplate[]     @relation("FormTemplateCreatedBy")
-  applicationWizards   ApplicationWizard[] @relation("ApplicationWizardCreatedBy")
-  // NextAuth relations
-  accounts             Account[]
-  sessions             Session[]
+  customRole                 Role?                         @relation(fields: [customRoleId], references: [id])
+  wizardAnswerUpdates        WizardApplicationAnswer[]     @relation("WizardAnswerUpdatedBy")
+  wizardStepReviews          WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
+  assignedWizardApplications WizardApplication[]           @relation("WizardApplicationAssignedTo")
 
   @@index([email, isDeleted])
   @@index([isDeleted])
   @@map("users")
 }
 
-// NextAuth.js required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -146,12 +144,12 @@ model Application {
   deletedAt         DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  approvedBy        User?             @relation("ApplicationApprovedBy", fields: [approvedById], references: [id])
-  assignedTo        User?             @relation("ApplicationAssignedTo", fields: [assignedToId], references: [id])
   client            Client            @relation(fields: [clientId], references: [id])
+  assignedTo        User?             @relation("ApplicationAssignedTo", fields: [assignedToId], references: [id])
+  approvedBy        User?             @relation("ApplicationApprovedBy", fields: [approvedById], references: [id])
   documents         Document[]
-  tasks             Task[]
   messages          Message[]
+  tasks             Task[]
 
   @@index([isDeleted])
   @@index([clientId, isDeleted])
@@ -159,39 +157,38 @@ model Application {
 }
 
 model Client {
-  id               String        @id @default(cuid())
-  clientNumber     String        @unique
-  name             String
-  email            String
-  phone            String?
-  company          String?
-  companyType      String?
-  designation      String?
-  natureOfBusiness String?
-  country          String?
-  city             String?
-  howDidYouHear    String?
-  userId           String        @unique
-  groupId          String?
-  isDeleted        Boolean       @default(false)
-  deletedAt        DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  applications     Application[]
-  wizardApplications WizardApplication[]
-  group            ClientGroup?  @relation(fields: [groupId], references: [id])
-  user             User          @relation(fields: [userId], references: [id])
-  invoices         Invoice[]
-  paymentIntents   PaymentIntent[]
-  leads            Lead[]
-  payments         Payment[]
-  profileDocuments ClientProfileDocument[]
-  documents        Document[]
-  servicePackage   ServicePackage? @relation(fields: [servicePackageId], references: [id])
-  servicePackageId String?
-
+  id                      String                  @id @default(cuid())
+  clientNumber            String                  @unique
+  name                    String
+  email                   String
+  phone                   String?
+  company                 String?
+  companyType             String?
+  designation             String?
+  natureOfBusiness        String?
+  country                 String?
+  city                    String?
+  howDidYouHear           String?
+  userId                  String                  @unique
+  groupId                 String?
+  isDeleted               Boolean                 @default(false)
+  deletedAt               DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  servicePackageId        String?
   profileCompletionStatus ProfileCompletionStatus @default(INCOMPLETE)
   profileCompletedAt      DateTime?
+  applications            Application[]
+  profileDocuments        ClientProfileDocument[]
+  servicePackage          ServicePackage?         @relation(fields: [servicePackageId], references: [id])
+  user                    User                    @relation(fields: [userId], references: [id])
+  group                   ClientGroup?            @relation(fields: [groupId], references: [id])
+  documents               Document[]
+  invoices                Invoice[]
+  leads                   Lead[]
+  paymentIntents          PaymentIntent[]
+  payments                Payment[]
+  wizardApplications      WizardApplication[]
 
   @@index([email, isDeleted])
   @@index([isDeleted])
@@ -200,32 +197,32 @@ model Client {
 }
 
 model Document {
-  id            String         @id @default(cuid())
-  filename      String
-  originalName  String
-  path          String
-  size          Int
-  mimeType      String
-  status        DocumentStatus @default(PENDING)
-  reviewNotes   String?
-  name          String? // Document name/title
-  description   String? // Document description
-  uploadedById  String
-  reviewedById  String?
-  applicationId String?
-  leadId        String?
-  clientId      String?
+  id                   String                      @id @default(cuid())
+  filename             String
+  originalName         String
+  path                 String
+  size                 Int
+  mimeType             String
+  status               DocumentStatus              @default(PENDING)
+  reviewNotes          String?
+  name                 String?
+  description          String?
+  uploadedById         String
+  reviewedById         String?
+  applicationId        String?
+  leadId               String?
+  clientId             String?
   profileRequirementId String?
-  isDeleted     Boolean        @default(false)
-  deletedAt     DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  application   Application?   @relation(fields: [applicationId], references: [id])
-  lead          Lead?          @relation(fields: [leadId], references: [id])
-  client        Client?        @relation(fields: [clientId], references: [id])
-  profileRequirement ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
-  reviewedBy    User?          @relation("DocumentReviewer", fields: [reviewedById], references: [id])
-  uploadedBy    User           @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  isDeleted            Boolean                     @default(false)
+  deletedAt            DateTime?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  uploadedBy           User                        @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  reviewedBy           User?                       @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  profileRequirement   ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
+  client               Client?                     @relation(fields: [clientId], references: [id])
+  lead                 Lead?                       @relation(fields: [leadId], references: [id])
+  application          Application?                @relation(fields: [applicationId], references: [id])
 
   @@index([isDeleted])
   @@index([leadId, isDeleted])
@@ -235,34 +232,34 @@ model Document {
 }
 
 model ServiceCategory {
-  id          String           @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
-  slug        String           @unique
+  slug        String            @unique
   description String?
-  sortOrder   Int              @default(0)
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  sortOrder   Int               @default(0)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   services    BusinessService[]
 
   @@map("service_categories")
 }
 
 model BusinessService {
-  id          String           @id @default(cuid())
-  categoryId  String
-  name        String
-  slug        String           @unique
-  description String?
-  sortOrder   Int              @default(0)
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  category    ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  packages    PackageService[]
-  addOns      AdditionalService[]
-  formTemplateService  FormTemplateService?
-  wizardServices       ApplicationWizardService[]
+  id                  String                     @id @default(cuid())
+  categoryId          String
+  name                String
+  slug                String                     @unique
+  description         String?
+  sortOrder           Int                        @default(0)
+  isActive            Boolean                    @default(true)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  addOns              AdditionalService[]
+  wizardServices      ApplicationWizardService[]
+  category            ServiceCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  formTemplateService FormTemplateService?
+  packages            PackageService[]
 
   @@index([categoryId, sortOrder])
   @@map("business_services")
@@ -280,8 +277,8 @@ model ServicePackage {
   sortOrder    Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  services     PackageService[]
   clients      Client[]
+  services     PackageService[]
 
   @@map("service_packages")
 }
@@ -290,40 +287,40 @@ model PackageService {
   id        String          @id @default(cuid())
   packageId String
   serviceId String
-  package   ServicePackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
   service   BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  package   ServicePackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@unique([packageId, serviceId])
   @@map("package_services")
 }
 
 model AdditionalService {
-  id          String          @id @default(cuid())
+  id          String           @id @default(cuid())
   serviceId   String?
   name        String
-  slug        String          @unique
+  slug        String           @unique
   description String?
   priceUsd    Float
   priceSar    Float
-  isActive    Boolean         @default(true)
-  sortOrder   Int             @default(0)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  service     BusinessService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  isActive    Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  service     BusinessService? @relation(fields: [serviceId], references: [id])
 
   @@map("additional_services")
 }
 
 model FormField {
-  id             String              @id @default(cuid())
+  id             String                    @id @default(cuid())
   label          String
   type           FormFieldType
   options        String?
   helpText       String?
   placeholder    String?
-  isActive       Boolean             @default(true)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  isActive       Boolean                   @default(true)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
   templateFields FormTemplateField[]
   wizardAnswers  WizardApplicationAnswer[]
 
@@ -333,20 +330,20 @@ model FormField {
 }
 
 model FormTemplate {
-  id              String                @id @default(cuid())
-  name            String
-  description     String?
-  areaOfInterest  AreaOfInterest?
-  isActive        Boolean               @default(true)
-  isDeleted       Boolean               @default(false)
-  deletedAt       DateTime?
-  createdById     String
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  createdBy       User                  @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
-  fields          FormTemplateField[]
-  services        FormTemplateService[]
-  wizardSteps     ApplicationWizardStep[]
+  id             String                  @id @default(cuid())
+  name           String
+  description    String?
+  isActive       Boolean                 @default(true)
+  isDeleted      Boolean                 @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  areaOfInterest AreaOfInterest?
+  wizardSteps    ApplicationWizardStep[]
+  fields         FormTemplateField[]
+  services       FormTemplateService[]
+  createdBy      User                    @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
 
   @@index([isDeleted])
   @@index([isDeleted, updatedAt])
@@ -364,8 +361,8 @@ model FormTemplateField {
   labelOverride String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  field         FormField    @relation(fields: [fieldId], references: [id])
   template      FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  field         FormField    @relation(fields: [fieldId], references: [id], onDelete: Restrict)
 
   @@unique([templateId, fieldId])
   @@index([templateId, sortOrder])
@@ -376,13 +373,12 @@ model FormTemplateField {
 model FormTemplateService {
   id         String          @id @default(cuid())
   templateId String
-  serviceId  String
+  serviceId  String          @unique
   createdAt  DateTime        @default(now())
-  template   FormTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
   service    BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  template   FormTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@unique([templateId, serviceId])
-  @@unique([serviceId])
   @@index([templateId])
   @@map("form_template_services")
 }
@@ -397,9 +393,9 @@ model ApplicationWizard {
   createdById    String
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
-  createdBy      User                       @relation("ApplicationWizardCreatedBy", fields: [createdById], references: [id])
-  steps          ApplicationWizardStep[]
   services       ApplicationWizardService[]
+  steps          ApplicationWizardStep[]
+  createdBy      User                       @relation("ApplicationWizardCreatedBy", fields: [createdById], references: [id])
   applications   WizardApplication[]
 
   @@index([isDeleted])
@@ -410,6 +406,18 @@ model ApplicationWizard {
 }
 
 model ApplicationWizardStep {
+<<<<<<< HEAD
+  id               String                        @id @default(cuid())
+  wizardId         String
+  formTemplateId   String
+  sortOrder        Int                           @default(0)
+  paymentRequired  Boolean                       @default(false)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  approvalRequired Boolean                       @default(false)
+  formTemplate     FormTemplate                  @relation(fields: [formTemplateId], references: [id])
+  wizard           ApplicationWizard             @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+=======
   id              String            @id @default(cuid())
   wizardId        String
   formTemplateId  String
@@ -421,6 +429,7 @@ model ApplicationWizardStep {
   updatedAt        DateTime          @updatedAt
   wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
   formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+>>>>>>> origin/dev
   answers          WizardApplicationAnswer[]
   stepReviews      WizardApplicationStepReview[]
 
@@ -431,31 +440,31 @@ model ApplicationWizardStep {
 }
 
 model WizardApplication {
-  id                String                  @id @default(cuid())
-  applicationNumber String                  @unique
+  id                String                        @id @default(cuid())
+  applicationNumber String                        @unique
   clientId          String
   wizardId          String
   areaOfInterest    AreaOfInterest
-  status            WizardApplicationStatus @default(DRAFT)
-  currentStepIndex  Int                     @default(0)
+  status            WizardApplicationStatus       @default(DRAFT)
+  currentStepIndex  Int                           @default(0)
   adminNotes        String?
   submittedAt       DateTime?
   assignedToId      String?
-  isDeleted         Boolean                 @default(false)
+  isDeleted         Boolean                       @default(false)
   deletedAt         DateTime?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  client            Client                  @relation(fields: [clientId], references: [id])
-  wizard            ApplicationWizard       @relation(fields: [wizardId], references: [id], onDelete: Restrict)
-  assignedTo        User?                   @relation("WizardApplicationAssignedTo", fields: [assignedToId], references: [id])
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
   answers           WizardApplicationAnswer[]
   stepReviews       WizardApplicationStepReview[]
+  assignedTo        User?                         @relation("WizardApplicationAssignedTo", fields: [assignedToId], references: [id])
+  wizard            ApplicationWizard             @relation(fields: [wizardId], references: [id])
+  client            Client                        @relation(fields: [clientId], references: [id])
 
   @@index([isDeleted])
-  @@index([clientId, isDeleted])
   @@index([wizardId])
   @@index([status])
   @@index([areaOfInterest])
+  @@index([clientId])
   @@map("wizard_applications")
 }
 
@@ -466,34 +475,33 @@ model WizardApplicationAnswer {
   fieldId       String
   value         String?
   fileUrl       String?
-  updatedById   String?
+  updatedById   String
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
-  application   WizardApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  updatedBy     User                  @relation("WizardAnswerUpdatedBy", fields: [updatedById], references: [id])
+  field         FormField             @relation(fields: [fieldId], references: [id])
   wizardStep    ApplicationWizardStep @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
-  field         FormField             @relation(fields: [fieldId], references: [id], onDelete: Restrict)
-  updatedBy     User?                 @relation("WizardAnswerUpdatedBy", fields: [updatedById], references: [id])
+  application   WizardApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@unique([applicationId, wizardStepId, fieldId])
   @@index([applicationId])
   @@index([wizardStepId])
-  @@index([fieldId])
   @@map("wizard_application_answers")
 }
 
 model WizardApplicationStepReview {
-  id            String                    @id @default(cuid())
+  id            String                   @id @default(cuid())
   applicationId String
   wizardStepId  String
-  status        WizardStepApprovalStatus  @default(PENDING)
+  status        WizardStepApprovalStatus @default(PENDING)
   rejectionNote String?
   reviewedById  String?
   reviewedAt    DateTime?
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
-  application   WizardApplication         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  wizardStep    ApplicationWizardStep     @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
-  reviewedBy    User?                     @relation("WizardStepReviewedBy", fields: [reviewedById], references: [id])
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  reviewedBy    User?                    @relation("WizardStepReviewedBy", fields: [reviewedById], references: [id])
+  wizardStep    ApplicationWizardStep    @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  application   WizardApplication        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@unique([applicationId, wizardStepId])
   @@index([applicationId])
@@ -507,8 +515,8 @@ model ApplicationWizardService {
   wizardId  String
   serviceId String
   createdAt DateTime          @default(now())
-  wizard    ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
   service   BusinessService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  wizard    ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
 
   @@unique([wizardId, serviceId])
   @@index([wizardId])
@@ -518,7 +526,7 @@ model ApplicationWizardService {
 
 model PaymentPhaseTemplate {
   id          String   @id @default(cuid())
-  phaseNumber Int
+  phaseNumber Int      @unique
   name        String
   description String?
   percentage  Float
@@ -527,7 +535,6 @@ model PaymentPhaseTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([phaseNumber])
   @@map("payment_phase_templates")
 }
 
@@ -559,8 +566,8 @@ model ClientProfileDocument {
   reviewedAt    DateTime?
   createdAt     DateTime                   @default(now())
   updatedAt     DateTime                   @updatedAt
-  client        Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
   requirement   ProfileDocumentRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  client        Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, requirementId])
   @@index([clientId])
@@ -581,8 +588,8 @@ model Task {
   deletedAt     DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-  application   Application  @relation(fields: [applicationId], references: [id])
   assignedTo    User?        @relation(fields: [assignedToId], references: [id])
+  application   Application  @relation(fields: [applicationId], references: [id])
 
   @@index([isDeleted])
   @@index([applicationId, isDeleted])
@@ -601,27 +608,27 @@ model Expense {
   createdById  String
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  approvedBy   User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
   createdBy    User            @relation("ExpenseCreator", fields: [createdById], references: [id])
+  approvedBy   User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
 
   @@map("expenses")
 }
 
 model Invoice {
-  id              String          @id @default(cuid())
-  invoiceNumber   String          @unique
-  clientId        String
-  amount          Float
-  status          InvoiceStatus   @default(DRAFT)
-  dueDate         DateTime?
-  paidAt          DateTime?
-  isDeleted       Boolean         @default(false)
-  deletedAt       DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  client          Client          @relation(fields: [clientId], references: [id])
-  payments        Payment[]
-  paymentIntents  PaymentIntent[]
+  id             String          @id @default(cuid())
+  invoiceNumber  String          @unique
+  clientId       String
+  amount         Float
+  status         InvoiceStatus   @default(DRAFT)
+  dueDate        DateTime?
+  paidAt         DateTime?
+  isDeleted      Boolean         @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  client         Client          @relation(fields: [clientId], references: [id])
+  paymentIntents PaymentIntent[]
+  payments       Payment[]
 
   @@index([isDeleted])
   @@index([clientId, isDeleted])
@@ -635,8 +642,8 @@ model Payment {
   reference            String?
   clientId             String
   invoiceId            String?
-  status               String        @default("Success") // Pending, Success, Failed
-  gateway              String?       // EdfaPay, Manual, etc.
+  status               String        @default("Success")
+  gateway              String?
   edfaPayOrderId       String?
   edfaPayTransactionId String?
   edfaPayResponse      String?
@@ -644,8 +651,8 @@ model Payment {
   paymentDate          DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
-  invoice              Invoice?      @relation(fields: [invoiceId], references: [id])
   client               Client        @relation(fields: [clientId], references: [id])
+  invoice              Invoice?      @relation(fields: [invoiceId], references: [id])
 
   @@index([edfaPayOrderId])
   @@index([edfaPayTransactionId])
@@ -663,8 +670,8 @@ model PaymentIntent {
   amount    Float
   gateway   String   @default("EdfaPay")
   createdAt DateTime @default(now())
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([invoiceId])
@@ -692,7 +699,7 @@ model Lead {
   fullName         String
   email            String
   phone            String?
-  normalizedPhone  String? // Normalized phone for efficient duplicate checking
+  normalizedPhone  String?
   companyName      String?
   companyType      String?
   natureOfBusiness String?
@@ -705,22 +712,22 @@ model Lead {
   source           String?
   notes            String?
   assignedToId     String?
-  createdById      String? // Track who created the lead
+  createdById      String?
   clientId         String?
-  duplicateGroupId String? // Groups duplicates together
+  duplicateGroupId String?
   isDuplicate      Boolean        @default(false)
   duplicateCount   Int            @default(1)
   isDeleted        Boolean        @default(false)
   deletedAt        DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  client           Client?        @relation(fields: [clientId], references: [id])
-  assignedTo       User?          @relation(fields: [assignedToId], references: [id])
-  createdBy        User?          @relation("LeadCreator", fields: [createdById], references: [id])
   documents        Document[]
-  leadNotes        LeadNote[]
   leadFollowUps    LeadFollowUp[]
+  leadNotes        LeadNote[]
   status           LeadStatus?    @relation("LeadStatusToLead", fields: [statusId], references: [id])
+  createdBy        User?          @relation("LeadCreator", fields: [createdById], references: [id])
+  assignedTo       User?          @relation(fields: [assignedToId], references: [id])
+  client           Client?        @relation(fields: [clientId], references: [id])
 
   @@index([normalizedPhone])
   @@index([isDeleted])
@@ -747,8 +754,8 @@ model LeadNote {
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  lead        Lead     @relation(fields: [leadId], references: [id])
   createdBy   User     @relation(fields: [createdById], references: [id])
+  lead        Lead     @relation(fields: [leadId], references: [id])
 
   @@map("lead_notes")
 }
@@ -760,11 +767,11 @@ model LeadFollowUp {
   scheduledAt    DateTime
   leadId         String
   createdById    String
-  reminderSentAt DateTime? // When "follow-up time near" push was sent (so we don't send twice)
+  reminderSentAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  lead           Lead      @relation(fields: [leadId], references: [id])
   createdBy      User      @relation(fields: [createdById], references: [id])
+  lead           Lead      @relation(fields: [leadId], references: [id])
 
   @@index([leadId])
   @@index([scheduledAt])
@@ -780,8 +787,8 @@ model Message {
   isRead        Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  application   Application @relation(fields: [applicationId], references: [id])
   sender        User        @relation("MessageSender", fields: [senderId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
 
   @@map("messages")
 }
@@ -793,12 +800,12 @@ model SupportMessage {
   visitorName   String?
   visitorEmail  String?
   isFromVisitor Boolean   @default(true)
-  isBot         Boolean   @default(false)
   status        String    @default("SENT")
   staffId       String?
   isDeleted     Boolean   @default(false)
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
+  isBot         Boolean   @default(false)
 
   @@index([isDeleted])
   @@index([staffId, isDeleted])
@@ -807,16 +814,16 @@ model SupportMessage {
 }
 
 model SupportConversation {
-  id            String   @id @default(cuid())
-  visitorId     String   @unique
-  status        String   @default("bot") // bot | human | closed
-  channel       String   @default("website") // website | whatsapp | email
+  id            String    @id @default(cuid())
+  visitorId     String    @unique
+  status        String    @default("bot")
+  channel       String    @default("website")
   visitorName   String?
   visitorEmail  String?
   handedOffAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastMessageAt DateTime @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastMessageAt DateTime  @default(now())
 
   @@index([status, lastMessageAt])
   @@map("support_conversations")
@@ -861,13 +868,13 @@ model Notification {
   title      String
   message    String
   type       String    @default("info")
-  entityType String?
-  entityId   String?
   isRead     Boolean   @default(false)
   isPinned   Boolean   @default(false)
   isDeleted  Boolean   @default(false)
   deletedAt  DateTime?
   createdAt  DateTime  @default(now())
+  entityType String?
+  entityId   String?
   updatedAt  DateTime  @default(now()) @updatedAt
   user       User      @relation(fields: [userId], references: [id])
 
@@ -931,13 +938,13 @@ model NotificationEventSetting {
 }
 
 model NotificationPreference {
-  id         String   @id @default(cuid())
-  userId     String
-  eventType  String   // LEAD_CREATION, LEAD_FOLLOWUP, CLIENT_CONVERSION
-  enabled    Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  eventType String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventType])
   @@index([userId])
@@ -945,12 +952,12 @@ model NotificationPreference {
 }
 
 model NotificationSettings {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  reminderMinutesBefore  Int      @default(15) // Send follow-up reminder this many minutes before scheduled time
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  reminderMinutesBefore Int      @default(15)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_settings")
 }
@@ -961,7 +968,7 @@ model PushSubscription {
   endpoint  String   @unique
   p256dh    String
   auth      String
-  userAgent String? // Browser/device info for debugging
+  userAgent String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -991,13 +998,13 @@ model EmailSettings {
   welcomeEmailBody               String
   contactEmail                   String?
   contactPhone                   String?
-  businessConsultationRecipients String? // JSON array of email addresses
-  staffWhatsAppNumbers           String? // JSON array of phone numbers for staff notifications
-  enableWhatsAppNotifications    Boolean  @default(true) // Enable/disable WhatsApp notifications
-  whatsappAccessToken            String? // WhatsApp Business API access token
-  whatsappApiVersion             String? // WhatsApp API version (e.g., v21.0)
-  whatsappPhoneNumberId          String? // WhatsApp Business phone number ID
-  whatsappDocumentUrl            String? // URL of document to send in WhatsApp template (optional)
+  businessConsultationRecipients String?
+  staffWhatsAppNumbers           String?
+  enableWhatsAppNotifications    Boolean  @default(true)
+  whatsappAccessToken            String?
+  whatsappApiVersion             String?
+  whatsappPhoneNumberId          String?
+  whatsappDocumentUrl            String?
   createdAt                      DateTime @default(now())
   updatedAt                      DateTime @updatedAt
 
