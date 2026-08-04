@@ -223,8 +223,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
           success: result.success,
           error: result.error || 'Unknown error',
         }
-        
-        console.log('✅ Submission email sent to:', updatedApp.client.email)
+
+        if (result.success) {
+          console.log('✅ Submission email sent to:', updatedApp.client.email)
+        } else {
+          console.error('❌ Submission email failed:', result.error)
+        }
       } catch (emailError) {
         console.error('❌ Failed to send submission email:', emailError)
         emailResult = {

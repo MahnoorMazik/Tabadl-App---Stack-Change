@@ -1,9 +1,6 @@
-import nodemailer from "nodemailer";
-import type SMTPTransport from 'nodemailer/lib/smtp-transport';
-import { promises as dns } from 'node:dns';
-import type { Transporter } from 'nodemailer';
 import { APPLICATION_EMAILS, LOGO_ATTACHMENT } from "./application-templates";
 import { db } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 
 // Helper: format dates for emails using configured timezone
 const formatDateTimeForEmail = (d?: Date | string | null) => {
@@ -51,40 +48,9 @@ export interface ApplicationEmailPayload {
   adminNotes?: string;
 }
 
-const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-const smtpPort = Number(process.env.SMTP_PORT || 465);
-const smtpSecure = smtpPort === 465;
-const smtpRequireTLS = smtpPort === 587;
-
-let transporter: Transporter<SMTPTransport.Options> | null = null;
-
-async function ensureTransporter(): Promise<Transporter<SMTPTransport.Options>> {
-  if (transporter) return transporter;
-
-  const lookupResult = await dns.lookup(smtpHost, { family: 4 }).catch(() => null as null | { address: string });
-  const connectHost = lookupResult?.address ?? smtpHost;
-
-  transporter = nodemailer.createTransport({
-    host: connectHost,
-    port: smtpPort,
-    secure: smtpSecure,
-    requireTLS: smtpRequireTLS,
-    family: 4,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-    tls: { servername: smtpHost },
-  } as SMTPTransport.Options);
-
-  return transporter;
-}
-
 export async function sendApplicationStatusEmail(
   payload: ApplicationEmailPayload
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const tr = await ensureTransporter();
-
   const where = payload.applicationId
     ? { id: payload.applicationId }
     : payload.applicationNumber
@@ -188,48 +154,30 @@ export async function sendApplicationStatusEmail(
   }
 
   try {
-    console.log('SMTP_HOST:', process.env.SMTP_HOST);
-    console.log('SMTP_PORT:', process.env.SMTP_PORT);
-    console.log('SMTP_USER:', process.env.SMTP_USER);
-    await tr.verify();
-    console.log('SMTP connection successful');
-
-    const messageId = generateMessageId(application.id);
-    const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 6);
     const appIdShort = application.id.substring(0, 8);
-    
     const uniqueSubject = `${template.subject} [${application.applicationNumber || appIdShort}-${randomSuffix}]`;
+    const messageId = generateMessageId(application.id);
 
-    const info = await tr.sendMail({
-      from: {
-        name: 'Tabadl Alkon',
-        address: process.env.SMTP_FROM || 'info@tabadlalkon.com',
-      },
+    // Use the shared DB-backed SMTP sender (same path as welcome/notification emails).
+    const result = await sendEmail({
       to: recipient,
       subject: uniqueSubject,
       html: emailHtml,
-      attachments: [LOGO_ATTACHMENT],
-      headers: {
-        'Message-ID': messageId,
-        'References': '',
-        'In-Reply-To': '',
-        'X-Mailer': 'Tabadl Alkon System',
-        'X-Entity-Ref-ID': `app-${application.id}-${timestamp}`,
-        'X-Thread-ID': `new-${application.id}-${timestamp}`,
-        'Auto-Submitted': 'auto-generated',
-        'X-Application-ID': application.id,
-        'X-Email-Type': statusKey,
-        'X-GM-THRID': '',
-        'X-Google-Original-From': 'Tabadl Alkon',
-        'X-Unique-ID': `${application.id}-${timestamp}-${randomSuffix}`,
-        'X-MS-Exchange-Organization-Network-Message-Id': messageId,
-      },
+      attachments: [LOGO_ATTACHMENT as { filename: string; content: Buffer; contentType?: string }],
     });
+
+    if (!result.success) {
+      console.error('Application status email failed:', result.error);
+      return {
+        success: false,
+        error: result.error || 'Failed to send email',
+      };
+    }
 
     return {
       success: true,
-      messageId: info.messageId,
+      messageId: result.messageId || messageId,
     };
   } catch (error) {
     console.error("EMAIL ERROR:", error);
