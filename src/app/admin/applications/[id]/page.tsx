@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ApplicationStepForm } from '@/components/client/ApplicationStepForm'
+import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -193,24 +194,13 @@ export default function AdminApplicationDetailPage() {
 
   const buildAnswersPayload = (
     answers: Record<string, string>,
-    fields: AppDetail['steps'][number]['fields']
-  ) =>
-    fields.map((field) => {
-      const raw =
-        answers[field.fieldId] ??
-        field.answer?.value ??
-        field.answer?.fileUrl ??
-        ''
-      const trimmed = String(raw).trim()
-      return {
-        fieldId: field.fieldId,
-        value: trimmed || null,
-      }
-    })
+    fields: AppDetail['steps'][number]['fields'],
+    fileNames?: Record<string, string>
+  ) => buildWizardAnswersPayload(answers, fields, fileNames)
 
   const saveAnswers = async (
     answers: Record<string, string>,
-    opts?: { goNext?: boolean }
+    opts?: { goNext?: boolean; fileNames?: Record<string, string> }
   ) => {
     if (!app || !currentStep) return
     setSaving(true)
@@ -223,7 +213,7 @@ export default function AdminApplicationDetailPage() {
       const res = await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
         currentStepIndex: nextIndex,
-        answers: buildAnswersPayload(answers, currentStep.fields),
+        answers: buildAnswersPayload(answers, currentStep.fields, opts?.fileNames),
       })
       const savedApp = res.data?.data?.application as AppDetail | undefined
       setFormDirty(false)
@@ -585,83 +575,72 @@ export default function AdminApplicationDetailPage() {
             <div className="flex-1 min-w-0 w-full space-y-4">
               <Card className="pt-0 pb-0 shadow-md overflow-hidden">
                 <h2 className="text-lg font-semibold mb-3 px-6 pt-5">{areaLabel}</h2>
-                <CardContent className="pt-0 pb-5">
-                  {currentStep ? (
-                    <ApplicationStepForm
-                      key={currentStep.id}
-                      formName={currentStep.formName}
-                      fields={currentStep.fields.map((field) => ({
-                        id: field.fieldId,
-                        required: field.isRequired ?? false,
-                        fieldId: field.fieldId,
-                        label: field.label,
-                        type: field.type,
-                        isRequired: field.isRequired,
-                        options: field.options,
-                        helpText: field.helpText,
-                        placeholder: field.placeholder,
-                        answer: field.answer,
-                      }))}
-                      stepIndex={stepIndex}
-                      totalSteps={app.steps.length}
-                      paymentRequired={currentStep.paymentRequired}
-                      approvalRequired={currentStep.approvalRequired}
-                      approvalStatus={currentStep.approvalStatus ?? null}
-                      rejectionNote={currentStep.rejectionNote}
-                      isLastStep={stepIndex >= app.steps.length - 1}
-                      saving={saving}
-                      saveIndicator={saveIndicator}
-                      engaging
-                      saveExitLabel="Save"
-                      onDirtyChange={setFormDirty}
-                      serverSyncVersion={serverSyncVersion}
-                      headerActions={
-                        <>
-                          {currentStep.adminUseOnly && (
-                            <Badge className="bg-slate-100 text-slate-700 border-slate-200">
-                              Admin only
-                            </Badge>
+            <CardContent className="pt-0 pb-5">
+              {currentStep ? (
+                <ApplicationStepForm
+                key={currentStep.id}
+                  formName={currentStep.formName}
+                  fields={currentStep.fields}
+                  stepIndex={stepIndex}
+                  totalSteps={app.steps.length}
+                  paymentRequired={currentStep.paymentRequired}
+                  approvalRequired={currentStep.approvalRequired}
+                  approvalStatus={currentStep.approvalStatus ?? null}
+                  rejectionNote={currentStep.rejectionNote}
+                  isLastStep={stepIndex >= app.steps.length - 1}
+                  saving={saving}
+                  saveIndicator={saveIndicator}
+                  engaging
+                  saveExitLabel="Save"
+                  onDirtyChange={setFormDirty}
+                  serverSyncVersion={serverSyncVersion}
+                  headerActions={
+                    <>
+                      {currentStep.adminUseOnly && (
+                        <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                          Admin only
+                        </Badge>
+                      )}
+                      {currentStep.approvalStatus === 'APPROVED' && (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                          Approved
+                        </Badge>
+                      )}
+                      {currentStep.approvalStatus === 'REJECTED' && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          Rejected
+                        </Badge>
+                      )}
+                      {showStepReviewActions && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="bg-emerald-700 hover:bg-emerald-800"
+                          disabled={reviewSaving || saving}
+                          onClick={() => void approveStep()}
+                        >
+                          {reviewSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Approve'
                           )}
-                          {currentStep.approvalStatus === 'APPROVED' && (
-                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-                              Approved
-                            </Badge>
-                          )}
-                          {currentStep.approvalStatus === 'REJECTED' && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              Rejected
-                            </Badge>
-                          )}
-                          {showStepReviewActions && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-emerald-700 hover:bg-emerald-800"
-                              disabled={reviewSaving || saving}
-                              onClick={() => void approveStep()}
-                            >
-                              {reviewSaving ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                'Approve'
-                              )}
-                            </Button>
-                          )}
-                        </>
-                      }
-                      onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
-                      onSave={async (answers, opts) => {
-                        await saveAnswers(answers, { goNext: opts?.goNext })
-                      }}
-                      onSaveAndExit={async (answers) => {
-                        await saveAnswers(answers)
-                      }}
-                      showSubmit={false}
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
-                  )}
-                </CardContent>
+                        </Button>
+                      )}
+                    </>
+                  }
+                  onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
+                  onSave={async (answers, opts) => {
+                    await saveAnswers(answers, { goNext: opts?.goNext })
+                  }}
+                  onSaveAndExit={async (answers) => {
+                    await saveAnswers(answers)
+                  }}
+                  showSubmit={false}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No steps.</p>
+              )}
+            </CardContent>
               </Card>
             </div>
           </div>

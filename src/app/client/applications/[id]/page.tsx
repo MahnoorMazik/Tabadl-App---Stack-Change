@@ -42,6 +42,7 @@ import {
   shouldLockClientStepByApproval,
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
+import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
 
 type AppDetail = {
   id: string
@@ -219,24 +220,13 @@ export default function ClientApplicationFillPage() {
 
   const buildAnswersPayload = (
     answers: Record<string, string>,
-    fields: AppDetail['steps'][number]['fields']
-  ) =>
-    fields.map((field) => {
-      const raw =
-        answers[field.fieldId] ??
-        field.answer?.value ??
-        field.answer?.fileUrl ??
-        ''
-      const trimmed = String(raw).trim()
-      return {
-        fieldId: field.fieldId,
-        value: trimmed || null,
-      }
-    })
+    fields: AppDetail['steps'][number]['fields'],
+    fileNames?: Record<string, string>
+  ) => buildWizardAnswersPayload(answers, fields, fileNames)
 
   const saveStep = async (
     answers: Record<string, string>,
-    opts?: { goNext?: boolean; submit?: boolean; exit?: boolean }
+    opts?: { goNext?: boolean; submit?: boolean; exit?: boolean; fileNames?: Record<string, string> }
   ) => {
     if (!app || !currentStep) return
 
@@ -280,7 +270,11 @@ export default function ClientApplicationFillPage() {
     try {
       const nextIndex = opts?.goNext ? targetNextIndex : stepIndex
 
-      const answersPayload = buildAnswersPayload(answers, currentStep.fields)
+      const answersPayload = buildAnswersPayload(
+        answers,
+        currentStep.fields,
+        opts?.fileNames
+      )
 
       const patchRes = await axios.patch(`/api/client/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
@@ -450,91 +444,80 @@ export default function ClientApplicationFillPage() {
                 />
 
                 <div className="flex-1 min-w-0 w-full">
-                  <Card className="shadow-md overflow-hidden">
-                    <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
-                    <CardContent className="pb-6">
-                      {currentStep?.adminUseOnly ? (
-                        <div className="flex flex-col items-center text-center py-10 px-4">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 border border-slate-200 mb-4">
-                            <Lock className="h-6 w-6 text-slate-500" />
-                          </div>
-                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                            Step {stepIndex + 1} of {app.steps.length} · Admin only
-                          </p>
-                          <h3 className="text-lg font-semibold text-foreground mb-2">
-                            {currentStep.formName}
-                          </h3>
-                          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
-                            This step can only be completed by an administrator. Please continue with
-                            the remaining available steps.
-                          </p>
-                          <div className="flex flex-wrap items-center justify-center gap-2 mt-8">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => goToStep(Math.max(0, stepIndex - 1))}
-                              disabled={stepIndex <= 0}
-                            >
-                              <ArrowLeft className="h-4 w-4 mr-1.5" />
-                              Back
-                            </Button>
-                            {nextClientFillableStepIndex(app.steps, stepIndex) !== null && (
-                              <Button
-                                type="button"
-                                className="bg-emerald-700 hover:bg-emerald-800"
-                                onClick={continuePastAdminOnlyStep}
-                              >
-                                Continue
-                                <ArrowRight className="h-4 w-4 ml-1.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ) : currentStep ? (
-                        <ApplicationStepForm
-                          key={currentStep.id}
-                          formName={currentStep.formName}
-                          fields={currentStep.fields.map((field) => ({
-                            id: field.fieldId,
-                            required: field.isRequired ?? false,
-                            fieldId: field.fieldId,
-                            label: field.label,
-                            type: field.type,
-                            isRequired: field.isRequired,
-                            options: field.options,
-                            helpText: field.helpText,
-                            placeholder: field.placeholder,
-                            answer: field.answer,
-                          }))}
-                          stepIndex={stepIndex}
-                          totalSteps={app.steps.length}
-                          paymentRequired={currentStep.paymentRequired}
-                          approvalRequired={currentStep.approvalRequired}
-                          approvalStatus={currentStep.approvalStatus ?? null}
-                          rejectionNote={currentStep.rejectionNote}
-                          isLastStep={stepIndex >= lastFillableIndex}
-                          readOnly={isStepReadOnlyForClient(stepIndex)}
-                          saving={saving}
-                          saveIndicator={saveIndicator}
-                          engaging
-                          onBack={() => goToStep(Math.max(0, stepIndex - 1))}
-                          onSave={(answers, opts) => saveStep(answers, opts)}
-                          onSaveAndExit={(answers) => saveStep(answers)}
-                          latestValuesRef={latestFormValuesRef}
-                          onDirtyChange={setFormDirty}
-                          serverSyncVersion={serverSyncVersion}
-                          saveExitLabel="Save"
-                          showSubmit={!applicationLocked}
-                          allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}
-                          allowSubmit={findUnapprovedRequiredStepIndex(app.steps) === null}
-                        />
-                      ) : (
-                        <p className="text-sm text-muted-foreground py-6 text-center">
-                          No steps in this wizard.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
+              <Card className="shadow-md overflow-hidden">
+                <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
+                <CardContent className="pb-6">
+                  {currentStep?.adminUseOnly ? (
+                    <div className="flex flex-col items-center text-center py-10 px-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 border border-slate-200 mb-4">
+                        <Lock className="h-6 w-6 text-slate-500" />
+                      </div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        Step {stepIndex + 1} of {app.steps.length} · Admin only
+                      </p>
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        {currentStep.formName}
+                      </h3>
+                      <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+                        This step can only be completed by an administrator. Please continue with
+                        the remaining available steps.
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center gap-2 mt-8">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => goToStep(Math.max(0, stepIndex - 1))}
+                          disabled={stepIndex <= 0}
+                        >
+                          <ArrowLeft className="h-4 w-4 mr-1.5" />
+                          Back
+                        </Button>
+                        {nextClientFillableStepIndex(app.steps, stepIndex) !== null && (
+                          <Button
+                            type="button"
+                            className="bg-emerald-700 hover:bg-emerald-800"
+                            onClick={continuePastAdminOnlyStep}
+                          >
+                            Continue
+                            <ArrowRight className="h-4 w-4 ml-1.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : currentStep ? (
+                    <ApplicationStepForm
+                      key={currentStep.id}
+                      formName={currentStep.formName}
+                      fields={currentStep.fields as StepField[]}
+                      stepIndex={stepIndex}
+                      totalSteps={app.steps.length}
+                      paymentRequired={currentStep.paymentRequired}
+                      approvalRequired={currentStep.approvalRequired}
+                      approvalStatus={currentStep.approvalStatus ?? null}
+                      rejectionNote={currentStep.rejectionNote}
+                      isLastStep={stepIndex >= lastFillableIndex}
+                      readOnly={isStepReadOnlyForClient(stepIndex)}
+                      saving={saving}
+                      saveIndicator={saveIndicator}
+                      engaging
+                      onBack={() => goToStep(Math.max(0, stepIndex - 1))}
+                      onSave={(answers, opts) => saveStep(answers, opts)}
+                      onSaveAndExit={(answers) => saveStep(answers)}
+                      latestValuesRef={latestFormValuesRef}
+                      onDirtyChange={setFormDirty}
+                      serverSyncVersion={serverSyncVersion}
+                      saveExitLabel="Save"
+                      showSubmit={!applicationLocked}
+                      allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}
+                      allowSubmit={findUnapprovedRequiredStepIndex(app.steps) === null}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-6 text-center">
+                      No steps in this wizard.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
                 </div>
               </div>
             </div>

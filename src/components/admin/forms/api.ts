@@ -91,6 +91,12 @@ export const formApi = {
       body: JSON.stringify(body),
     }),
 
+  updateField: (id: string, body: unknown) =>
+    request<{ field: any }>(`/api/admin/form-fields/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
   availableServices: (excludeTemplateId?: string) => {
     const qs = excludeTemplateId
       ? `?excludeTemplateId=${encodeURIComponent(excludeTemplateId)}`

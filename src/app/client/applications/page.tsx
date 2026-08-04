@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import axios from 'axios'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
@@ -76,7 +75,6 @@ function StatusBadge({ status }: { status: string }) {
 export default function ClientApplicationsPage() {
   const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const router = useRouter()
   const {
     isSidebarCollapsed,
     isMobileSidebarOpen,
@@ -196,7 +194,8 @@ export default function ClientApplicationsPage() {
       }
 
       await minWait
-      router.push(`/client/applications/${appId}`)
+      window.open(`/client/applications/${appId}`, '_blank', 'noopener,noreferrer')
+      setLaunch(null)
     } catch (error: any) {
       toast({
         title: 'Could not open application',
@@ -474,7 +473,11 @@ export default function ClientApplicationsPage() {
                                       size="icon"
                                       className="h-8 w-8 border rounded-md text-sm font-medium cursor-pointer"
                                       onClick={() =>
-                                        router.push(`/client/applications/${app.id}`)
+                                        window.open(
+                                          `/client/applications/${app.id}`,
+                                          '_blank',
+                                          'noopener,noreferrer'
+                                        )
                                       }
                                       aria-label={isDraft ? 'Continue application' : 'View application'}
                                     >

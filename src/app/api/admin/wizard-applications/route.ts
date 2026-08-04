@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { UserRole, WizardStepApprovalStatus } from '@prisma/client'
+import { AreaOfInterest, UserRole, WizardApplicationStatus, WizardStepApprovalStatus } from '@prisma/client'
+import { z } from 'zod'
 import { db } from '@/lib/db'
 import {
   createErrorResponse,
@@ -10,9 +11,21 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 import { requireAuth } from '@/lib/rbac-middleware'
+import { zodErrorResponse } from '@/lib/forms/api-helpers'
 import { ensurePendingStepReviewsForApplications } from '@/lib/wizards/wizard-step-approval'
+import { getAnchorWizardForArea } from '@/lib/wizards/merged-area-wizard'
+import {
+  generateWizardApplicationNumber,
+  getWizardApplicationDetail,
+  mapWizardApplicationDetail,
+} from '@/lib/wizards/wizard-application-utils'
 
 export const OPTIONS = () => handleCorsPreflight()
+
+const startForClientSchema = z.object({
+  clientId: z.string().min(1),
+  areaOfInterest: z.enum(['CR', 'PR']),
+})
 
 /** GET /api/admin/wizard-applications — all client wizard applications */
 export async function GET(request: NextRequest) {
@@ -218,6 +231,123 @@ export async function GET(request: NextRequest) {
     })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to load applications', 500, {
+        requestId,
+      })
+    )
+  }
+}
+
+/** POST /api/admin/wizard-applications — start CR/PR application for a client */
+export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request)
+
+  try {
+    const authResult = await requireAuth(request)
+    if ('error' in authResult) {
+      return addCorsHeaders(
+        createErrorResponse(
+          ErrorCodes.AUTHENTICATION_ERROR,
+          authResult.error || 'Authentication required',
+          authResult.status || 401,
+          { requestId }
+        )
+      )
+    }
+
+    if (authResult.user.role !== UserRole.STAFF && authResult.user.role !== UserRole.ADMIN) {
+      return addCorsHeaders(
+        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, 'Staff access required', 403, {
+          requestId,
+        })
+      )
+    }
+
+    const body = await request.json()
+    const parsed = startForClientSchema.safeParse(body)
+    if (!parsed.success) {
+      return zodErrorResponse(parsed.error, requestId)
+    }
+
+    const client = await db.client.findFirst({
+      where: { id: parsed.data.clientId, isDeleted: false },
+      select: { id: true, name: true, email: true },
+    })
+    if (!client) {
+      return addCorsHeaders(
+        createErrorResponse(ErrorCodes.NOT_FOUND_ERROR, 'Client not found', 404, {
+          requestId,
+        })
+      )
+    }
+
+    const area = parsed.data.areaOfInterest as AreaOfInterest
+    const anchor = await getAnchorWizardForArea(area)
+    if (!anchor) {
+      return addCorsHeaders(
+        createErrorResponse(
+          ErrorCodes.NOT_FOUND_ERROR,
+          'No forms available for this service yet',
+          404,
+          { requestId }
+        )
+      )
+    }
+
+    const existingDraft = await db.wizardApplication.findFirst({
+      where: {
+        clientId: client.id,
+        areaOfInterest: area,
+        isDeleted: false,
+        status: WizardApplicationStatus.DRAFT,
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    if (existingDraft) {
+      const detail = await getWizardApplicationDetail(existingDraft.id)
+      return addCorsHeaders(
+        createSuccessResponse(
+          {
+            application: await mapWizardApplicationDetail(detail!),
+            resumed: true,
+          },
+          200,
+          { requestId, message: 'Existing draft application resumed' }
+        )
+      )
+    }
+
+    const created = await db.wizardApplication.create({
+      data: {
+        applicationNumber: generateWizardApplicationNumber(),
+        clientId: client.id,
+        wizardId: anchor.id,
+        areaOfInterest: area,
+        status: WizardApplicationStatus.DRAFT,
+        currentStepIndex: 0,
+      },
+    })
+
+    const detail = await getWizardApplicationDetail(created.id)
+    return addCorsHeaders(
+      createSuccessResponse(
+        {
+          application: await mapWizardApplicationDetail(detail!),
+          resumed: false,
+        },
+        201,
+        { requestId, message: 'Application started for client' }
+      )
+    )
+  } catch (error: unknown) {
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: 'POST /api/admin/wizard-applications',
+      method: 'POST',
+    })
+    return addCorsHeaders(
+      createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to start application', 500, {
         requestId,
       })
     )
