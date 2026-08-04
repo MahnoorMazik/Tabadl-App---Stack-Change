@@ -552,24 +552,24 @@ export default function ClientApplicationsPage() {
                       </Table>
 
                       {filteredApplications.length > PAGE_SIZE && (
-                        <div className="flex items-center justify-between border-t pt-4 mt-2">
+                        <div className={cn("flex items-center justify-between border-t pt-4 mt-2", isRTL ? "flex-row-reverse" : "flex-row")}>
                           <p className={cn('text-xs text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
                             {t('client.applications.table.pageOf').replace('{page}', String(safePage)).replace('{totalPages}', String(totalPages))}{' '}
                             &mdash;{' '}
                             {filteredApplications.length}{' '}
                             {filteredApplications.length === 1 ? t('client.applications.table.record') : t('client.applications.table.records')}
                           </p>
-                          <div className="flex items-center gap-1">
+                          <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
                             <Button
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-8 w-8 cursor-pointer"
                               onClick={() => setPage((p) => Math.max(1, p - 1))}
                               disabled={safePage === 1}
                               aria-label={t('client.applications.previousPage')}
                             >
-                              <ChevronLeft className="h-4 w-4" />
+                              {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                             </Button>
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                               <Button
@@ -577,7 +577,7 @@ export default function ClientApplicationsPage() {
                                 type="button"
                                 variant={p === safePage ? 'default' : 'outline'}
                                 size="icon"
-                                className={`h-8 w-8 text-xs ${
+                                className={`h-8 w-8 text-xs cursor-pointer ${
                                   p === safePage
                                     ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
                                     : ''
@@ -592,12 +592,12 @@ export default function ClientApplicationsPage() {
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-8 w-8 cursor-pointer"
                               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                               disabled={safePage === totalPages}
                               aria-label={t('client.applications.nextPage')}
                             >
-                              <ChevronRight className="h-4 w-4" />
+                              {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             </Button>
                           </div>
                         </div>

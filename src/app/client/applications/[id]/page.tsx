@@ -424,7 +424,7 @@ export default function ClientApplicationFillPage() {
       icon={<FileText className="h-5 w-5 text-emerald-600" />}
       actions={
         <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')} className="cursor-pointer">
-          <ArrowLeft className={cn("h-4 w-4", isRTL ? "ml-1.5 rotate-180" : "mr-1.5")} />
+          {isRTL ? <ArrowRight className="h-4 w-4 ml-1.5" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
           {t('admin.wizards.modal.back')}
         </Button>
       }
@@ -468,7 +468,7 @@ export default function ClientApplicationFillPage() {
                 </div>
               )}
 
-              <div className={cn("flex flex-col lg:flex-row gap-4 items-start", isRTL ? "lg:flex-row" : "lg:flex-row-reverse")}>
+              <div className="flex flex-col lg:flex-row gap-4 items-start">
                 <ApplicationStepsNav
                   steps={stepNavItems}
                   stepIndex={stepIndex}
