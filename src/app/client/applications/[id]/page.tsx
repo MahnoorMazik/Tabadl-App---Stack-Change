@@ -452,20 +452,23 @@ export default function ClientApplicationFillPage() {
               {applicationLocked && (
                 <div
                   className={cn(
-                    'rounded-xl border px-4 py-3 text-sm',
+                    'rounded-xl border px-4 py-3 text-sm mb-4',
                     isRTL ? 'text-right' : 'text-left',
                     wizardStatusClasses(app.status)
                   )}
                 >
-                  <p className="font-medium">Status: {wizardStatusLabel(app.status)}</p>
+                  <p className="font-medium">
+                    {t('client.fill.status' as any) || (isRTL ? 'الحالة' : 'Status')}: {wizardStatusLabel(app.status)}
+                  </p>
                   <p className="text-xs mt-0.5 opacity-90">
-                    This application is with our team. Status and form details update when admin
-                    makes changes.
+                    {isRTL
+                      ? 'هذا الطلب لدى فريقنا. يتم تحديث الحالة وتفاصيل النموذج عندما يقوم الإدري بإجراء تغييرات.'
+                      : 'This application is with our team. Status and form details update when admin makes changes.'}
                   </p>
                 </div>
               )}
 
-              <div className={cn("flex flex-col lg:flex-row gap-4 items-start", isRTL ? "lg:flex-row-reverse" : "lg:flex-row")}>
+              <div className={cn("flex flex-col lg:flex-row gap-4 items-start", isRTL ? "lg:flex-row" : "lg:flex-row-reverse")}>
                 <ApplicationStepsNav
                   steps={stepNavItems}
                   stepIndex={stepIndex}

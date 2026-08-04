@@ -85,24 +85,24 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     ]
   },
   {
-    title: 'Services',
+    title: t('admin.sidebar.services'),
     icon: Briefcase,
     permission: `${Module.SERVICES}.${Action.VIEW}`,
     children: [
       {
-        title: 'Services Catalog',
+        title: t('admin.sidebar.servicesCatalog'),
         icon: Briefcase,
         href: '/admin/services',
         permission: `${Module.SERVICES}.${Action.VIEW}`
       },
       {
-        title: 'Packages',
+        title: t('admin.sidebar.packages'),
         icon: Package,
         href: '/admin/services/packages',
         permission: `${Module.SERVICES}.${Action.VIEW}`
       },
       {
-        title: 'Add-on Services',
+        title: t('admin.sidebar.addOnServices'),
         icon: PlusCircle,
         href: '/admin/services/add-ons',
         permission: `${Module.SERVICES}.${Action.VIEW}`
@@ -165,7 +165,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     permission: `${Module.TEAM}.${Action.VIEW}`,
     children: [
       {
-        title: 'Users',
+        title: t('admin.sidebar.users'),
         icon: Users,
         href: '/admin/users',
         permission: `${Module.USER_MANAGEMENT}.${Action.VIEW}`
@@ -307,19 +307,19 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         permission: `${Module.SETTINGS}.${Action.VIEW}`
       },
       {
-        title: 'Payment Gateway',
+        title: t('admin.sidebar.paymentGateway'),
         icon: CreditCard,
         href: '/admin/settings/payment-gateway',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
       },
       {
-        title: 'AI Chatbot',
+        title: t('admin.sidebar.aiChatbot'),
         icon: Bot,
         href: '/admin/settings/chatbot',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
       },
       {
-        title: 'Notification Events',
+        title: t('admin.sidebar.notificationEvents'),
         icon: Bell,
         href: '/admin/notifications/events',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
@@ -333,18 +333,18 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     ]
   },
   {
-    title: 'Audit',
+    title: t('admin.sidebar.audit'),
     icon: History,
     permission: `${Module.AUDIT}.${Action.VIEW}`,
     children: [
       {
-        title: 'Audit Logs',
+        title: t('admin.sidebar.auditLogs'),
         icon: History,
         href: '/admin/audit-logs',
         permission: `${Module.AUDIT}.${Action.VIEW}`
       },
       {
-        title: 'User Activity',
+        title: t('admin.sidebar.userActivity'),
         icon: Activity,
         href: '/admin/audit-logs/activity',
         permission: `${Module.AUDIT}.${Action.VIEW}`

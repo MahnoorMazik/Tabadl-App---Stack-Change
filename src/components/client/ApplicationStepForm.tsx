@@ -308,39 +308,39 @@ export function ApplicationStepForm({
             : 'bg-muted/35 border-border'
         )}
       >
-        <div className={cn("flex flex-wrap items-center justify-between gap-3", isRTL ? "flex-row-reverse" : "flex-row")}>
-          <div className={cn("space-y-1 min-w-0 flex-1", isRTL ? "text-right" : "text-left")}>
-            <div className={cn("flex items-center gap-2 flex-wrap", isRTL ? "flex-row-reverse justify-end" : "flex-row")}>
-              <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">
-                {formName}
-              </h2>
-              {approvalRequired && (
-                <Badge
-                  variant="outline"
-                  className="bg-sky-50 text-sky-800 border-sky-200 font-normal shrink-0 text-xs"
-                >
-                  <ShieldCheck className={cn("h-3.5 w-3.5", isRTL ? "ml-1" : "mr-1")} />
-                  Admin review
-                </Badge>
-              )}
-            </div>
+        <div className={cn("flex flex-wrap items-center justify-between gap-3", isRTL ? "flex-row" : "flex-row")}>
+          {/* Main Title & Step Progress Info */}
+          <div className={cn("space-y-1 min-w-0", isRTL ? "text-right order-last" : "text-left order-first")}>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">
+              {formName}
+            </h2>
             <p className="text-xs text-muted-foreground">
               {t('client.fill.stepOf').replace('{step}', String(stepIndex + 1)).replace('{total}', String(totalSteps))}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Badges, Status & Header Actions */}
+          <div className={cn("flex items-center gap-2 flex-wrap shrink-0", isRTL ? "flex-row order-first" : "flex-row order-last")}>
+            {approvalRequired && (
+              <Badge
+                variant="outline"
+                className={cn("bg-sky-50 text-sky-800 border-sky-200 font-normal shrink-0 text-xs flex items-center gap-1", isRTL && "flex-row-reverse")}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {t('client.fill.adminReview')}
+              </Badge>
+            )}
             {headerActions}
             {saveIndicator === 'saving' && (
-              <span className="inline-flex items-center text-xs text-muted-foreground bg-background/80 border rounded-full px-2.5 py-1">
-                <Loader2 className={cn("h-3 w-3 animate-spin text-emerald-600", isRTL ? "ml-1" : "mr-1")} />
-                Saving…
+              <span className={cn("inline-flex items-center text-xs text-muted-foreground bg-background/80 border rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
+                <Loader2 className="h-3 w-3 animate-spin text-emerald-600" />
+                {isRTL ? 'جارٍ الحفظ…' : 'Saving…'}
               </span>
             )}
             {saveIndicator === 'saved' && (
-              <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-100/90 border border-emerald-200 rounded-full px-2.5 py-1">
-                <Check className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />
-                Saved
+              <span className={cn("inline-flex items-center text-xs text-emerald-700 bg-emerald-100/90 border border-emerald-200 rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
+                <Check className="h-3 w-3" />
+                {isRTL ? 'تم الحفظ' : 'Saved'}
               </span>
             )}
           </div>
@@ -360,7 +360,7 @@ export function ApplicationStepForm({
           <Clock className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
           <AlertTitle className="text-sm font-semibold">{t('client.fill.pendingApproval')}</AlertTitle>
           <AlertDescription className="text-xs text-amber-900/90">
-            Your answers are saved and locked until an admin reviews this step.
+            {t('client.fill.pendingApprovalDesc')}
           </AlertDescription>
         </Alert>
       )}
@@ -370,7 +370,7 @@ export function ApplicationStepForm({
           <Check className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
           <AlertTitle className="text-sm font-semibold">{t('client.fill.stepApproved')}</AlertTitle>
           <AlertDescription className="text-xs text-emerald-900/90">
-            This step was approved by admin. Fields stay locked so approved data cannot be changed.
+            {t('client.fill.stepApprovedDesc')}
           </AlertDescription>
         </Alert>
       )}
@@ -381,7 +381,7 @@ export function ApplicationStepForm({
           <AlertDescription className="text-xs">
             {rejectionNote?.trim()
               ? rejectionNote
-              : 'Admin rejected this step. Update the fields and save again for review.'}
+              : t('client.fill.changesRequestedDesc')}
           </AlertDescription>
         </Alert>
       )}
@@ -428,11 +428,11 @@ export function ApplicationStepForm({
                 : 'bg-card'
             )}
           >
-            <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm', isRTL && 'flex-row-reverse')}>
+            <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm', isRTL ? 'flex-row-reverse justify-end w-full' : 'flex-row')}>
               <span className="text-muted-foreground/70 text-xs font-normal">
                 {idx + 1}.
               </span>
-              {field.label}
+              <span>{field.label}</span>
               {field.isRequired && <span className="text-destructive">*</span>}
               <FieldHelpTooltip text={field.helpText} />
             </Label>
