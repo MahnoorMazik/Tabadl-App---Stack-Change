@@ -1799,7 +1799,7 @@ const messages: Record<Locale, Record<string, string>> = {
     // Client Sidebar
     "client.sidebar.dashboard": "Dashboard",
     "client.sidebar.applicationManagement": "Application Management",
-    "client.sidebar.allApplications": "All Applications",
+    "client.sidebar.allApplications": "Applications",
     "client.sidebar.timeline": "Timeline",
     "client.sidebar.myDocuments": "My Documents",
     "client.sidebar.allDocuments": "All Documents",

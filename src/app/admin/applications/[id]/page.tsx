@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ApplicationStepForm } from '@/components/client/ApplicationStepForm'
+import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -189,24 +190,13 @@ export default function AdminApplicationDetailPage() {
 
   const buildAnswersPayload = (
     answers: Record<string, string>,
-    fields: AppDetail['steps'][number]['fields']
-  ) =>
-    fields.map((field) => {
-      const raw =
-        answers[field.fieldId] ??
-        field.answer?.value ??
-        field.answer?.fileUrl ??
-        ''
-      const trimmed = String(raw).trim()
-      return {
-        fieldId: field.fieldId,
-        value: trimmed || null,
-      }
-    })
+    fields: AppDetail['steps'][number]['fields'],
+    fileNames?: Record<string, string>
+  ) => buildWizardAnswersPayload(answers, fields, fileNames)
 
   const saveAnswers = async (
     answers: Record<string, string>,
-    opts?: { goNext?: boolean }
+    opts?: { goNext?: boolean; fileNames?: Record<string, string> }
   ) => {
     if (!app || !currentStep) return
     setSaving(true)
@@ -219,7 +209,7 @@ export default function AdminApplicationDetailPage() {
       const res = await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
         wizardStepId: currentStep.id,
         currentStepIndex: nextIndex,
-        answers: buildAnswersPayload(answers, currentStep.fields),
+        answers: buildAnswersPayload(answers, currentStep.fields, opts?.fileNames),
       })
       const savedApp = res.data?.data?.application as AppDetail | undefined
       setFormDirty(false)
@@ -580,6 +570,8 @@ export default function AdminApplicationDetailPage() {
                   saveIndicator={saveIndicator}
                   engaging
                   saveExitLabel="Save"
+                  applicationId={app.id}
+                  fileUploadBasePath="/api/admin/wizard-applications"
                   onDirtyChange={setFormDirty}
                   serverSyncVersion={serverSyncVersion}
                   headerActions={
@@ -618,10 +610,13 @@ export default function AdminApplicationDetailPage() {
                   }
                   onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
                   onSave={async (answers, opts) => {
-                    await saveAnswers(answers, { goNext: opts?.goNext })
+                    await saveAnswers(answers, {
+                      goNext: opts?.goNext,
+                      fileNames: opts?.fileNames,
+                    })
                   }}
-                  onSaveAndExit={async (answers) => {
-                    await saveAnswers(answers)
+                  onSaveAndExit={async (answers, opts) => {
+                    await saveAnswers(answers, { fileNames: opts?.fileNames })
                   }}
                   showSubmit={false}
                 />

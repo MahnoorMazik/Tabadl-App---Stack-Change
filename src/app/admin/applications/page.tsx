@@ -11,16 +11,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  FileText,Search,
+  FileText,
+  Search,
   Loader2,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  UserPlus,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
 import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import { StartApplicationForClientModal } from '@/components/admin/applications/StartApplicationForClientModal'
 
 const PAGE_SIZE = 10
 
@@ -70,6 +73,7 @@ export default function AdminApplicationsPage() {
     draft: 0,
     stepApprovalPending: 0,
   })
+  const [startForClientOpen, setStartForClientOpen] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400)
@@ -186,6 +190,14 @@ export default function AdminApplicationsPage() {
                 </CardDescription>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <Button
+                  type="button"
+                  className="bg-emerald-700 hover:bg-emerald-800 h-9"
+                  onClick={() => setStartForClientOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-1.5" />
+                  Start Application for Client
+                </Button>
                 <div className="relative sm:w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <Input
@@ -399,6 +411,14 @@ export default function AdminApplicationsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <StartApplicationForClientModal
+        open={startForClientOpen}
+        onOpenChange={setStartForClientOpen}
+        onStarted={() => {
+          void fetchApplications()
+        }}
+      />
     </AdminPageTemplate>
   )
 }

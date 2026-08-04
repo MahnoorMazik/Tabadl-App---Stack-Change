@@ -181,7 +181,7 @@ export function FormBuilder({
     fieldIds: template.fields.map((f, index) => ({
       fieldId: f.fieldId,
       sortOrder: index,
-      isRequired: f.required,
+      isRequired: f.type === 'INSTRUCTION' ? false : f.required,
       labelOverride: f.labelOverride?.trim() || null,
     })),
     serviceIds: [],
@@ -200,6 +200,15 @@ export function FormBuilder({
 
     setSaving(true)
     try {
+      // Persist field tooltips on the reusable FormField records
+      await Promise.all(
+        template.fields.map((field) =>
+          formApi.updateField(field.fieldId, {
+            helpText: field.helpText?.trim() ? field.helpText.trim() : null,
+          })
+        )
+      )
+
       const payload = buildPayload()
       const result =
         mode === 'edit' && template.id

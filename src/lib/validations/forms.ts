@@ -12,6 +12,7 @@ export const FORM_FIELD_TYPES = [
   'CHECKBOX',
   'RADIO',
   'FILE',
+  'INSTRUCTION',
 ] as const satisfies readonly FormFieldType[]
 
 const optionListSchema = z.array(z.string().trim().min(1)).min(1, 'At least one option is required')
@@ -21,7 +22,7 @@ const formFieldObjectSchema = z.object({
   label: z.string().trim().min(1, 'Label is required').max(200),
   type: z.enum(FORM_FIELD_TYPES),
   options: z.array(z.string().trim().min(1)).optional().nullable(),
-  helpText: z.string().trim().max(500).optional().nullable(),
+  helpText: z.string().trim().max(2000).optional().nullable(),
   placeholder: z.string().trim().max(200).optional().nullable(),
   isActive: z.boolean().optional(),
 })

@@ -26,7 +26,8 @@ import {
 import { cn } from '@/lib/utils'
 import { CalendarIcon, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
-import { CanvasField } from './types'
+import { CanvasField, isDisplayOnlyFieldType } from './types'
+import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
 
 // ─── Country data ───────────────────────────────────────────────────────────
 
@@ -356,14 +357,26 @@ function PreviewControl({ field }: { field: CanvasField }) {
       return (
         <div className="flex items-center gap-2">
           <Checkbox id={id} />
-          <Label htmlFor={id} className="font-normal cursor-pointer">
+          <Label htmlFor={id} className="font-normal cursor-pointer inline-flex items-center gap-1.5">
             {field.label || 'Checkbox option'}
+            <FieldHelpTooltip text={field.helpText} />
           </Label>
         </div>
       )
 
     case 'FILE':
       return <Input id={id} type="file" />
+
+    case 'INSTRUCTION':
+      return (
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-3 text-sm text-sky-950">
+          {field.helpText?.trim() ? (
+            <p className="whitespace-pre-wrap leading-relaxed">{field.helpText}</p>
+          ) : (
+            <p className="text-sky-700/80 italic">Instruction text will appear here.</p>
+          )}
+        </div>
+      )
 
     case 'TEXT':
     default:
@@ -389,13 +402,28 @@ export function FormPreview({ formName, fields }: FormPreviewProps) {
         <div className="space-y-4">
           {fields.map((field) => (
             <div key={field.id} className="space-y-1.5">
-              {field.type !== 'CHECKBOX' && (
-                <Label htmlFor={`preview-${field.id}`} className="text-sm">
-                  {field.label || 'Untitled field'}
-                  {field.required && <span className="text-destructive ml-0.5">*</span>}
-                </Label>
+              {isDisplayOnlyFieldType(field.type) ? (
+                <>
+                  {(field.label || '').trim() && (
+                    <p className="text-sm font-semibold text-sky-950">{field.label}</p>
+                  )}
+                  <PreviewControl field={field} />
+                </>
+              ) : (
+                <>
+                  {field.type !== 'CHECKBOX' && (
+                    <Label
+                      htmlFor={`preview-${field.id}`}
+                      className="text-sm inline-flex items-center gap-1.5"
+                    >
+                      {field.label || 'Untitled field'}
+                      {field.required && <span className="text-destructive ml-0.5">*</span>}
+                      <FieldHelpTooltip text={field.helpText} />
+                    </Label>
+                  )}
+                  <PreviewControl field={field} />
+                </>
               )}
-              <PreviewControl field={field} />
             </div>
           ))}
         </div>

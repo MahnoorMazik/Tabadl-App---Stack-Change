@@ -10,6 +10,7 @@ export type FormFieldType =
   | 'CHECKBOX'
   | 'RADIO'
   | 'FILE'
+  | 'INSTRUCTION'
 
 /** Static area-of-interest keys stored on FormTemplate */
 export type AreaOfInterestKey = 'CR' | 'PR'
@@ -76,6 +77,8 @@ export interface CanvasField {
   required: boolean
   labelOverride?: string | null
   options?: string[] | null
+  /** Shown to applicants as a ? hover tooltip */
+  helpText?: string | null
 }
 
 export interface FormTemplateListItem {
@@ -112,6 +115,7 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   CHECKBOX: 'Checkbox',
   RADIO: 'Radio',
   FILE: 'File',
+  INSTRUCTION: 'Instruction',
 }
 
 export const FIELD_TYPES: FormFieldType[] = [
@@ -125,7 +129,13 @@ export const FIELD_TYPES: FormFieldType[] = [
   'CHECKBOX',
   'RADIO',
   'FILE',
+  'INSTRUCTION',
 ]
+
+/** Display-only field types that never collect answers. */
+export function isDisplayOnlyFieldType(type: FormFieldType | string): boolean {
+  return type === 'INSTRUCTION'
+}
 
 export function createEmptyFormTemplate(): FormTemplateDetail {
   return {
@@ -153,6 +163,7 @@ export function canvasFieldFromReusable(
     required,
     labelOverride: labelOverride ?? null,
     options: field.options ?? null,
+    helpText: field.helpText ?? null,
   }
 }
 
@@ -174,6 +185,7 @@ export function mapApiTemplateDetail(template: {
       label: string
       type: FormFieldType
       options: string[] | null
+      helpText?: string | null
     }
   }>
 }): FormTemplateDetail {
@@ -193,6 +205,7 @@ export function mapApiTemplateDetail(template: {
       required: tf.isRequired,
       labelOverride: tf.labelOverride,
       options: tf.field.options,
+      helpText: tf.field.helpText ?? null,
     })),
   }
 }
