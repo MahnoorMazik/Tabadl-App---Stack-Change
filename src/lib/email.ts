@@ -59,7 +59,7 @@ interface EmailResult {
 }
 
 /**
- * Fetch email configuration from database
+ * Fetch email configuration from database, with SMTP_* env fallback.
  */
 async function getEmailConfig(): Promise<EmailConfig | null> {
   try {
@@ -67,25 +67,49 @@ async function getEmailConfig(): Promise<EmailConfig | null> {
       orderBy: { createdAt: 'desc' }
     })
 
-    if (!settings) {
-      console.error('No email configuration found in database')
-      return null
+    if (settings?.host && settings?.username && settings?.password) {
+      return {
+        host: settings.host,
+        port: settings.port,
+        username: settings.username,
+        password: settings.password,
+        encryption: settings.encryption,
+        fromAddress: settings.fromAddress,
+        fromName: settings.fromName,
+        tlsServername: (settings as any).tlsServername || undefined,
+      }
     }
 
-    return {
-      host: settings.host,
-      port: settings.port,
-      username: settings.username,
-      password: settings.password,
-      encryption: settings.encryption,
-      fromAddress: settings.fromAddress,
-    fromName: settings.fromName,
-    tlsServername: (settings as any).tlsServername || undefined
+    if (settings && !settings.password) {
+      console.error(
+        '[Email] Email settings exist in DB but password is empty. Save SMTP password in Admin → Settings → Email.'
+      )
     }
   } catch (error) {
     console.error('Error fetching email configuration:', error)
-    return null
   }
+
+  const host = process.env.SMTP_HOST
+  const username = process.env.SMTP_USER
+  const password = process.env.SMTP_PASSWORD
+  if (host && username && password) {
+    const port = Number(process.env.SMTP_PORT || 465)
+    return {
+      host,
+      port,
+      username,
+      password,
+      encryption: port === 465 ? 'ssl' : 'tls',
+      fromAddress: process.env.SMTP_FROM || username,
+      fromName: process.env.SMTP_FROM_NAME || 'Tabadl Alkon',
+      tlsServername: process.env.SMTP_TLS_SERVERNAME || undefined,
+    }
+  }
+
+  console.error(
+    '[Email] No email configuration found. Save SMTP settings in Admin → Settings → Email (or set SMTP_HOST/SMTP_USER/SMTP_PASSWORD).'
+  )
+  return null
 }
 
 /**
@@ -206,7 +230,8 @@ async function trySendWithTransport(candidate: TransportCandidate, mailOptions: 
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const config = await getEmailConfig()
   if (!config) {
-    const error = 'Email configuration not found. Please configure email settings first.'
+    const error =
+      'Email configuration not found. Go to Admin → Settings → Email, enter SMTP host/user/password, click Save, then retry.'
     return { success: false, error }
   }
 

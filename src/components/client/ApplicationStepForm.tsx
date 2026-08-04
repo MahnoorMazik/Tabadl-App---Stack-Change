@@ -23,8 +23,8 @@ import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
 import { isWizardFileUrl } from '@/lib/wizards/wizard-file-utils'
 
 export interface StepField {
-  id: string
-  required: boolean
+  id?: string
+  required?: boolean
   fieldId: string
   label: string
   type: string
@@ -33,7 +33,7 @@ export interface StepField {
   helpText?: string | null
   placeholder?: string | null
   answer?: { value: string | null; fileUrl: string | null }
-} 
+}
 
 export interface ApplicationStepFormProps {
   formName: string

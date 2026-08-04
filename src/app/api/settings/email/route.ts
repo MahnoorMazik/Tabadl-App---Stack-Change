@@ -43,7 +43,11 @@ export const GET = withAuth(async (request) => {
       orderBy: { createdAt: 'desc' }
     })
 
-    // If no settings exist, return defaults
+    const isConfigured = Boolean(
+      emailSettings?.id && emailSettings.host && emailSettings.username && emailSettings.password
+    )
+
+    // If no settings exist, return defaults (not yet saved to DB)
     if (!emailSettings) {
       emailSettings = {
         id: '',
@@ -81,6 +85,7 @@ export const GET = withAuth(async (request) => {
     }
     
     return NextResponse.json({ 
+      isConfigured,
       emailConfig: {
         mailDriver: emailSettings.mailDriver,
         host: emailSettings.host,

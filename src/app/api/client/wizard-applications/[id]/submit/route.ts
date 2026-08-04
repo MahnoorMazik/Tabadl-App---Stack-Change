@@ -24,6 +24,8 @@ import {
   assertClientMayEditStepAnswers,
   syncStepReviewAfterClientSave,
 } from '@/lib/wizards/wizard-step-approval'
+// ✅ FIXED IMPORT PATH
+import { sendApplicationStatusEmail } from '@/lib/email/application-email-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -42,7 +44,7 @@ const submitBodySchema = z.object({
     .optional(),
 })
 
-/** POST /api/client/wizard-applications/[id]/submit — save final step (optional) then submit → PENDING */
+/** POST /api/client/wizard-applications/[id]/submit */
 export async function POST(request: NextRequest, context: RouteContext) {
   const requestId = getRequestId(request)
   const { id } = await context.params
@@ -76,6 +78,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const app = await db.wizardApplication.findFirst({
       where: { id, clientId: access.client.id, isDeleted: false },
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          }
+        }
+      }
     })
 
     if (!app) {
@@ -175,19 +186,65 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
     const totalSteps = appWithWizard?.wizard.steps.length ?? 0
 
-    await db.wizardApplication.update({
+    const updatedApp = await db.wizardApplication.update({
       where: { id },
       data: {
         status: WizardApplicationStatus.PENDING,
         submittedAt: new Date(),
         currentStepIndex: Math.max(0, totalSteps - 1),
       },
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          }
+        }
+      }
     })
+
+    // ✅ SEND SUBMISSION EMAIL
+    let emailResult = { success: false, error: 'No email sent' }
+    
+    if (updatedApp.client?.email) {
+      try {
+        // ✅ FIXED: Store result properly
+        const result = await sendApplicationStatusEmail({
+          applicationId: updatedApp.id,
+          applicationNumber: updatedApp.applicationNumber,
+          status: 'SUBMITTED',
+          recipientEmail: updatedApp.client.email,
+          serviceName: updatedApp.areaOfInterest,
+        })
+        
+        // ✅ FIXED: Handle the result correctly
+        emailResult = {
+          success: result.success,
+          error: result.error || 'Unknown error',
+        }
+
+        if (result.success) {
+          console.log('✅ Submission email sent to:', updatedApp.client.email)
+        } else {
+          console.error('❌ Submission email failed:', result.error)
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send submission email:', emailError)
+        emailResult = {
+          success: false,
+          error: emailError instanceof Error ? emailError.message : 'Unknown error',
+        }
+      }
+    }
 
     const detail = await getWizardApplicationDetail(id)
     return addCorsHeaders(
       createSuccessResponse(
-        { application: await mapWizardApplicationDetail(detail!) },
+        { 
+          application: await mapWizardApplicationDetail(detail!),
+          emailSent: emailResult.success,
+        },
         200,
         { requestId, message: 'Application submitted — status is now Pending' }
       )

@@ -212,7 +212,6 @@ export default function ClientApplicationFillPage() {
 
   const currentStep = app?.steps[stepIndex]
 
-  /** Read-only after full application submit, or when an approval-required step is pending/approved. */
   const isStepReadOnlyForClient = (index: number) => {
     if (!app || applicationLocked) return applicationLocked
     if (!app.steps[index]) return false
@@ -409,9 +408,6 @@ export default function ClientApplicationFillPage() {
             <div className="flex-1 min-w-0 w-full space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={app.status} />
-                {/* <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
-                  {areaLabel}
-                </Badge> */}
                 <span className="text-sm text-muted-foreground">
                   {app.progress.completedSteps}/{app.progress.totalSteps} steps filled
                 </span>
@@ -504,13 +500,9 @@ export default function ClientApplicationFillPage() {
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
-                      applicationId={app.id}
-                      fileUploadBasePath="/api/client/wizard-applications"
                       onBack={() => goToStep(Math.max(0, stepIndex - 1))}
                       onSave={(answers, opts) => saveStep(answers, opts)}
-                      onSaveAndExit={(answers, opts) =>
-                        saveStep(answers, { fileNames: opts?.fileNames })
-                      }
+                      onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
                       onDirtyChange={setFormDirty}
                       serverSyncVersion={serverSyncVersion}
@@ -530,7 +522,6 @@ export default function ClientApplicationFillPage() {
               </div>
             </div>
 
-            {/* Sticky note — admin updates */}
             {app.adminNotes && (
               <aside className="w-full lg:w-64 shrink-0 lg:sticky lg:top-20">
                 <div className="relative mx-auto max-w-xs lg:max-w-none rotate-1 hover:rotate-0 transition-transform">
