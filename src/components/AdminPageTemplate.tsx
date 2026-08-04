@@ -136,7 +136,7 @@ export function AdminPageTemplate({
       {/* Sidebar - Hidden on mobile, overlay when open. RTL: right edge, slide from right. */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 rtl:left-auto rtl:right-0 z-50
-        ${isSidebarCollapsed ? 'w-[70px]' : 'w-64'} 
+        ${isSidebarCollapsed ? 'w-[70px]' : 'w-72'} 
         transition-all duration-300 flex-shrink-0
         ${isMobileSidebarOpen ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full lg:translate-x-0'}
       `}>

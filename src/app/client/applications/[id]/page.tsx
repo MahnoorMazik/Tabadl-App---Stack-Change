@@ -43,6 +43,9 @@ import {
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
 import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
+import { useLocale } from '@/contexts/LocaleContext'
+
+export const dynamic = 'force-dynamic'
 
 type AppDetail = {
   id: string
@@ -82,17 +85,41 @@ function getAreaLabel(area: string) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const getStatusLabel = (st: string) => {
+    switch (st.toUpperCase()) {
+      case 'DRAFT':
+        return t('admin.applications.status.inProgress')
+      case 'PENDING':
+        return t('admin.applications.status.pending')
+      case 'IN_PROGRESS':
+        return t('admin.applications.status.underReview')
+      case 'HARD_COPY_REQUIRED':
+        return t('admin.applications.status.hardCopyRequired')
+      case 'APPROVED':
+        return t('admin.applications.status.approved')
+      case 'REJECTED':
+        return t('admin.applications.status.rejected')
+      case 'COMPLETED':
+        return t('admin.applications.status.completed')
+      default:
+        return wizardStatusLabel(st)
+    }
+  }
+
   return (
-    <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status))}>
-      {status === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
+    <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status), isRTL ? 'flex-row-reverse' : 'flex-row')}>
+      {status === 'PENDING' && <Clock className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />}
       {(status === 'APPROVED' || status === 'COMPLETED') && (
-        <CheckCircle2 className="h-3 w-3 mr-1" />
+        <CheckCircle2 className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />
       )}
-      {status === 'REJECTED' && <AlertCircle className="h-3 w-3 mr-1" />}
+      {status === 'REJECTED' && <AlertCircle className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />}
       {(status === 'DRAFT' || status === 'HARD_COPY_REQUIRED') && (
-        <FileText className="h-3 w-3 mr-1" />
+        <FileText className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />
       )}
-      {wizardStatusLabel(status)}
+      {getStatusLabel(status)}
     </Badge>
   )
 }
@@ -380,7 +407,10 @@ export default function ClientApplicationFillPage() {
     goToStep(next)
   }
 
-  const areaLabel = app ? getAreaLabel(app.areaOfInterest) : ''
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const areaLabel = app ? (app.areaOfInterest === 'CR' ? t('admin.wizards.areaOption.cr') : app.areaOfInterest === 'PR' ? t('admin.wizards.areaOption.pr') : getAreaLabel(app.areaOfInterest)) : ''
 
   return (
     <MobileLayout
@@ -389,13 +419,13 @@ export default function ClientApplicationFillPage() {
       onToggleMobile={toggleMobileSidebar}
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
-      title={app ? areaLabel || app.wizard.name : 'Application'}
-      description={app ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}` : 'Loading…'}
+      title={app ? areaLabel || app.wizard.name : t('nav.applications' as any) || 'Application'}
+      description={app ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}` : t('admin.wizards.loading')}
       icon={<FileText className="h-5 w-5 text-emerald-600" />}
       actions={
-        <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')}>
-          <ArrowLeft className="h-4 w-4 mr-1.5" />
-          Back
+        <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')} className="cursor-pointer">
+          <ArrowLeft className={cn("h-4 w-4", isRTL ? "ml-1.5 rotate-180" : "mr-1.5")} />
+          {t('admin.wizards.modal.back')}
         </Button>
       }
     >
@@ -404,20 +434,17 @@ export default function ClientApplicationFillPage() {
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col xl:flex-row gap-5 items-start">
+        <div className="max-w-7xl mx-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+          <div className={cn("flex flex-col xl:flex-row gap-5 items-start", isRTL ? "xl:flex-row-reverse" : "xl:flex-row")}>
             <div className="flex-1 min-w-0 w-full space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className={cn("flex flex-wrap items-center gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
                 <StatusBadge status={app.status} />
-                {/* <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
-                  {areaLabel}
-                </Badge> */}
                 <span className="text-sm text-muted-foreground">
-                  {app.progress.completedSteps}/{app.progress.totalSteps} steps filled
+                  {t('client.fill.stepsFilled').replace('{completed}', String(app.progress.completedSteps)).replace('{total}', String(app.progress.totalSteps))}
                 </span>
                 {app.updatedAt && (
-                  <span className="text-sm text-muted-foreground ml-auto">
-                    Updated {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
+                  <span className={cn("text-sm text-muted-foreground", isRTL ? "mr-auto" : "ml-auto")}>
+                    {t('client.fill.updated')} {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
                   </span>
                 )}
               </div>
@@ -426,6 +453,7 @@ export default function ClientApplicationFillPage() {
                 <div
                   className={cn(
                     'rounded-xl border px-4 py-3 text-sm',
+                    isRTL ? 'text-right' : 'text-left',
                     wizardStatusClasses(app.status)
                   )}
                 >
@@ -437,7 +465,7 @@ export default function ClientApplicationFillPage() {
                 </div>
               )}
 
-              <div className="flex flex-col lg:flex-row gap-4 items-start">
+              <div className={cn("flex flex-col lg:flex-row gap-4 items-start", isRTL ? "lg:flex-row-reverse" : "lg:flex-row")}>
                 <ApplicationStepsNav
                   steps={stepNavItems}
                   stepIndex={stepIndex}
@@ -449,7 +477,7 @@ export default function ClientApplicationFillPage() {
 
                 <div className="flex-1 min-w-0 w-full">
               <Card className="shadow-md overflow-hidden">
-                <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
+                <h2 className={cn("text-lg font-semibold mb-3 px-6 pt-5", isRTL ? "text-right" : "text-left pt-0")}>{areaLabel || app.wizard.name}</h2>
                 <CardContent className="pb-6">
                   {currentStep?.adminUseOnly ? (
                     <div className="flex flex-col items-center text-center py-10 px-4">

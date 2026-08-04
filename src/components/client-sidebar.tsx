@@ -58,11 +58,6 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: FileText,
         href: '/client/applications',
       },
-      {
-        title: t('client.sidebar.timeline'),
-        icon: Calendar,
-        href: '/client/timeline',
-      },
     ],
   },
   {

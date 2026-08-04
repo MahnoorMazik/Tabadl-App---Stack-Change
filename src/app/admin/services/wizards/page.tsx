@@ -43,24 +43,17 @@ import { CreateWizardModal } from '@/components/admin/wizards/CreateWizardModal'
 import { WizardPreviewModal } from '@/components/admin/wizards/WizardPreviewModal'
 import { WizardListItem, mapApiWizard } from '@/components/admin/wizards/types'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
+import { useLocale } from '@/contexts/LocaleContext'
+import { cn } from '@/lib/utils'
+
+export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 10
 
-const AOI_LABELS: Record<string, string> = {
-  CR: 'Company Registration',
-  PR: 'Private Registration',
-}
-
-function formatDate(value: string) {
-  try {
-    return new Date(value).toLocaleDateString()
-  } catch {
-    return value
-  }
-}
-
 export default function WizardsPage() {
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const [wizards, setWizards] = useState<WizardListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -78,6 +71,25 @@ export default function WizardsPage() {
   // Search & pagination state
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+
+  const getAreaLabel = (area: string) => {
+    switch (area) {
+      case 'CR':
+        return t('admin.wizards.areaOption.cr')
+      case 'PR':
+        return t('admin.wizards.areaOption.pr')
+      default:
+        return area
+    }
+  }
+
+  function formatDate(value: string) {
+    try {
+      return new Date(value).toLocaleDateString()
+    } catch {
+      return value
+    }
+  }
 
   const loadWizards = useCallback(async () => {
     setLoading(true)
@@ -134,17 +146,17 @@ export default function WizardsPage() {
       await wizardApi.delete(deleteTarget.id)
       setWizards((prev) => prev.filter((w) => w.id !== deleteTarget.id))
       toast({
-        title: 'Wizard deleted',
-        description: `${deleteTarget.name} removed.`,
+        title: t('admin.wizards.toast.deleted'),
+        description: `${deleteTarget.name} ${t('admin.wizards.toast.deletedDesc')}`,
       })
       setDeleteTarget(null)
     } catch (error) {
       toast({
-        title: 'Delete failed',
+        title: t('admin.wizards.toast.deleteFailed'),
         description:
           error instanceof WizardApiError
             ? error.message
-            : 'Could not delete wizard.',
+            : t('admin.wizards.toast.couldNotDelete'),
         variant: 'destructive',
       })
     } finally {
@@ -158,16 +170,16 @@ export default function WizardsPage() {
       await wizardApi.update(wizard.id, { isActive })
       await loadWizards()
       toast({
-        title: isActive ? 'Wizard activated' : 'Wizard deactivated',
+        title: isActive ? t('admin.wizards.toast.activated') : t('admin.wizards.toast.deactivated'),
         description: isActive
-          ? `${wizard.name} is now live for ${AOI_LABELS[wizard.areaOfInterest] ?? wizard.areaOfInterest}. Other ${wizard.areaOfInterest} wizards were deactivated.`
-          : `${wizard.name} is no longer shown to clients.`,
+          ? `${wizard.name} ${t('admin.wizards.toast.activatedDesc')} ${getAreaLabel(wizard.areaOfInterest)}. ${t('admin.wizards.toast.othersDeactivated')} ${wizard.areaOfInterest} ${t('admin.wizards.toast.othersDeactivated') === t('admin.wizards.toast.othersDeactivated') ? 'wizards' : 'مماميس'} تم تعطيلها.`
+          : `${wizard.name} ${t('admin.wizards.toast.deactivatedDesc')}`,
       })
     } catch (error) {
       toast({
-        title: 'Update failed',
+        title: t('admin.wizards.toast.updateFailed'),
         description:
-          error instanceof WizardApiError ? error.message : 'Could not update wizard status.',
+          error instanceof WizardApiError ? error.message : t('admin.wizards.toast.couldNotUpdate'),
         variant: 'destructive',
       })
     } finally {
@@ -215,7 +227,7 @@ export default function WizardsPage() {
 
   return (
     <AdminPageTemplate
-      title="Create Application"
+      title={t('admin.wizards.title')}
       description=""
       icon={<Layers className="h-5 w-5 text-emerald-600" />}
       showConstruction={false}
@@ -226,213 +238,208 @@ export default function WizardsPage() {
           className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
           onClick={openCreate}
         >
-          <Plus className="h-4 w-4 mr-1" />
-          Create Application
+          <Plus className={cn('h-4 w-4', isRTL ? 'ml-1' : 'mr-1')} />
+          {t('admin.wizards.createButton')}
         </Button>
       }
     >
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle>Application wizards</CardTitle>
-              <CardDescription className="mt-0.5">
-                {loading
-                  ? 'Loading…'
-                  : filtered.length === 0
-                    ? search ? 'No results found' : 'No wizards yet'
-                    : `${filtered.length} wizard${filtered.length === 1 ? '' : 's'}${search ? ' found' : ''}. One live wizard per service — CR and PR can each have their own active form.`}
-              </CardDescription>
+      <div dir={isRTL ? 'rtl' : 'ltr'}>
+        <Card>
+          <CardHeader>
+            <div className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3', isRTL ? 'sm:flex-row-reverse' : 'sm:flex-row')}>
+              <div className={isRTL ? 'text-right' : 'text-left'}>
+                <CardTitle>{t('admin.wizards.heading')}</CardTitle>
+                <CardDescription className={cn('mt-0.5', isRTL ? 'text-right' : 'text-left')}>
+                  {loading
+                    ? t('admin.wizards.loading')
+                    : filtered.length === 0
+                      ? search
+                        ? t('admin.wizards.noResults')
+                        : t('admin.wizards.noWizards')
+                      : `${filtered.length} ${filtered.length === 1 ? (isRTL ? 'معالج' : 'wizard') : (isRTL ? 'معالجات' : 'wizards')}. ${t('admin.wizards.description')}`}
+                </CardDescription>
+              </div>
+              {/* Search */}
+              <div className="relative sm:w-64">
+                <Search className={cn('absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none', isRTL ? 'right-2.5' : 'left-2.5')} />
+                <Input
+                  placeholder={t('admin.wizards.searchPlaceholder')}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={cn('h-9 text-sm', isRTL ? 'pr-8 text-right' : 'pl-8 text-left')}
+                />
+              </div>
             </div>
-            {/* Search */}
-            <div className="relative sm:w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Search wizards…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-9 text-sm"
-              />
-            </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-            </div>
-          ) : wizards.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Create your first application steps wizard.
-              </p>
-              <Button
-                className="bg-emerald-700 hover:bg-emerald-800"
-                onClick={openCreate}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Applications Steps
-              </Button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No wizards match your search.
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Steps</TableHead>
-                    <TableHead className="w-[120px]">Status</TableHead>
-                    <TableHead className="w-24">Created</TableHead>
-                    <TableHead className="w-36 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginated.map((wizard) => {
-                    const isLive = wizard.isActive === true
-                    const busy = togglingId === wizard.id
-                    return (
-                    <TableRow key={wizard.id} className="hover:bg-muted/30">
-                      <TableCell className="font-medium max-w-48">
-                        <div className="flex flex-row gap-2 min-w-0">
-                          <span className="truncate block">{wizard.name}</span>
-                          {isLive && (
-                            <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
-                              Live
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {wizard.areaOfInterest} · {AOI_LABELS[wizard.areaOfInterest] ?? wizard.areaOfInterest}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {wizard.steps.length} step{wizard.steps.length === 1 ? '' : 's'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            id={`wizard-active-${wizard.id}`}
-                            checked={isLive}
-                            disabled={busy}
-                            onCheckedChange={(checked) => requestActiveChange(wizard, checked)}
-                            aria-label={`${isLive ? 'Deactivate' : 'Activate'} ${wizard.name}`}
-                          />
-                          <Label
-                            htmlFor={`wizard-active-${wizard.id}`}
-                            className="text-xs text-muted-foreground cursor-pointer"
-                          >
-                            {busy ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : isLive ? (
-                              'Active'
-                            ) : (
-                              'Inactive'
-                            )}
-                          </Label>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDate(wizard.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 border"
-                            onClick={() => openPreview(wizard)}
-                            aria-label="Preview wizard"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button> */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 border"
-                            onClick={() => openEdit(wizard)}
-                            aria-label="Edit wizard"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 border text-muted-foreground hover:text-destructive"
-                            onClick={() => setDeleteTarget(wizard)}
-                            aria-label="Delete wizard"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              </div>
+            ) : wizards.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-10 text-center">
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('admin.wizards.createFirst')}
+                </p>
+                <Button
+                  className="bg-emerald-700 hover:bg-emerald-800"
+                  onClick={openCreate}
+                >
+                  <Plus className={cn('h-4 w-4', isRTL ? 'ml-2' : 'mr-2')} />
+                  {t('admin.wizards.createStepsButton')}
+                </Button>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className={cn('rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                {t('admin.wizards.noMatch')}
+              </div>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className={isRTL ? 'text-right' : 'text-left'}>{t('admin.wizards.table.name')}</TableHead>
+                      <TableHead className={isRTL ? 'text-right' : 'text-left'}>{t('admin.wizards.table.service')}</TableHead>
+                      <TableHead className={isRTL ? 'text-right' : 'text-left'}>{t('admin.wizards.table.steps')}</TableHead>
+                      <TableHead className={cn('w-30', isRTL ? 'text-right' : 'text-left')}>{t('admin.wizards.table.status')}</TableHead>
+                      <TableHead className={cn('w-24', isRTL ? 'text-right' : 'text-left')}>{t('admin.wizards.table.created')}</TableHead>
+                      <TableHead className={cn('w-36', isRTL ? 'text-left' : 'text-right')}>{t('admin.wizards.table.actions')}</TableHead>
                     </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginated.map((wizard) => {
+                      const isLive = wizard.isActive === true
+                      const busy = togglingId === wizard.id
+                      return (
+                      <TableRow key={wizard.id} className="hover:bg-muted/30">
+                        <TableCell className={cn("font-medium max-w-48", isRTL ? 'text-right' : 'text-left')}>
+                          <div className={cn('flex gap-2 min-w-0 items-center', isRTL ? 'flex-row-reverse justify-end' : 'flex-row')}>
+                            <span className="truncate block">{wizard.name}</span>
+                            {isLive && (
+                              <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shrink-0">
+                                {t('admin.wizards.live')}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className={isRTL ? 'text-right' : 'text-left'}>
+                          <span className="text-sm">
+                            {wizard.areaOfInterest} · {getAreaLabel(wizard.areaOfInterest)}
+                          </span>
+                        </TableCell>
+                        <TableCell className={isRTL ? 'text-right' : 'text-left'}>
+                          <span className="text-sm">
+                            {wizard.steps.length} {wizard.steps.length === 1 ? t('admin.wizards.stepSingular') : t('admin.wizards.stepPlural')}
+                          </span>
+                        </TableCell>
+                        <TableCell className={isRTL ? 'text-right' : 'text-left'}>
+                          <div className={cn('flex items-center gap-2 border-0', isRTL ? 'flex-row-reverse justify-start' : 'flex-row')}>
+                            <Switch
+                              id={`wizard-active-${wizard.id}`}
+                              checked={isLive}
+                              disabled={busy}
+                              dir="ltr"
+                              onCheckedChange={(checked) => requestActiveChange(wizard, checked)}
+                              aria-label={`${isLive ? t('admin.wizards.inactive') : t('admin.wizards.active')} ${wizard.name}`}
+                            />
+                            <Label
+                              htmlFor={`wizard-active-${wizard.id}`}
+                              className="text-xs text-muted-foreground cursor-pointer shrink-0"
+                            >
+                              {busy ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : isLive ? (
+                                t('admin.wizards.active')
+                              ) : (
+                                t('admin.wizards.inactive')
+                              )}
+                            </Label>
+                          </div>
+                        </TableCell>
+                        <TableCell className={cn("text-xs text-muted-foreground", isRTL ? 'text-right' : 'text-left')}>
+                          {formatDate(wizard.createdAt)}
+                        </TableCell>
+                        <TableCell className={isRTL ? 'text-left' : 'text-right'}>
+                          <div className={cn('flex items-center gap-1', isRTL ? 'justify-start' : 'justify-end')}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 border cursor-pointer"
+                              onClick={() => openEdit(wizard)}
+                              aria-label={t('admin.wizards.editLabel')}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 border text-muted-foreground hover:text-destructive cursor-pointer"
+                              onClick={() => setDeleteTarget(wizard)}
+                              aria-label={t('admin.wizards.deleteLabel')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
 
-              {/* Pagination — only show when more than PAGE_SIZE records */}
-              {filtered.length > PAGE_SIZE && (
-                <div className="flex items-center justify-between border-t pt-4 mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Page {safePage} of {totalPages} &mdash; {filtered.length} record{filtered.length === 1 ? '' : 's'}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={safePage === 1}
-                      aria-label="Previous page"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                {/* Pagination — only show when more than PAGE_SIZE records */}
+                {filtered.length > PAGE_SIZE && (
+                  <div className={cn('flex items-center justify-between border-t pt-4 mt-2', isRTL ? 'flex-row-reverse' : 'flex-row')}>
+                    <p className="text-xs text-muted-foreground">
+                      {t('admin.wizards.pageOf').replace('{page}', String(safePage)).replace('{totalPages}', String(totalPages))} — {filtered.length} {filtered.length === 1 ? t('admin.wizards.recordSingular') : t('admin.wizards.recordPlural')}
+                    </p>
+                    <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
                       <Button
-                        key={p}
                         type="button"
-                        variant={p === safePage ? 'default' : 'outline'}
+                        variant="outline"
                         size="icon"
-                        className={`h-8 w-8 text-xs ${p === safePage ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700' : ''}`}
-                        onClick={() => setPage(p)}
-                        aria-label={`Page ${p}`}
+                        className="h-8 w-8 cursor-pointer"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={safePage === 1}
+                        aria-label={t('admin.wizards.previousPage')}
                       >
-                        {p}
+                        {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                       </Button>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={safePage === totalPages}
-                      aria-label="Next page"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                        <Button
+                          key={p}
+                          type="button"
+                          variant={p === safePage ? 'default' : 'outline'}
+                          size="icon"
+                          className={`h-8 w-8 text-xs cursor-pointer ${p === safePage ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700' : ''}`}
+                          onClick={() => setPage(p)}
+                          aria-label={t('admin.wizards.pageLabel').replace('{page}', String(p))}
+                        >
+                          {p}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 cursor-pointer"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={safePage === totalPages}
+                        aria-label={t('admin.wizards.nextPage')}
+                      >
+                        {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <CreateWizardModal
         open={modalOpen}
@@ -461,13 +468,13 @@ export default function WizardsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Switch live wizard?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admin.wizards.dialog.switchTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Only one wizard can be live for clients at a time (CR or PR). Activating{' '}
+              {t('admin.wizards.dialog.switchDesc')}{' '}
               <span className="font-medium">
                 {activateTarget?.wizard.name} ({activateTarget?.wizard.areaOfInterest})
               </span>{' '}
-              will deactivate{' '}
+              {t('admin.wizards.dialog.willDeactivate')}
               <span className="font-medium">
                 {activateTarget?.replaces.name} ({activateTarget?.replaces.areaOfInterest})
               </span>
@@ -475,7 +482,7 @@ export default function WizardsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(togglingId)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={Boolean(togglingId)}>{t('admin.wizards.dialog.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-emerald-700 hover:bg-emerald-800"
               onClick={(e) => {
@@ -487,10 +494,10 @@ export default function WizardsPage() {
               {togglingId ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Activating…
+                  {t('admin.wizards.dialog.activating')}
                 </>
               ) : (
-                'Activate wizard'
+                t('admin.wizards.dialog.activate')
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -505,17 +512,17 @@ export default function WizardsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete wizard?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admin.wizards.dialog.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove <span className="font-medium">{deleteTarget?.name}</span>
+              {t('admin.wizards.dialog.deleteDesc')} <span className="font-medium">{deleteTarget?.name}</span>
               {deleteTarget
-                ? ` (${deleteTarget.areaOfInterest}, ${deleteTarget.steps.length} step${deleteTarget.steps.length === 1 ? '' : 's'})`
+                ? ` (${deleteTarget.areaOfInterest}, ${deleteTarget.steps.length} ${deleteTarget.steps.length === 1 ? t('admin.wizards.stepSingular') : t('admin.wizards.stepPlural')})`
                 : ''}
-              . This cannot be undone.
+              . {t('admin.wizards.dialog.cannotUndo')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('admin.wizards.dialog.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(e) => {
@@ -527,15 +534,15 @@ export default function WizardsPage() {
               {deleting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting…
+                  {t('admin.wizards.dialog.deleting')}
                 </>
               ) : (
-                'Delete'
+                t('admin.wizards.dialog.delete')
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminPageTemplate>
+  </AdminPageTemplate>
   )
 }
