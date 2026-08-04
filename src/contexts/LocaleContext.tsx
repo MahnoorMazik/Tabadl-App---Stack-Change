@@ -2060,7 +2060,6 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.fill.pendingApprovalDesc": "Your answers are saved and locked until an admin reviews this step.",
     "client.fill.stepApproved": "Step approved",
     "client.fill.stepApprovedDesc": "This step was approved by admin. Fields stay locked so approved data cannot be changed.",
-    "client.fill.changesRequested": "Changes requested",
     "client.fill.changesRequestedDesc": "Admin rejected this step. Update the fields and save again for review.",
     
     // Client Documents
@@ -3644,7 +3643,6 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.documents.downloadFailed": "فشل تحميل المستند",
     "admin.supportChat.title": "نظام الدردشة الدعم",
     "admin.supportChat.description": "نظام دعم العملاء المتقدم مع المراسلة في الوقت الفعلي وإدارة التذاكر وأدوات التعاون الجماعي.",
-    "client.fill.adminNote": "ملاحظة من الإدارة",
     "client.fill.changesRequested": "تغييرات مطلوبة",
     "client.fill.continuingApp": "متابعة طلبك",
     "client.fill.startingApp": "جارٍ بدء طلبك",
@@ -4082,12 +4080,11 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.fill.adminOnly": "للإدارة فقط",
     "client.fill.locked": "مغلق",
     "client.fill.adminNote": "ملاحظة من الإدارة",
-    "client.fill.changesRequested": "التعديلات المطلوبة",
+    // "client.fill.changesRequested": "التعديلات المطلوبة",
     "client.fill.pendingApproval": "بانتظار موافقة الإدارة",
     "client.fill.pendingApprovalDesc": "تم حفظ إجاباتك وهي مقفلة حتى تقوم الإدارة بمراجعة هذه الخطوة.",
     "client.fill.stepApproved": "تمت الموافقة على الخطوة",
     "client.fill.stepApprovedDesc": "تمت الموافقة على هذه الخطوة من قبل الإدارة. تظل الحقول مقفلة حتى لا يمكن تغيير البيانات المعتمدة.",
-    "client.fill.changesRequested": "تم طلب تعديلات",
     "client.fill.changesRequestedDesc": "رفضت الإدارة هذه الخطوة. يرجى تحديث الحقول والحفظ مرة أخرى للمراجعة.",
     
     // Client Documents
