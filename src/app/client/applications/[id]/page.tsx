@@ -241,7 +241,6 @@ export default function ClientApplicationFillPage() {
 
   const currentStep = app?.steps[stepIndex]
 
-  /** Read-only after full application submit, or when an approval-required step is pending/approved. */
   const isStepReadOnlyForClient = (index: number) => {
     if (!app || applicationLocked) return applicationLocked
     if (!app.steps[index]) return false
@@ -538,13 +537,9 @@ export default function ClientApplicationFillPage() {
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
-                      applicationId={app.id}
-                      fileUploadBasePath="/api/client/wizard-applications"
                       onBack={() => goToStep(Math.max(0, stepIndex - 1))}
                       onSave={(answers, opts) => saveStep(answers, opts)}
-                      onSaveAndExit={(answers, opts) =>
-                        saveStep(answers, { fileNames: opts?.fileNames })
-                      }
+                      onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
                       onDirtyChange={setFormDirty}
                       serverSyncVersion={serverSyncVersion}
@@ -564,7 +559,6 @@ export default function ClientApplicationFillPage() {
               </div>
             </div>
 
-            {/* Sticky note — admin updates */}
             {app.adminNotes && (
               <aside className="w-full lg:w-64 shrink-0 lg:sticky lg:top-20">
                 <div className="relative mx-auto max-w-xs lg:max-w-none rotate-1 hover:rotate-0 transition-transform">

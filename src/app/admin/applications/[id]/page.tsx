@@ -30,6 +30,9 @@ import {
   User,
   Calendar,
   Phone,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -78,7 +81,7 @@ type AppDetail = {
       placeholder?: string | null
       answer: { value: string | null; fileUrl: string | null }
     }>
-  }>  | any
+  }>
   progress: { totalSteps: number; completedSteps: number }
 }
 
@@ -143,6 +146,7 @@ export default function AdminApplicationDetailPage() {
   const [reviewSaving, setReviewSaving] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
+  const [emailStatus, setEmailStatus] = useState<{ sent: boolean; message: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -152,6 +156,7 @@ export default function AdminApplicationDetailPage() {
       setApp(detail)
       setAdminNotes(detail.adminNotes ?? '')
       setStepIndex(Math.min(detail.currentStepIndex ?? 0, Math.max(0, detail.steps.length - 1)))
+      setEmailStatus(null)
     } catch {
       toast({ title: 'Application not found', variant: 'destructive' })
       router.replace('/admin/applications')
@@ -240,14 +245,61 @@ export default function AdminApplicationDetailPage() {
 
   const updateStatus = async (status: string) => {
     if (!app) return
-    setStatusSaving(true)
-    try {
-      await axios.patch(`/api/admin/wizard-applications/${app.id}`, { status })
-      toast({ title: 'Status updated — client will see this' })
-      await load()
-    } catch (error: any) {
+    
+    if (status === app.status) {
       toast({
-        title: 'Status update failed',
+        title: 'No change',
+        description: 'Application already has this status',
+        variant: 'default',
+      })
+      return
+    }
+
+    setStatusSaving(true)
+    setEmailStatus(null)
+    
+    try {
+      const response = await axios.patch(
+        `/api/admin/wizard-applications/${app.id}/status`,
+        { 
+          status,
+          adminNotes: adminNotes.trim() || undefined,
+          sendEmail: true,
+        }
+      )
+      
+      const data = response.data.data
+      
+      if (data.emailSent) {
+        setEmailStatus({
+          sent: true,
+          message: `✅ Email notification sent to ${app.client.email}`,
+        })
+      } else {
+        setEmailStatus({
+          sent: false,
+          message: `⚠️ Status updated but email failed to send. Error: ${data.emailError || 'Unknown error'}`,
+        })
+      }
+      
+      toast({ 
+        title: `✅ Status updated to ${status}`,
+        description: data.emailSent 
+          ? `Email notification sent to ${app.client.email}` 
+          : '⚠️ Status updated but email failed to send',
+        variant: data.emailSent ? 'default' : 'destructive',
+        duration: 5000,
+      })
+      
+      await load()
+      
+    } catch (error: any) {
+      setEmailStatus({
+        sent: false,
+        message: `❌ Status update failed: ${error.response?.data?.error?.message || error.message}`,
+      })
+      toast({
+        title: '❌ Status update failed',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -413,7 +465,6 @@ export default function AdminApplicationDetailPage() {
     >
       <div className={cn("flex flex-col xl:flex-row gap-5 items-start max-w-7xl", isRTL ? "xl:flex-row-reverse" : "xl:flex-row")} dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="flex-1 min-w-0 space-y-4 w-full">
-          {/* Overview */}
           <Card className="border-border/80 shadow-sm py-0">
             <CardContent className="py-5 px-5 space-y-4">
               <div className={cn("flex flex-wrap items-start justify-between gap-3", isRTL ? "flex-row-reverse" : "flex-row")}>
@@ -422,6 +473,9 @@ export default function AdminApplicationDetailPage() {
                     {isRTL ? 'نظرة عامة' : 'Overview'}
                   </h2>
                   <div className={cn("flex items-center gap-3", isRTL ? "flex-row-reverse" : "flex-row")}>
+                    {/* <p className="text-base font-semibold mt-0.5 text-gray-500">
+                      {app.wizard.name}
+                    </p> */}
                     <p className="inline-flex items-center gap-1.5">
                       <span className="text-gray-500 text-sm">{isRTL ? 'آخر تحديث: ' : 'Updated on: '}</span>
                       <span className="text-gray-600 font-medium text-sm">
@@ -455,32 +509,24 @@ export default function AdminApplicationDetailPage() {
                       <SelectItem value="COMPLETED">{t('admin.applications.status.completed')}</SelectItem>
                     </SelectContent>
                   </Select>
+                  {emailStatus && (
+                    <div className={cn(
+                      'text-xs flex items-center gap-1.5 px-2 py-1 rounded-md',
+                      emailStatus.sent 
+                        ? 'text-green-700 bg-green-50 border border-green-200' 
+                        : 'text-red-700 bg-red-50 border border-red-200'
+                    )}>
+                      {emailStatus.sent ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3" />
+                      )}
+                      <span className="truncate max-w-[200px]">{emailStatus.message}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-900">
-                  <span className="text-indigo-500 font-medium">Client</span>
-                  {app.client.name}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
-                  <span className="text-slate-400 font-medium">Email</span>
-                  {app.client.email}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs text-violet-900">
-                  <span className="text-violet-500 font-medium">AOI</span>
-                  {app.areaOfInterest} · {areaOfInterestDisplayLabel(app.areaOfInterest)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900">
-                  <span className="text-emerald-600 font-medium">Progress</span>
-                  {app.progress.completedSteps}/{app.progress.totalSteps} filled
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono text-slate-600">
-                  {app.applicationNumber}
-                </span>
-              </div> */}
-
-              {/* Client profile strip — same layout as reference, theme + app fields */}
               <div className="flex flex-wrap items-center gap-4">
                 <span className="inline-flex items-center gap-1.5">
                   <span className='text-gray-500 text-sm'>
@@ -492,9 +538,7 @@ export default function AdminApplicationDetailPage() {
                 </span>
 
                 <span className="inline-flex items-center gap-1.5">
-                  <span className='text-gray-500 text-sm'>
-                    Email:
-                  </span>
+                  <Mail className="h-3.5 w-3.5 text-gray-400" />
                   <span className="text-gray-600 font-medium text-sm">
                     {app.client.email}
                   </span>
@@ -520,18 +564,6 @@ export default function AdminApplicationDetailPage() {
                   </span>
                   <span className="text-gray-600 font-medium text-sm">{app.applicationNumber}</span>
                 </span>
-
-                {/* {phone && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>
-                      Phone: <span className="text-foreground">{phone}</span>
-                    </span>
-                  </span>
-                )} */}
-
-                {/* <span>
-                  Primary ID: <span className="text-foreground">{primaryId}</span>
-                </span> */}
               </div>
             </CardContent>
           </Card>
@@ -565,8 +597,6 @@ export default function AdminApplicationDetailPage() {
                   saveIndicator={saveIndicator}
                   engaging
                   saveExitLabel="Save"
-                  applicationId={app.id}
-                  fileUploadBasePath="/api/admin/wizard-applications"
                   onDirtyChange={setFormDirty}
                   serverSyncVersion={serverSyncVersion}
                   headerActions={
@@ -605,13 +635,10 @@ export default function AdminApplicationDetailPage() {
                   }
                   onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
                   onSave={async (answers, opts) => {
-                    await saveAnswers(answers, {
-                      goNext: opts?.goNext,
-                      fileNames: opts?.fileNames,
-                    })
+                    await saveAnswers(answers, { goNext: opts?.goNext })
                   }}
-                  onSaveAndExit={async (answers, opts) => {
-                    await saveAnswers(answers, { fileNames: opts?.fileNames })
+                  onSaveAndExit={async (answers) => {
+                    await saveAnswers(answers)
                   }}
                   showSubmit={false}
                 />
@@ -624,7 +651,7 @@ export default function AdminApplicationDetailPage() {
           </div>
         </div>
 
-        {/* Sticky note panel */}
+        {/* Sticky note panel — right */}
         <aside className="w-full xl:w-72 shrink-0 xl:sticky xl:top-20">
           <div className="relative rotate-1 hover:rotate-0 transition-transform">
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">

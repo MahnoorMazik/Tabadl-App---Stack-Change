@@ -1873,6 +1873,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.dashboard.noInvoices": "No invoices",
     "client.dashboard.quickActions": "Quick Actions",
     "client.dashboard.addApplication": "Add Application",
+    "client.dashboard.applyForApplication": "Apply for Application",
     
     // Client Applications
     "client.applications.title": "My Applications",
@@ -3903,6 +3904,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.dashboard.noInvoices": "لا توجد فواتير",
     "client.dashboard.quickActions": "إجراءات سريعة",
     "client.dashboard.addApplication": "إضافة طلب",
+    "client.dashboard.applyForApplication": "التقديم على طلب",
     
     // Client Applications
     "client.applications.title": "طلباتي",
