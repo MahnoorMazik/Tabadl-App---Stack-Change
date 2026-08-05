@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getToken } from 'next-auth/jwt'
 import { sendApplicationStatusEmail } from '@/lib/email/application-email-service'
+import { sendApplicationStatusWhatsApp } from '@/lib/whatsapp/application-whatsapp'
 
 const statusUpdateSchema = z.object({
   status: z.enum([
@@ -17,13 +18,14 @@ const statusUpdateSchema = z.object({
   ]),
   adminNotes: z.string().nullable().optional(),
   sendEmail: z.boolean().optional().default(true),
+  sendWhatsApp: z.boolean().optional().default(true),
 })
 
 /**
  * PATCH /api/admin/wizard-applications/[id]/status
  * 
  * Updates the status of a wizard application. Only ADMIN and STAFF users can perform this action.
- * Sends an email notification to the client when the status changes.
+ * Sends email and WhatsApp notifications to the client when the status changes.
  */
 export async function PATCH(
   request: NextRequest,
@@ -87,7 +89,7 @@ export async function PATCH(
       )
     }
 
-    const { status, adminNotes, sendEmail } = parsed.data
+    const { status, adminNotes, sendEmail, sendWhatsApp } = parsed.data
 
     // Get current application with client info
     const currentApp = await db.wizardApplication.findFirst({
@@ -98,6 +100,13 @@ export async function PATCH(
             id: true,
             email: true,
             name: true,
+            phone: true,
+          }
+        },
+        wizard: {
+          select: {
+            name: true,
+            areaOfInterest: true,
           }
         }
       }
@@ -131,6 +140,13 @@ export async function PATCH(
             id: true,
             email: true,
             name: true,
+            phone: true,
+          }
+        },
+        wizard: {
+          select: {
+            name: true,
+            areaOfInterest: true,
           }
         }
       }
@@ -138,8 +154,12 @@ export async function PATCH(
 
     console.log('🟢 Updated app status:', updatedApp.status)
 
-    // ✅ SEND EMAIL IF STATUS CHANGED
-    let emailResult = { success: false, error: 'No email sent' }
+    // 📧 SEND EMAIL IF STATUS CHANGED
+    let emailResult: { success: boolean; skipped?: boolean; error?: string } = {
+      success: false,
+      skipped: true,
+      error: 'No email sent',
+    }
     
     if (isStatusChanging && sendEmail !== false && updatedApp.client?.email) {
       try {
@@ -157,12 +177,13 @@ export async function PATCH(
           applicationNumber: updatedApp.applicationNumber,
           status: emailStatus,
           recipientEmail: updatedApp.client.email,
-          serviceName: updatedApp.areaOfInterest,
+          serviceName: updatedApp.areaOfInterest || updatedApp.wizard?.name,
           adminNotes: adminNotes || undefined,
         })
         
         emailResult = {
           success: result.success,
+          skipped: result.skipped,
           error: result.error || 'Unknown error',
         }
         
@@ -176,14 +197,73 @@ export async function PATCH(
       }
     }
 
+    // 📱 SEND WHATSAPP IF STATUS CHANGED
+    let whatsappResult: { success: boolean; skipped?: boolean; error?: string } = {
+      success: false,
+      skipped: true,
+      error: 'No WhatsApp sent',
+    }
+    
+    if (isStatusChanging && sendWhatsApp !== false && updatedApp.client?.phone) {
+      try {
+        // Map status to WhatsApp type
+        let whatsappStatus: string = status;
+        if (status === 'PENDING') {
+          whatsappStatus = 'SUBMITTED';
+        }
+        
+        console.log('📱 Sending WhatsApp with status:', whatsappStatus)
+        console.log('📱 Recipient:', updatedApp.client.phone)
+        
+        const result = await sendApplicationStatusWhatsApp({
+          applicationId: updatedApp.id,
+          applicationNumber: updatedApp.applicationNumber,
+          status: whatsappStatus,
+          recipientPhone: updatedApp.client.phone,
+          serviceName: updatedApp.areaOfInterest || updatedApp.wizard?.name,
+          adminNotes: adminNotes || undefined,
+        })
+        
+        whatsappResult = {
+          success: result.success,
+          skipped: result.skipped,
+          error: result.error || 'Unknown error',
+        }
+        
+        console.log(`✅ WhatsApp result:`, whatsappResult)
+      } catch (whatsappError) {
+        console.error('❌ Failed to send WhatsApp:', whatsappError)
+        whatsappResult = {
+          success: false,
+          error: whatsappError instanceof Error ? whatsappError.message : 'Unknown error',
+        }
+      }
+    }
+
+    const emailLabel = emailResult.success
+      ? '📧 Email sent'
+      : emailResult.skipped
+        ? '📧 Email skipped'
+        : '📧 Email failed'
+    const whatsappLabel = whatsappResult.success
+      ? '📱 WhatsApp sent'
+      : whatsappResult.skipped
+        ? '📱 WhatsApp skipped'
+        : '📱 WhatsApp failed'
+
     return NextResponse.json({
       success: true,
       data: {
         application: updatedApp,
+        status: updatedApp.status,
         emailSent: emailResult.success,
-        emailError: emailResult.error,
+        emailSkipped: Boolean(emailResult.skipped),
+        emailError: emailResult.skipped ? null : emailResult.error,
+        whatsappSent: whatsappResult.success,
+        whatsappSkipped: Boolean(whatsappResult.skipped),
+        whatsappError: whatsappResult.skipped ? null : whatsappResult.error,
       },
-      message: `Status updated to ${status}. ${emailResult.success ? 'Email sent to client.' : 'Email failed to send.'}`
+      message: `Status updated to ${status}. ${emailLabel} | ${whatsappLabel}`
     })
 
   } catch (error: unknown) {
