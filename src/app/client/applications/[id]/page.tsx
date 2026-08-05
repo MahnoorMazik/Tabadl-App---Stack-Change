@@ -43,6 +43,7 @@ import {
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
 import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
+import { WhatsAppStatus } from '@/components/admin/notifications/WhatsAppStatus'
 
 type AppDetail = {
   id: string
@@ -54,6 +55,13 @@ type AppDetail = {
   submittedAt?: string | null
   updatedAt?: string
   wizard: { id: string; name: string }
+  client: {
+    id: string
+    name: string
+    email: string
+    phone?: string | null
+    clientNumber?: string | null
+  }
   steps: Array<{
     id: string
     index: number
@@ -117,6 +125,8 @@ export default function ClientApplicationFillPage() {
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
+  const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const [whatsappError, setWhatsappError] = useState<string>()
   const latestFormValuesRef = useRef<Record<string, string>>({})
   const appFingerprintRef = useRef<string | null>(null)
   const appRef = useRef<AppDetail | null>(null)
@@ -430,6 +440,18 @@ export default function ClientApplicationFillPage() {
                     This application is with our team. Status and form details update when admin
                     makes changes.
                   </p>
+                </div>
+              )}
+
+              {/* WhatsApp Status for Client */}
+              {!applicationLocked && app.client?.phone && (
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-sm font-medium text-gray-700 mb-2">📱 Notification Status</p>
+                  <WhatsAppStatus
+                    status={whatsappStatus}
+                    error={whatsappError}
+                    recipient={app.client.phone}
+                  />
                 </div>
               )}
 

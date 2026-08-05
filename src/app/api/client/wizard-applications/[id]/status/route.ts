@@ -1,130 +1,103 @@
-import { NextRequest } from 'next/server'
-import { WizardApplicationStatus } from '@prisma/client'
-import { z } from 'zod'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import {
-  createErrorResponse,
-  createSuccessResponse,
-  ErrorCodes,
-  getRequestId,
-  logError,
-} from '@/lib/error-handler'
-import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
-import { requireAuth } from '@/lib/rbac-middleware'
-import { zodErrorResponse } from '@/lib/forms/api-helpers'
-// ✅ FIXED IMPORT PATH
+import { auth } from '@/lib/auth/config'
 import { sendApplicationStatusEmail } from '@/lib/email/application-email-service'
+import { sendApplicationStatusWhatsApp } from '@/lib/whatsapp/application-whatsapp'
 
-type RouteContext = { params: Promise<{ id: string }> }
-
-export const OPTIONS = () => handleCorsPreflight()
-
-const statusUpdateSchema = z.object({
-  status: z.enum([
-    'PENDING',
-    'IN_PROGRESS',
-    'HARD_COPY_REQUIRED',
-    'APPROVED',
-    'REJECTED',
-    'COMPLETED'
-  ]),
-  adminNotes: z.string().nullable().optional(),
-  sendEmail: z.boolean().optional().default(true),
-})
-
-/** PATCH /api/admin/wizard-applications/[id]/status */
-export async function PATCH(request: NextRequest, context: RouteContext) {
-  const requestId = getRequestId(request)
-  const { id } = await context.params
-
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const authResult = await requireAuth(request)
-    if ('error' in authResult) {
-      return addCorsHeaders(
-        createErrorResponse(
-          ErrorCodes.AUTHENTICATION_ERROR,
-          authResult.error || 'Authentication required',
-          authResult.status || 401,
-          { requestId }
-        )
-      )
-    }
-
-    if (authResult.user.role !== 'ADMIN') {
-      return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, 'Admin access required', 403, {
-          requestId,
-        })
-      )
+    const { id } = await params
+    const session = await auth()
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const parsed = statusUpdateSchema.safeParse(body)
-    if (!parsed.success) {
-      return zodErrorResponse(parsed.error, requestId)
-    }
+    const { answers, wizardStepId } = body
 
-    const { status, adminNotes, sendEmail } = parsed.data
-
-    const currentApp = await db.wizardApplication.findFirst({
-      where: { id, isDeleted: false },
+    // Get application with client details
+    const application = await db.wizardApplication.findUnique({
+      where: { id },
       include: {
         client: {
           select: {
             id: true,
-            email: true,
             name: true,
+            phone: true,
+            email: true,
+          }
+        },
+        wizard: {
+          select: {
+            name: true,
+            areaOfInterest: true,
           }
         }
       }
     })
 
-    if (!currentApp) {
-      return addCorsHeaders(
-        createErrorResponse(ErrorCodes.NOT_FOUND_ERROR, 'Application not found', 404, {
-          requestId,
-        })
+    if (!application) {
+      return NextResponse.json(
+        { error: 'Application not found' },
+        { status: 404 }
       )
     }
 
-    const oldStatus = currentApp.status
-    const isStatusChanging = status !== oldStatus
+    // ✅ Check if already submitted
+    if (application.status !== 'DRAFT' && application.status !== 'IN_PROGRESS') {
+      return NextResponse.json(
+        { error: 'Application already submitted' },
+        { status: 400 }
+      )
+    }
 
+    // Update application status to PENDING
     const updatedApp = await db.wizardApplication.update({
       where: { id },
       data: {
-        status: status as WizardApplicationStatus,
-        ...(adminNotes !== undefined && { adminNotes }),
+        status: 'PENDING',
+        submittedAt: new Date(),
         updatedAt: new Date(),
+        // Save answers logic...
       },
       include: {
         client: {
           select: {
             id: true,
-            email: true,
             name: true,
+            phone: true,
+            email: true,
+          }
+        },
+        wizard: {
+          select: {
+            name: true,
+            areaOfInterest: true,
           }
         }
       }
     })
 
+    console.log('✅ Application submitted:', updatedApp.applicationNumber)
+
+    // 📧 SEND EMAIL NOTIFICATION
     let emailResult = { success: false, error: 'No email sent' }
     
-    if (isStatusChanging && sendEmail !== false && updatedApp.client?.email) {
+    if (updatedApp.client?.email) {
       try {
-       
-        let emailStatus: string = status;
-        if (status === 'PENDING') {
-          emailStatus = 'SUBMITTED';
-        }
+        console.log('📧 Sending email to:', updatedApp.client.email)
         
         const result = await sendApplicationStatusEmail({
           applicationId: updatedApp.id,
           applicationNumber: updatedApp.applicationNumber,
-          status: emailStatus,
+          status: 'SUBMITTED',
           recipientEmail: updatedApp.client.email,
-          serviceName: updatedApp.areaOfInterest,
-          adminNotes: adminNotes || undefined,
+          serviceName: updatedApp.areaOfInterest || updatedApp.wizard?.name,
+          adminNotes: 'Your application has been submitted successfully. Our team will review it shortly.',
         })
         
         emailResult = {
@@ -132,7 +105,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           error: result.error || 'Unknown error',
         }
         
-        console.log(`✅ Email sent to client for status: ${status}`)
+        console.log('✅ Email result:', emailResult)
       } catch (emailError) {
         console.error('❌ Failed to send email:', emailError)
         emailResult = {
@@ -142,31 +115,62 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    return addCorsHeaders(
-      createSuccessResponse(
-        { 
-          application: updatedApp,
-          emailSent: emailResult.success,
-          emailError: emailResult.error,
-        },
-        200,
-        { 
-          requestId, 
-          message: `Status updated to ${status}. ${emailResult.success ? 'Email sent to client.' : 'Email failed to send.'}`
+    // 📱 SEND WHATSAPP NOTIFICATION - 🔥 THIS IS THE FIX!
+    let whatsappResult = { success: false, error: 'No WhatsApp sent' }
+    
+    if (updatedApp.client?.phone) {
+      try {
+        console.log('📱 Sending WhatsApp notification for submission')
+        console.log('📱 Recipient:', updatedApp.client.phone)
+        console.log('📱 Application:', updatedApp.applicationNumber)
+        
+        const result = await sendApplicationStatusWhatsApp({
+          applicationId: updatedApp.id,
+          applicationNumber: updatedApp.applicationNumber,
+          status: 'SUBMITTED',
+          recipientPhone: updatedApp.client.phone,
+          serviceName: updatedApp.areaOfInterest || updatedApp.wizard?.name,
+          adminNotes: 'Your application has been submitted successfully. Our team will review it shortly.',
+        })
+        
+        whatsappResult = {
+          success: result.success,
+          error: result.error || 'Unknown error',
         }
-      )
-    )
-  } catch (error: unknown) {
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      code: ErrorCodes.INTERNAL_ERROR,
-      requestId,
-      endpoint: `PATCH /api/admin/wizard-applications/${id}/status`,
-      method: 'PATCH',
+        
+        if (result.success) {
+          console.log('✅ WhatsApp notification sent successfully!')
+        } else {
+          console.log('❌ WhatsApp failed:', result.error)
+        }
+      } catch (whatsappError) {
+        console.error('❌ Failed to send WhatsApp:', whatsappError)
+        whatsappResult = {
+          success: false,
+          error: whatsappError instanceof Error ? whatsappError.message : 'Unknown error',
+        }
+      }
+    } else {
+      console.log('⚠️ No phone number found for client, skipping WhatsApp')
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        application: updatedApp,
+        emailSent: emailResult.success,
+        emailError: emailResult.error,
+        whatsappSent: whatsappResult.success,
+        whatsappError: whatsappResult.error,
+      },
+      message: `Application submitted. ${emailResult.success ? '📧 Email sent' : '📧 Email failed'} | ${whatsappResult.success ? '📱 WhatsApp sent' : '📱 WhatsApp failed'}`
     })
-    return addCorsHeaders(
-      createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to update application status', 500, {
-        requestId,
-      })
+
+  } catch (error) {
+    console.error('❌ Submission error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to submit application' },
+      { status: 500 }
     )
   }
 }

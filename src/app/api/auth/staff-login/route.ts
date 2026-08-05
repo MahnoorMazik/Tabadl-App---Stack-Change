@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 import { UserRole } from '@prisma/client'
 
 /**
- * Validates staff credentials only. Returns specific errors for UX.
+ * Validates staff or admin credentials only.
  * Does not create a session. Client must call signIn('credentials', ...) on success.
  */
 export async function POST(request: NextRequest) {
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (user.role !== UserRole.STAFF) {
+    // ✅ FIX: Allow both STAFF and ADMIN
+    if (user.role !== UserRole.STAFF && user.role !== UserRole.ADMIN) {
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },
         { status: 200 }
@@ -59,7 +60,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    })
   } catch (e) {
     console.error('[staff-login]', e)
     return NextResponse.json(

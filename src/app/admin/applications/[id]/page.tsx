@@ -41,6 +41,7 @@ import {
 } from '@/lib/wizards/wizard-status'
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import { WhatsAppStatus } from '@/components/admin/notifications/WhatsAppStatus'
 
 type AppDetail = {
   id: string
@@ -143,6 +144,7 @@ export default function AdminApplicationDetailPage() {
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; message: string } | null>(null)
+  const [whatsappStatus, setWhatsappStatus] = useState<{ sent: boolean; message: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -153,6 +155,7 @@ export default function AdminApplicationDetailPage() {
       setAdminNotes(detail.adminNotes ?? '')
       setStepIndex(Math.min(detail.currentStepIndex ?? 0, Math.max(0, detail.steps.length - 1)))
       setEmailStatus(null)
+      setWhatsappStatus(null)
     } catch {
       toast({ title: 'Application not found', variant: 'destructive' })
       router.replace('/admin/applications')
@@ -253,6 +256,7 @@ export default function AdminApplicationDetailPage() {
 
     setStatusSaving(true)
     setEmailStatus(null)
+    setWhatsappStatus(null)
     
     try {
       const response = await axios.patch(
@@ -261,29 +265,42 @@ export default function AdminApplicationDetailPage() {
           status,
           adminNotes: adminNotes.trim() || undefined,
           sendEmail: true,
+          sendWhatsApp: true,
         }
       )
       
       const data = response.data.data
       
+      // Email status
       if (data.emailSent) {
         setEmailStatus({
           sent: true,
-          message: `✅ Email notification sent to ${app.client.email}`,
+          message: `✅ Email sent to ${app.client.email}`,
         })
       } else {
         setEmailStatus({
           sent: false,
-          message: `⚠️ Status updated but email failed to send. Error: ${data.emailError || 'Unknown error'}`,
+          message: `⚠️ Email failed: ${data.emailError || 'Unknown error'}`,
+        })
+      }
+      
+      // WhatsApp status
+      if (data.whatsappSent) {
+        setWhatsappStatus({
+          sent: true,
+          message: `✅ WhatsApp sent to ${app.client.phone || 'client'}`,
+        })
+      } else {
+        setWhatsappStatus({
+          sent: false,
+          message: `⚠️ WhatsApp failed: ${data.whatsappError || 'Unknown error'}`,
         })
       }
       
       toast({ 
         title: `✅ Status updated to ${status}`,
-        description: data.emailSent 
-          ? `Email notification sent to ${app.client.email}` 
-          : '⚠️ Status updated but email failed to send',
-        variant: data.emailSent ? 'default' : 'destructive',
+        description: `${data.emailSent ? '📧 Email sent' : '📧 Email failed'} | ${data.whatsappSent ? '📱 WhatsApp sent' : '📱 WhatsApp failed'}`,
+        variant: data.emailSent || data.whatsappSent ? 'default' : 'destructive',
         duration: 5000,
       })
       
@@ -293,6 +310,10 @@ export default function AdminApplicationDetailPage() {
       setEmailStatus({
         sent: false,
         message: `❌ Status update failed: ${error.response?.data?.error?.message || error.message}`,
+      })
+      setWhatsappStatus({
+        sent: false,
+        message: `❌ Status update failed`,
       })
       toast({
         title: '❌ Status update failed',
@@ -504,6 +525,7 @@ export default function AdminApplicationDetailPage() {
                     </SelectContent>
                   </Select>
                   
+                  {/* Email Status */}
                   {emailStatus && (
                     <div className={cn(
                       'text-xs flex items-center gap-1.5 px-2 py-1 rounded-md',
@@ -517,6 +539,23 @@ export default function AdminApplicationDetailPage() {
                         <AlertCircle className="h-3 w-3" />
                       )}
                       <span className="truncate max-w-[200px]">{emailStatus.message}</span>
+                    </div>
+                  )}
+                  
+                  {/* WhatsApp Status */}
+                  {whatsappStatus && (
+                    <div className={cn(
+                      'text-xs flex items-center gap-1.5 px-2 py-1 rounded-md',
+                      whatsappStatus.sent 
+                        ? 'text-green-700 bg-green-50 border border-green-200' 
+                        : 'text-red-700 bg-red-50 border border-red-200'
+                    )}>
+                      {whatsappStatus.sent ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3" />
+                      )}
+                      <span className="truncate max-w-[200px]">{whatsappStatus.message}</span>
                     </div>
                   )}
                 </div>
