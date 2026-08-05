@@ -998,6 +998,17 @@ model EmailSettings {
   @@map("email_settings")
 }
 
+/// Singleton-style system preferences (one active row).
+model GeneralSettings {
+  id                             String   @id @default(cuid())
+  clientEmailNotifications       Boolean  @default(true)
+  clientWhatsAppNotifications    Boolean  @default(true)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@map("general_settings")
+}
+
 enum ProfileCompletionStatus {
   INCOMPLETE
   PENDING_REVIEW

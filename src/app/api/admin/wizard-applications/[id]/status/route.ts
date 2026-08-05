@@ -155,7 +155,11 @@ export async function PATCH(
     console.log('🟢 Updated app status:', updatedApp.status)
 
     // 📧 SEND EMAIL IF STATUS CHANGED
-    let emailResult = { success: false, error: 'No email sent' }
+    let emailResult: { success: boolean; skipped?: boolean; error?: string } = {
+      success: false,
+      skipped: true,
+      error: 'No email sent',
+    }
     
     if (isStatusChanging && sendEmail !== false && updatedApp.client?.email) {
       try {
@@ -179,6 +183,7 @@ export async function PATCH(
         
         emailResult = {
           success: result.success,
+          skipped: result.skipped,
           error: result.error || 'Unknown error',
         }
         
@@ -193,7 +198,11 @@ export async function PATCH(
     }
 
     // 📱 SEND WHATSAPP IF STATUS CHANGED
-    let whatsappResult = { success: false, error: 'No WhatsApp sent' }
+    let whatsappResult: { success: boolean; skipped?: boolean; error?: string } = {
+      success: false,
+      skipped: true,
+      error: 'No WhatsApp sent',
+    }
     
     if (isStatusChanging && sendWhatsApp !== false && updatedApp.client?.phone) {
       try {
@@ -217,6 +226,7 @@ export async function PATCH(
         
         whatsappResult = {
           success: result.success,
+          skipped: result.skipped,
           error: result.error || 'Unknown error',
         }
         
@@ -230,16 +240,30 @@ export async function PATCH(
       }
     }
 
+    const emailLabel = emailResult.success
+      ? '📧 Email sent'
+      : emailResult.skipped
+        ? '📧 Email skipped'
+        : '📧 Email failed'
+    const whatsappLabel = whatsappResult.success
+      ? '📱 WhatsApp sent'
+      : whatsappResult.skipped
+        ? '📱 WhatsApp skipped'
+        : '📱 WhatsApp failed'
+
     return NextResponse.json({
       success: true,
       data: {
         application: updatedApp,
+        status: updatedApp.status,
         emailSent: emailResult.success,
-        emailError: emailResult.error,
+        emailSkipped: Boolean(emailResult.skipped),
+        emailError: emailResult.skipped ? null : emailResult.error,
         whatsappSent: whatsappResult.success,
-        whatsappError: whatsappResult.error,
+        whatsappSkipped: Boolean(whatsappResult.skipped),
+        whatsappError: whatsappResult.skipped ? null : whatsappResult.error,
       },
-      message: `Status updated to ${status}. ${emailResult.success ? '📧 Email sent' : '📧 Email failed'} | ${whatsappResult.success ? '📱 WhatsApp sent' : '📱 WhatsApp failed'}`
+      message: `Status updated to ${status}. ${emailLabel} | ${whatsappLabel}`
     })
 
   } catch (error: unknown) {

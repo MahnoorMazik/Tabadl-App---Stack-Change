@@ -1,6 +1,7 @@
 import { APPLICATION_EMAILS, LOGO_ATTACHMENT } from "./application-templates";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { getClientNotificationFlags } from "@/lib/settings/general";
 
 // Helper: format dates for emails using configured timezone
 const formatDateTimeForEmail = (d?: Date | string | null) => {
@@ -50,7 +51,16 @@ export interface ApplicationEmailPayload {
 
 export async function sendApplicationStatusEmail(
   payload: ApplicationEmailPayload
-): Promise<{ success: boolean; error?: string; messageId?: string }> {
+): Promise<{ success: boolean; skipped?: boolean; error?: string; messageId?: string }> {
+  const flags = await getClientNotificationFlags();
+  if (!flags.emailEnabled) {
+    return {
+      success: false,
+      skipped: true,
+      error: 'Client email notifications are disabled in General Settings',
+    };
+  }
+
   const where = payload.applicationId
     ? { id: payload.applicationId }
     : payload.applicationNumber

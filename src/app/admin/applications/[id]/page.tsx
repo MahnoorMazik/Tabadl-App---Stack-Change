@@ -271,52 +271,43 @@ export default function AdminApplicationDetailPage() {
       
       const data = response.data.data
       
-      // Email status
+      // Only show success chips when a channel actually sent. Never show red failure UI on successful status update.
       if (data.emailSent) {
         setEmailStatus({
           sent: true,
           message: `✅ Email sent to ${app.client.email}`,
         })
       } else {
-        setEmailStatus({
-          sent: false,
-          message: `⚠️ Email failed: ${data.emailError || 'Unknown error'}`,
-        })
+        setEmailStatus(null)
       }
       
-      // WhatsApp status
       if (data.whatsappSent) {
         setWhatsappStatus({
           sent: true,
           message: `✅ WhatsApp sent to ${app.client.phone || 'client'}`,
         })
       } else {
-        setWhatsappStatus({
-          sent: false,
-          message: `⚠️ WhatsApp failed: ${data.whatsappError || 'Unknown error'}`,
-        })
+        setWhatsappStatus(null)
       }
-      
+
+      // Status update succeeded → always green toast (ignore notification skip/fail for toast color)
       toast({ 
-        title: `✅ Status updated to ${status}`,
-        description: `${data.emailSent ? '📧 Email sent' : '📧 Email failed'} | ${data.whatsappSent ? '📱 WhatsApp sent' : '📱 WhatsApp failed'}`,
-        variant: data.emailSent || data.whatsappSent ? 'default' : 'destructive',
-        duration: 5000,
+        title: `Status updated to ${data.status ?? status}`,
+        description: data.emailSent || data.whatsappSent
+          ? 'Client notified successfully'
+          : 'Application status saved',
+        variant: 'success',
+        className: '!border-emerald-600 !bg-emerald-600 !text-white',
+        duration: 4000,
       })
       
       await load()
       
     } catch (error: any) {
-      setEmailStatus({
-        sent: false,
-        message: `❌ Status update failed: ${error.response?.data?.error?.message || error.message}`,
-      })
-      setWhatsappStatus({
-        sent: false,
-        message: `❌ Status update failed`,
-      })
+      setEmailStatus(null)
+      setWhatsappStatus(null)
       toast({
-        title: '❌ Status update failed',
+        title: 'Status update failed',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })

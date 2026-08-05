@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { sendWhatsAppMessage } from "./whatsapp-client";
 import { APPLICATION_WHATSAPP } from "./application-templates";
+import { getClientNotificationFlags } from "@/lib/settings/general";
 
 export interface ApplicationWhatsAppPayload {
   applicationId?: string;
@@ -13,8 +14,17 @@ export interface ApplicationWhatsAppPayload {
 
 export async function sendApplicationStatusWhatsApp(
   payload: ApplicationWhatsAppPayload
-): Promise<{ success: boolean; error?: string; messageId?: string }> {
+): Promise<{ success: boolean; skipped?: boolean; error?: string; messageId?: string }> {
   try {
+    const flags = await getClientNotificationFlags();
+    if (!flags.whatsappEnabled) {
+      return {
+        success: false,
+        skipped: true,
+        error: 'Client WhatsApp notifications are disabled in General Settings',
+      };
+    }
+
     // Build where clause for finding the application
     const where = payload.applicationId
       ? { id: payload.applicationId }
