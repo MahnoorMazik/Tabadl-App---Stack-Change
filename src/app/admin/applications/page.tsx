@@ -407,17 +407,17 @@ export default function AdminApplicationsPage() {
                     <p className="text-xs text-muted-foreground">
                       {t('admin.wizards.pageOf').replace('{page}', String(safePage)).replace('{totalPages}', String(totalPages))} &mdash; {applications.length} {applications.length === 1 ? t('admin.wizards.recordSingular') : t('admin.wizards.recordPlural')}
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-8 w-8 cursor-pointer"
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={safePage === 1}
                         aria-label={t('admin.wizards.previousPage')}
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                       </Button>
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                         <Button
@@ -425,7 +425,7 @@ export default function AdminApplicationsPage() {
                           type="button"
                           variant={p === safePage ? 'default' : 'outline'}
                           size="icon"
-                          className={`h-8 w-8 text-xs ${
+                          className={`h-8 w-8 text-xs cursor-pointer ${
                             p === safePage
                               ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
                               : ''
@@ -440,12 +440,12 @@ export default function AdminApplicationsPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-8 w-8 cursor-pointer"
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         disabled={safePage === totalPages}
                         aria-label={t('admin.wizards.nextPage')}
                       >
-                        <ChevronRight className="h-4 w-4" />
+                        {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>

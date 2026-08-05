@@ -406,7 +406,7 @@ export default function AdminApplicationDetailPage() {
       fullWidth
       actions={
         <Button variant="outline" size="sm" onClick={() => router.push('/admin/applications')}>
-          <ArrowLeft className={cn("h-4 w-4", isRTL ? "ml-1.5 rotate-180" : "mr-1.5")} />
+          {isRTL ? <ArrowRight className="h-4 w-4 ml-1.5" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
           {t('client.applications.backToList')}
         </Button>
       }

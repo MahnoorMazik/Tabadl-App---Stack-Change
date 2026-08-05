@@ -312,7 +312,7 @@ export function StartApplicationForClientModal({
               disabled={starting}
               className="cursor-pointer"
             >
-              <ArrowLeft className={cn("h-4 w-4", isRTL ? "ml-1.5 rotate-180" : "mr-1.5")} />
+              {isRTL ? <ArrowRight className="h-4 w-4 ml-1.5" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
               {t('admin.wizards.modal.back')}
             </Button>
           )}
