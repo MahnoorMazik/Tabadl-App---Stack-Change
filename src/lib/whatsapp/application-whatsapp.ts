@@ -93,9 +93,16 @@ export async function sendApplicationStatusWhatsApp(
       };
     }
 
-    // Format phone number (remove spaces, special chars)
-    const formattedPhone = recipientPhone.replace(/\s/g, '').replace(/^0/, '');
-    const fullPhone = formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`;
+    // WhatsApp Cloud API expects digits only (country code + number, no + or spaces)
+    const digitsOnly = recipientPhone.replace(/\D/g, '')
+    const fullPhone = digitsOnly.replace(/^0+/, '')
+
+    if (fullPhone.length < 10) {
+      return {
+        success: false,
+        error: `Invalid phone number: ${recipientPhone}`,
+      };
+    }
 
     // Build the message content
     const messageContent = template.buildMessage({

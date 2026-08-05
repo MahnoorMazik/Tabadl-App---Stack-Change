@@ -479,17 +479,7 @@ export default function ClientApplicationFillPage() {
                 </div>
               )}
 
-              {/* WhatsApp Status for Client */}
-              {!applicationLocked && app.client?.phone && (
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-medium text-gray-700 mb-2">📱 Notification Status</p>
-                  <WhatsAppStatus
-                    status={whatsappStatus}
-                    error={whatsappError}
-                    recipient={app.client.phone}
-                  />
-                </div>
-              )}
+
 
               <div className="flex flex-col lg:flex-row gap-4 items-start">
                 <ApplicationStepsNav

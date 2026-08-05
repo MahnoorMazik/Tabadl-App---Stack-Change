@@ -52,18 +52,23 @@ export async function sendWhatsAppMessage(
       };
     }
 
+    // WhatsApp Cloud API expects digits only (no +)
+    const to = payload.to.replace(/\D/g, '').replace(/^0+/, '')
+
     // WhatsApp Business API endpoint
     const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
 
     const requestBody = {
       messaging_product: "whatsapp",
-      to: payload.to,
+      to,
       type: "text",
       text: {
         body: payload.message,
         preview_url: false,
       },
     };
+
+    console.log('📱 Sending WhatsApp to:', to)
 
     const response = await fetch(url, {
       method: 'POST',
@@ -77,10 +82,27 @@ export async function sendWhatsAppMessage(
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('WhatsApp API Error:', data);
+      const apiMessage = data.error?.message || 'Failed to send WhatsApp message'
+      const apiCode = data.error?.code
+      console.error('WhatsApp API Error:', { code: apiCode, message: apiMessage, type: data.error?.type })
+
+      // Common Meta errors
+      if (apiCode === 190 || response.status === 401) {
+        return {
+          success: false,
+          error: 'WhatsApp access token is invalid or expired. Update WHATSAPP_ACCESS_TOKEN in .env',
+        }
+      }
+      if (apiCode === 131030 || apiCode === 131047) {
+        return {
+          success: false,
+          error: 'Recipient phone is not allowed / outside 24h window. Use an approved template or add the number to test recipients.',
+        }
+      }
+
       return {
         success: false,
-        error: data.error?.message || 'Failed to send WhatsApp message',
+        error: apiMessage,
       };
     }
 
