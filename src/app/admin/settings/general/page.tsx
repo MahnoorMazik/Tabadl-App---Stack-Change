@@ -36,7 +36,6 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     void loadSettings()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   const loadSettings = async () => {
