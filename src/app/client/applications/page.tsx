@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
@@ -101,6 +101,8 @@ export default function ClientApplicationsPage() {
     label: string
     continuing: boolean
   } | null>(null)
+  /** Sync lock so double-clicks cannot start two creates before React state updates. */
+  const launchLockRef = useRef(false)
 
   const fetchApplications = useCallback(async (silent = false) => {
     if (!silent) setLoadingApps(true)
@@ -212,7 +214,8 @@ export default function ClientApplicationsPage() {
   }
 
   const beginApplication = async (area: AreaOfInterestKey, label: string) => {
-    if (launch) return
+    if (launchLockRef.current || launch) return
+    launchLockRef.current = true
 
     const draft = draftForArea(area)
     setLaunch({ area, label, continuing: Boolean(draft) })
@@ -221,6 +224,7 @@ export default function ClientApplicationsPage() {
 
     try {
       let appId: string
+      let resumed = Boolean(draft)
 
       if (draft) {
         appId = draft.id
@@ -233,27 +237,66 @@ export default function ClientApplicationsPage() {
             description: `There is no active form for ${label} yet. Please check back later.`,
             variant: 'destructive',
           })
-          setLaunch(null)
           return
         }
 
+        // Always go through API — it resumes an existing DRAFT for this area (no duplicate).
         const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
         const app = res.data?.data?.application
         if (!app?.id) {
           throw new Error('Could not start application')
         }
         appId = app.id
+        resumed = Boolean(res.data?.data?.resumed)
+
+        // Optimistically mark draft in local list so the behind-tab UI shows Continue immediately.
+        setApplications((prev) => {
+          if (prev.some((a) => a.id === app.id)) return prev
+          return [
+            {
+              id: app.id,
+              applicationNumber: app.applicationNumber ?? '',
+              status: app.status ?? 'DRAFT',
+              areaOfInterest: app.areaOfInterest ?? area,
+              submittedAt: app.submittedAt ?? null,
+              updatedAt: app.updatedAt ?? new Date().toISOString(),
+              adminNotes: app.adminNotes ?? null,
+              wizard: app.wizard ?? {
+                id: app.wizardId ?? '',
+                name: label,
+                areaOfInterest: area,
+              },
+              progress: app.progress ?? {
+                totalSteps: flow.totalSteps,
+                completedSteps: 0,
+                currentStepIndex: 0,
+              },
+            },
+            ...prev,
+          ]
+        })
       }
 
       await minWait
       window.open(`/client/applications/${appId}`, '_blank', 'noopener,noreferrer')
-      setLaunch(null)
+
+      if (resumed && !draft) {
+        toast({
+          title: 'Opening existing draft',
+          description: `You already have an unfinished ${label} application — continuing that one.`,
+        })
+      }
+
+      // Sync list so the original tab shows Continue / draft badge without waiting for focus.
+      void fetchApplications(true)
     } catch (error: any) {
       toast({
         title: 'Could not open application',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
+    } finally {
+      launchLockRef.current = false
       setLaunch(null)
     }
   }

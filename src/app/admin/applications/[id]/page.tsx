@@ -126,6 +126,8 @@ export default function AdminApplicationDetailPage() {
   const id = String(params.id)
   const router = useRouter()
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const [app, setApp] = useState<AppDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [stepIndex, setStepIndex] = useState(0)
@@ -392,9 +394,6 @@ export default function AdminApplicationDetailPage() {
     app.client.phone ||
     findAnswerByLabels(app.steps, ['phone', 'mobile', 'whatsapp']) ||
     null
-    const { t, locale } = useLocale()
-  const isRTL = locale === 'ar'
-
   const areaLabel = areaOfInterestDisplayLabel(app.areaOfInterest)
 
   return (

@@ -478,8 +478,8 @@ export function ApplicationStepForm({
               <div className="space-y-2">
                 {values[field.fieldId] ? (
                   <WizardFilePreview
-                    url={values[field.fieldId]}
-                    originalName={fileNames[field.fieldId]}
+                    fileUrl={values[field.fieldId]}
+                    fileName={fileNames[field.fieldId]}
                     onRemove={!readOnly ? () => handleRemoveFile(field.fieldId) : undefined}
                   />
                 ) : (

@@ -29,12 +29,14 @@ type WizardFilePreviewProps = {
   fileUrl: string | null | undefined
   fileName?: string | null
   className?: string
+  onRemove?: () => void
 }
 
 export function WizardFilePreview({
   fileUrl,
   fileName,
   className,
+  onRemove,
 }: WizardFilePreviewProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -122,6 +124,11 @@ export function WizardFilePreview({
           <Download className="h-3.5 w-3.5 mr-1.5" />
           Download
         </Button>
+        {onRemove && (
+          <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="text-destructive hover:text-destructive">
+            Remove
+          </Button>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

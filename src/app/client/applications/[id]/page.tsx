@@ -130,6 +130,8 @@ export default function ClientApplicationFillPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const {
     isSidebarCollapsed,
     isMobileSidebarOpen,
@@ -407,9 +409,6 @@ export default function ClientApplicationFillPage() {
     goToStep(next)
   }
 
-  const { t, locale } = useLocale()
-  const isRTL = locale === 'ar'
-
   const areaLabel = app ? (app.areaOfInterest === 'CR' ? t('admin.wizards.areaOption.cr') : app.areaOfInterest === 'PR' ? t('admin.wizards.areaOption.pr') : getAreaLabel(app.areaOfInterest)) : ''
 
   return (
@@ -419,8 +418,12 @@ export default function ClientApplicationFillPage() {
       onToggleMobile={toggleMobileSidebar}
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
-      title={app ? areaLabel || app.wizard.name : t('nav.applications' as any) || 'Application'}
-      description={app ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}` : t('admin.wizards.loading')}
+      title={app ? areaLabel || app.wizard.name : t('client.applications.pageTitle')}
+      description={
+        app
+          ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}`
+          : t('client.applications.loading')
+      }
       icon={<FileText className="h-5 w-5 text-emerald-600" />}
       actions={
         <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')} className="cursor-pointer">
