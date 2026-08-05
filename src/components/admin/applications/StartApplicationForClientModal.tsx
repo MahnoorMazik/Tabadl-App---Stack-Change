@@ -20,7 +20,7 @@ import {
   AREA_OF_INTEREST_OPTIONS,
   AreaOfInterestKey,
 } from '@/components/admin/forms/types'
-import { ArrowLeft, Check, Loader2, Search, UserRound } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Loader2, Search, UserRound } from 'lucide-react'
 
 import { useLocale } from '@/contexts/LocaleContext'
 
