@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -39,6 +39,8 @@ import { SortableFieldRow } from './SortableFieldRow'
 import { FormPreview } from './FormPreview'
 import { formApi, FormApiError } from './api'
 import { useRouter } from 'next/navigation'
+import { useLocale } from '@/contexts/LocaleContext'
+import { cn } from '@/lib/utils'
 
 interface FormBuilderProps {
   initialTemplate?: FormTemplateDetail
@@ -58,6 +60,8 @@ export function FormBuilder({
   forcedAreaOfInterest = null,
 }: FormBuilderProps) {
   const { toast } = useToast()
+  const { locale } = useLocale()
+  const isRTL = locale === 'ar'
   const [template, setTemplate] = useState<FormTemplateDetail>(
     () => initialTemplate ?? createEmptyFormTemplate()
   )
@@ -102,11 +106,14 @@ export function FormBuilder({
             isActive: f.isActive,
           }))
         )
-      } catch (error) {
-        if (cancelled) return
-        const message =
-          error instanceof FormApiError ? error.message : 'Failed to load form builder data'
-        toast({ title: 'Load failed', description: message, variant: 'destructive' })
+      } catch {
+        if (!cancelled) {
+          toast({
+            title: 'Failed to load field types',
+            description: 'Field creation options may be limited.',
+            variant: 'destructive',
+          })
+        }
       } finally {
         if (!cancelled) setLoadingMeta(false)
       }
@@ -118,22 +125,16 @@ export function FormBuilder({
     }
   }, [toast])
 
-  const isDirty = JSON.stringify(template) !== baseline
-  const nameError = showValidation && !template.name.trim()
+  const isDirty = useMemo(() => JSON.stringify(template) !== baseline, [template, baseline])
   const effectiveArea = forcedAreaOfInterest ?? template.areaOfInterest
-  const areaError = showValidation && !effectiveArea
-  const fieldsError = showValidation && template.fields.length === 0
 
-  const setName = (name: string) => {
+  const setName = useCallback((name: string) => {
     setTemplate((prev) => ({ ...prev, name }))
-  }
+  }, [])
 
-  const setAreaOfInterest = (key: AreaOfInterestKey) => {
-    setTemplate((prev) => ({
-      ...prev,
-      areaOfInterest: key,
-    }))
-  }
+  const setAreaOfInterest = useCallback((area: AreaOfInterestKey) => {
+    setTemplate((prev) => ({ ...prev, areaOfInterest: area }))
+  }, [])
 
   const addField = useCallback((field: CanvasField) => {
     setTemplate((prev) => {
@@ -200,7 +201,6 @@ export function FormBuilder({
 
     setSaving(true)
     try {
-      // Persist field tooltips on the reusable FormField records
       await Promise.all(
         template.fields.map((field) =>
           formApi.updateField(field.fieldId, {
@@ -230,7 +230,6 @@ export function FormBuilder({
 
       onSaved?.(savedTemplate)
       if (!onSaved) {
-        // Soft navigate — avoid full reload / permission race bouncing to dashboard
         router.replace('/admin/services/forms')
       }
     } catch (error) {
@@ -250,38 +249,42 @@ export function FormBuilder({
     )
   }
 
+  const nameError = showValidation && !template.name.trim()
+  const areaError = showValidation && !effectiveArea
+  const fieldsError = showValidation && template.fields.length === 0
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start h-full">
-      {/* ── Left panel ── */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start h-full" dir={isRTL ? 'rtl' : 'ltr'}>
       <Card
         className="flex flex-col overflow-hidden py-0 gap-0"
         style={{ height: inline ? 'calc(100vh - 120px)' : 'calc(100vh - 140px)' }}
       >
-        {/* Form settings — static, no scroll */}
-        <div className="shrink-0 p-4 space-y-4 border-b">
-          <h2 className="text-lg font-semibold mb-3">Form settings</h2>
+        <div className={cn("shrink-0 p-4 space-y-4 border-b", isRTL ? "text-right" : "text-left")}>
+          <h2 className="text-lg font-semibold mb-3">{isRTL ? 'إعدادات النموذج' : 'Form settings'}</h2>
 
           <div className="space-y-1.5">
-            <Label htmlFor="form-name">
-              Form name <span className="text-destructive">*</span>
+            <Label htmlFor="form-name" className={cn("block", isRTL ? "text-right" : "text-left")}>
+              {isRTL ? 'اسم النموذج' : 'Form name'} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="form-name"
               value={template.name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Company Formation Intake"
+              placeholder={isRTL ? 'مثال: نموذج تعبئة بيانات تأسيس الشركة' : 'e.g. Company Formation Intake'}
               aria-invalid={nameError}
-              className={nameError ? 'border-destructive' : undefined}
+              className={cn(nameError ? 'border-destructive' : undefined, isRTL ? "text-right" : "text-left")}
             />
             {nameError && (
-              <p className="text-xs text-destructive">Form name is required.</p>
+              <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
+                {isRTL ? 'اسم النموذج مطلوب.' : 'Form name is required.'}
+              </p>
             )}
           </div>
 
           {!hideAreaOfInterest && (
             <div className="space-y-2">
-              <Label>
-                Area of interest <span className="text-destructive">*</span>
+              <Label className={cn("block", isRTL ? "text-right" : "text-left")}>
+                {isRTL ? 'مجال الاهتمام' : 'Area of interest'} <span className="text-destructive">*</span>
               </Label>
               <div className="grid grid-cols-1 gap-2">
                 {AREA_OF_INTEREST_OPTIONS.map((option) => {
@@ -289,7 +292,7 @@ export function FormBuilder({
                   return (
                     <div
                       key={option.key}
-                      className="flex items-start gap-2 rounded-md border px-2.5 py-2"
+                      className={cn("flex items-start gap-2 rounded-md border px-2.5 py-2", isRTL ? "flex-row-reverse" : "flex-row")}
                     >
                       <Checkbox
                         id={`aoi-${option.key}`}
@@ -297,7 +300,7 @@ export function FormBuilder({
                         onCheckedChange={() => setAreaOfInterest(option.key)}
                         className="mt-0.5"
                       />
-                      <div className="min-w-0 flex-1">
+                      <div className={cn("min-w-0 flex-1", isRTL ? "text-right" : "text-left")}>
                         <Label
                           htmlFor={`aoi-${option.key}`}
                           className="font-normal cursor-pointer leading-snug"
@@ -316,16 +319,17 @@ export function FormBuilder({
                 })}
               </div>
               {areaError && (
-                <p className="text-xs text-destructive">Area of interest is required.</p>
+                <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
+                  {isRTL ? 'مجال الاهتمام مطلوب.' : 'Area of interest is required.'}
+                </p>
               )}
             </div>
           )}
         </div>
 
-        {/* Add field — static, no scroll */}
-        <div className="shrink-0 p-4 space-y-3 border-b">
-          <h2 className="text-lg font-semibold mb-3">Add field</h2>
-          <div className="flex flex-wrap gap-2">
+        <div className={cn("shrink-0 p-4 space-y-3 border-b", isRTL ? "text-right" : "text-left")}>
+          <h2 className="text-lg font-semibold mb-3">{isRTL ? 'إضافة حقل' : 'Add field'}</h2>
+          <div className={cn("flex flex-wrap gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
             {FIELD_TYPES.map((type) => (
               <AddFieldButton
                 key={type}
@@ -343,17 +347,16 @@ export function FormBuilder({
           </div>
         </div>
 
-        {/* Form canvas — scrollable */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
-          <h2 className="text-lg font-semibold mb-3">Form canvas</h2>
+        <div className={cn("flex-1 overflow-y-auto min-h-0 p-4 space-y-3", isRTL ? "text-right" : "text-left")}>
+          <h2 className="text-lg font-semibold mb-3">{isRTL ? 'مخطط النموذج' : 'Form canvas'}</h2>
           {fieldsError && (
-            <p className="text-xs text-destructive">
-              At least one field is required before saving.
+            <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
+              {isRTL ? 'يلزم إدخال حقل واحد على الأقل قبل الحفظ.' : 'At least one field is required before saving.'}
             </p>
           )}
           {template.fields.length === 0 ? (
             <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-              Your form fields will appear here.
+              {isRTL ? 'ستظهر حقول النموذج هنا.' : 'Your form fields will appear here.'}
             </div>
           ) : (
             <DndContext
@@ -380,40 +383,38 @@ export function FormBuilder({
           )}
         </div>
 
-        {/* Save button — pinned at bottom */}
         <div className="shrink-0 border-t bg-card px-6 py-4">
           <Button
             type="button"
-            className="w-full bg-emerald-700 hover:bg-emerald-800 h-11 text-base font-semibold"
+            className="w-full bg-emerald-700 hover:bg-emerald-800 h-11 text-base font-semibold cursor-pointer"
             onClick={() => void handleSave()}
             disabled={saving || !isDirty}
           >
             {saving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving…
+                <Loader2 className={cn("h-4 w-4 animate-spin", isRTL ? "ml-2" : "mr-2")} />
+                {isRTL ? 'جارٍ الحفظ…' : 'Saving…'}
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Form
+                <Save className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                {isRTL ? 'حفظ النموذج' : 'Save Form'}
               </>
             )}
           </Button>
         </div>
       </Card>
 
-      {/* ── Right panel — sticky preview ── */}
       <div
         className="lg:sticky lg:top-0"
         style={{ height: inline ? 'calc(100vh - 120px)' : 'calc(100vh - 140px)' }}
       >
         <Card className="h-full flex flex-col overflow-hidden p-4 gap-0">
-          <CardHeader className="shrink-0 px-0 pb-3">
-            <div className="flex items-center gap-2 min-w-0 flex-wrap">
-              <CardTitle className="text-xl shrink-0">Form Preview -</CardTitle>
+          <CardHeader className={cn("shrink-0 px-0 pb-3", isRTL ? "text-right" : "text-left")}>
+            <div className={cn("flex items-center gap-2 min-w-0 flex-wrap", isRTL ? "flex-row-reverse" : "flex-row")}>
+              <CardTitle className="text-xl shrink-0">{isRTL ? 'معاينة النموذج -' : 'Form Preview -'}</CardTitle>
               <span className="text-xl font-medium text-slate-500 truncate">
-                <span className="font-normal">{template.name.trim() || 'Untitled Form'}</span>
+                <span className="font-normal">{template.name.trim() || (isRTL ? 'نموذج بدون عنوان' : 'Untitled Form')}</span>
               </span>
             </div>
           </CardHeader>

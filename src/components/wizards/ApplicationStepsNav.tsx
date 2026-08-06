@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
+import { useLocale } from '@/contexts/LocaleContext'
+
 export type ApplicationStepNavItem = {
   id: string
   formName: string
@@ -101,6 +103,8 @@ export function ApplicationStepsNav({
   searchThreshold = 8,
   isStepAccessible,
 }: ApplicationStepsNavProps) {
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const [query, setQuery] = useState('')
   const activeRef = useRef<HTMLButtonElement>(null)
   const total = steps.length
@@ -144,17 +148,18 @@ export function ApplicationStepsNav({
           const accessible = canSelect(index)
 
           return (
-            <li key={step.id} className="relative pl-10 pr-1 pb-0.5 last:pb-0">
+            <li key={step.id} className={cn("relative pb-0.5 last:pb-0", isRTL ? "pr-10 pl-1" : "pl-10 pr-1")}>
               {showConnectors && !isLastInList && (
                 <span
                   className={cn(
-                    'absolute left-[15px] top-[2.125rem] bottom-0 w-0.5 -mb-0.5',
+                    'absolute top-[2.125rem] bottom-0 w-0.5 -mb-0.5',
+                    isRTL ? 'right-[15px]' : 'left-[15px]',
                     step.filled ? 'bg-emerald-400' : 'bg-border'
                   )}
                   aria-hidden
                 />
               )}
-              <div className="absolute left-0 top-2 z-[1]">
+              <div className={cn("absolute top-2 z-[1]", isRTL ? "right-0" : "left-0")}>
                 <StepNode
                   index={index}
                   active={active}
@@ -170,7 +175,8 @@ export function ApplicationStepsNav({
                   if (accessible) onStepSelect(index)
                 }}
                 className={cn(
-                  'group w-full rounded-lg py-2 px-3 text-left transition-colors',
+                  'group w-full rounded-lg py-2 px-3 transition-colors cursor-pointer',
+                  isRTL ? 'text-right' : 'text-left',
                   !accessible && 'opacity-50 cursor-not-allowed',
                   accessible && !active && 'hover:bg-muted/50',
                   active && step.adminUseOnly
@@ -181,7 +187,7 @@ export function ApplicationStepsNav({
                 )}
               >
                 <span className="min-w-0 block">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className={cn("flex items-center justify-between gap-2 flex-wrap", isRTL ? "flex-row-reverse" : "flex-row")}>
                     <span
                       className={cn(
                         'block text-xs font-semibold uppercase tracking-wider',
@@ -192,22 +198,22 @@ export function ApplicationStepsNav({
                             : 'text-muted-foreground'
                       )}
                     >
-                      Step {index + 1}
+                      {t('admin.wizards.stepSingular')} {index + 1}
                     </span>
-                    <span className="flex flex-wrap gap-1 justify-end">
+                    <span className={cn("flex flex-wrap gap-1", isRTL ? "justify-start" : "justify-end")}>
                       {step.paymentRequired && (
                         <span className="inline-block text-[10px] font-medium text-amber-800 bg-amber-100/80 border border-amber-200/60 rounded px-1.5 py-px">
-                          Payment
+                          {t('client.fill.payment')}
                         </span>
                       )}
                       {step.adminUseOnly && (
                         <span className="inline-block text-[10px] font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
-                          Admin only
+                          {t('client.fill.adminOnly')}
                         </span>
                       )}
                       {!accessible && !step.adminUseOnly && (
                         <span className="inline-block text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-px">
-                          Locked
+                          {t('client.fill.locked')}
                         </span>
                       )}
                     </span>
@@ -236,12 +242,12 @@ export function ApplicationStepsNav({
 
   return (
     <Card className={cn('flex flex-col overflow-hidden border-border/80 pb-0 pt-0', className)}>
-      <CardHeader className="pt-4 px-4 space-y-3 border-b bg-muted/20">
+      <CardHeader className={cn("pt-4 px-4 space-y-3 border-b bg-muted/20", isRTL ? "text-right" : "text-left")}>
         <div className='mb-0'>
-          <h2 className="text-lg font-semibold">Steps</h2>
+          <h2 className="text-lg font-semibold">{t('client.fill.steps')}</h2>
           
           <p className="text-sm text-muted-foreground mt-0.5">
-            Forms in order — {filled} of {total} completed
+            {t('client.fill.stepsSub').replace('{filled}', String(filled)).replace('{total}', String(total))}
           </p>
         </div>
         {/* <div className="h-2 rounded-full bg-muted overflow-hidden">

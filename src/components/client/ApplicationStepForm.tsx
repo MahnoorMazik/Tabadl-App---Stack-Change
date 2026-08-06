@@ -21,10 +21,11 @@ import axios from 'axios'
 import { WizardFilePreview } from '@/components/wizards/WizardFilePreview'
 import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
 import { isWizardFileUrl } from '@/lib/wizards/wizard-file-utils'
+import { useLocale } from '@/contexts/LocaleContext'
 
 export interface StepField {
-  id: string
-  required: boolean
+  id?: string
+  required?: boolean
   fieldId: string
   label: string
   type: string
@@ -33,7 +34,7 @@ export interface StepField {
   helpText?: string | null
   placeholder?: string | null
   answer?: { value: string | null; fileUrl: string | null }
-} 
+}
 
 export interface ApplicationStepFormProps {
   formName: string
@@ -111,6 +112,8 @@ export function ApplicationStepForm({
   applicationId,
   fileUploadBasePath,
 }: ApplicationStepFormProps) {
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const [values, setValues] = useState<Record<string, string>>({})
   const [fileNames, setFileNames] = useState<Record<string, string>>({})
   const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null)
@@ -244,108 +247,102 @@ export function ApplicationStepForm({
     try {
       const formData = new FormData()
       formData.append('file', file)
-      // Do not set Content-Type manually — browser must add the multipart boundary.
       const res = await axios.post(
         `${fileUploadBasePath}/${applicationId}/files`,
         formData
       )
-      const uploaded = res.data?.data?.file as
-        | { url: string; originalName: string }
-        | undefined
-      if (!uploaded?.url) {
-        throw new Error('Upload failed')
-      }
-      setValue(fieldId, uploaded.url)
-      setFileName(fieldId, uploaded.originalName || file.name)
-
-      // Persist immediately so admin can see the document without a separate Save click
-      const nextValues = { ...valuesRef.current, [fieldId]: uploaded.url }
-      const nextNames = {
-        ...fileNamesRef.current,
-        [fieldId]: uploaded.originalName || file.name,
-      }
-      await onSave?.(nextValues, { fileNames: nextNames })
+      const url = res.data?.data?.fileUrl
+      const originalName = res.data?.data?.originalName || file.name
+      if (!url) throw new Error('File URL missing')
+      setValue(fieldId, url)
+      setFileName(fieldId, originalName)
     } catch (error: any) {
-      setErrors((prev) => ({
-        ...prev,
-        [fieldId]:
-          error.response?.data?.error?.message ||
-          error.message ||
-          'Upload failed',
-      }))
+      const message = error.response?.data?.error?.message || 'File upload failed'
+      setErrors((prev) => ({ ...prev, [fieldId]: message }))
     } finally {
       setUploadingFieldId(null)
     }
   }
 
+  const handleRemoveFile = (fieldId: string) => {
+    setValue(fieldId, '')
+    setFileName(fieldId, '')
+  }
+
   const handleContinue = async () => {
-    const currentValues = getCurrentValues()
-    const canAdvance = allowStepAdvance !== false && !isLastStep
-    const canSubmitNow = allowSubmit !== false
-    const wantsSubmit = Boolean(isLastStep && showSubmit && canSubmitNow)
-    const mustValidate = canAdvance || wantsSubmit || Boolean(approvalRequired)
+    const curr = getCurrentValues()
+    if (!validate(curr)) return
+    const fileNamesMap = getCurrentFileNames()
 
-    if (mustValidate && !validate(currentValues)) return
+    if (isLastStep && showSubmit) {
+      if (onSave) {
+        await onSave(curr, { submit: true, fileNames: fileNamesMap })
+      }
+      return
+    }
 
-    await onSave?.(currentValues, {
-      goNext: canAdvance,
-      submit: wantsSubmit,
-      fileNames: getCurrentFileNames(),
-    })
+    if (onSave) {
+      await onSave(curr, { goNext: true, fileNames: fileNamesMap })
+    }
   }
 
   const handleSaveExit = async () => {
-    await onSaveAndExit?.(getCurrentValues(), { fileNames: getCurrentFileNames() })
+    const curr = getCurrentValues()
+    const fileNamesMap = getCurrentFileNames()
+    if (onSaveAndExit) {
+      await onSaveAndExit(curr, { fileNames: fileNamesMap })
+    } else if (onSave) {
+      await onSave(curr, { fileNames: fileNamesMap })
+    }
   }
 
   const progressPct = totalSteps > 0 ? Math.round(((stepIndex + 1) / totalSteps) * 100) : 0
 
   return (
-    <div className={cn('space-y-5', engaging && 'space-y-6')}>
+    <div className="space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       <div
         className={cn(
-          'rounded-xl border px-4 py-3',
+          'rounded-xl border p-4 sm:p-5 transition-all',
           engaging
-            ? 'border-emerald-200 bg-linear-to-r from-emerald-50 via-white to-sky-50 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20 shadow-sm'
-            : 'bg-muted/30'
+            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/80 shadow-sm'
+            : 'bg-muted/35 border-border'
         )}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className={cn('font-semibold', engaging ? 'text-base text-emerald-900 dark:text-emerald-100' : 'text-sm')}>
+        <div className={cn("flex flex-wrap items-center justify-between gap-3", isRTL ? "flex-row" : "flex-row")}>
+          {/* Main Title & Step Progress Info */}
+          <div className={cn("space-y-1 min-w-0", isRTL ? "text-right order-last" : "text-left order-first")}>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">
               {formName}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Step {stepIndex + 1} of {totalSteps}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {t('client.fill.stepOf').replace('{step}', String(stepIndex + 1)).replace('{total}', String(totalSteps))}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+
+          {/* Badges, Status & Header Actions */}
+          <div className={cn("flex items-center gap-2 flex-wrap shrink-0", isRTL ? "flex-row order-first" : "flex-row order-last")}>
             {approvalRequired && (
               <Badge
                 variant="outline"
-                className="text-[12px] border border-sky-300 bg-sky-100 text-sky-800"
+                className={cn("bg-sky-50 text-sky-800 border-sky-200 font-normal shrink-0 text-xs flex items-center gap-1", isRTL && "flex-row-reverse")}
               >
-                Admin Approval
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {t('client.fill.adminReview')}
               </Badge>
             )}
-            {paymentRequired && (
-              <Badge className="text-[12px] bg-violet-100 text-violet-800 border border-violet-300">
-                Payment Required
-              </Badge>
-            )}
+            {headerActions}
             {saveIndicator === 'saving' && (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Saving…
+              <span className={cn("inline-flex items-center text-xs text-muted-foreground bg-background/80 border rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
+                <Loader2 className="h-3 w-3 animate-spin text-emerald-600" />
+                {isRTL ? 'جارٍ الحفظ…' : 'Saving…'}
               </span>
             )}
             {saveIndicator === 'saved' && (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium">
+              <span className={cn("inline-flex items-center text-xs text-emerald-700 bg-emerald-100/90 border border-emerald-200 rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
                 <Check className="h-3 w-3" />
-                Saved
+                {isRTL ? 'تم الحفظ' : 'Saved'}
               </span>
             )}
-            {headerActions}
           </div>
         </div>
         {engaging && (
@@ -359,32 +356,32 @@ export function ApplicationStepForm({
       </div>
 
       {approvalRequired && approvalStatus === 'PENDING' && readOnly && (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-950">
-          <Clock className="h-4 w-4" />
-          <AlertTitle className="text-sm font-semibold">Pending approval from admin</AlertTitle>
+        <Alert className={cn("border-amber-200 bg-amber-50 text-amber-950", isRTL ? "text-right" : "text-left")}>
+          <Clock className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+          <AlertTitle className="text-sm font-semibold">{t('client.fill.pendingApproval')}</AlertTitle>
           <AlertDescription className="text-xs text-amber-900/90">
-            Your answers are saved and locked until an admin reviews this step.
+            {t('client.fill.pendingApprovalDesc')}
           </AlertDescription>
         </Alert>
       )}
 
       {approvalRequired && approvalStatus === 'APPROVED' && readOnly && (
-        <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950">
-          <Check className="h-4 w-4" />
-          <AlertTitle className="text-sm font-semibold">Step approved</AlertTitle>
+        <Alert className={cn("border-emerald-200 bg-emerald-50 text-emerald-950", isRTL ? "text-right" : "text-left")}>
+          <Check className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+          <AlertTitle className="text-sm font-semibold">{t('client.fill.stepApproved')}</AlertTitle>
           <AlertDescription className="text-xs text-emerald-900/90">
-            This step was approved by admin. Fields stay locked so approved data cannot be changed.
+            {t('client.fill.stepApprovedDesc')}
           </AlertDescription>
         </Alert>
       )}
 
       {approvalRequired && approvalStatus === 'REJECTED' && (
-        <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-950 [&>svg]:text-red-600">
-          <AlertTitle className="text-sm font-semibold">Changes requested</AlertTitle>
+        <Alert variant="destructive" className={cn("border-red-200 bg-red-50 text-red-950 [&>svg]:text-red-600", isRTL ? "text-right" : "text-left")}>
+          <AlertTitle className="text-sm font-semibold">{t('client.fill.changesRequested')}</AlertTitle>
           <AlertDescription className="text-xs">
             {rejectionNote?.trim()
               ? rejectionNote
-              : 'Admin rejected this step. Update the fields and save again for review.'}
+              : t('client.fill.changesRequestedDesc')}
           </AlertDescription>
         </Alert>
       )}
@@ -397,10 +394,11 @@ export function ApplicationStepForm({
                 key={field.fieldId}
                 className={cn(
                   'rounded-xl border border-sky-200 bg-sky-50 px-4 py-3.5',
-                  engaging && 'shadow-sm'
+                  engaging && 'shadow-sm',
+                  isRTL ? 'text-right' : 'text-left'
                 )}
               >
-                <div className="flex items-start gap-2.5">
+                <div className={cn("flex items-start gap-2.5", isRTL ? "flex-row-reverse" : "flex-row")}>
                   <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-[10px] font-semibold">
                     i
                   </span>
@@ -424,17 +422,18 @@ export function ApplicationStepForm({
             key={field.fieldId}
             className={cn(
               'space-y-1.5 rounded-xl border p-3.5 transition-shadow',
+              isRTL ? 'text-right' : 'text-left',
               engaging
                 ? 'bg-white dark:bg-card shadow-sm'
                 : 'bg-card'
             )}
           >
-            <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm')}>
-              <span className="text-muted-foreground/70 mr-0.5 text-xs font-normal">
+            <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm', isRTL ? 'flex-row-reverse justify-end w-full' : 'flex-row')}>
+              <span className="text-muted-foreground/70 text-xs font-normal">
                 {idx + 1}.
               </span>
-              {field.label}
-              {field.isRequired && <span className="text-destructive ml-0.5">*</span>}
+              <span>{field.label}</span>
+              {field.isRequired && <span className="text-destructive">*</span>}
               <FieldHelpTooltip text={field.helpText} />
             </Label>
 
@@ -445,18 +444,18 @@ export function ApplicationStepForm({
                 placeholder={field.placeholder || undefined}
                 disabled={readOnly}
                 rows={4}
-                className={engaging ? 'disabled:opacity-80 disabled:cursor-not-allowed focus-visible:ring-emerald-500 disabled:bg-gray-100' : undefined}
+                className={cn(isRTL ? 'text-right' : 'text-left', engaging ? 'disabled:opacity-80 disabled:cursor-not-allowed focus-visible:ring-emerald-500 disabled:bg-gray-100' : undefined)}
               />
             ) : field.type === 'SELECT' || field.type === 'RADIO' ? (
               <Select
-                value={values[field.fieldId] || undefined}
-                onValueChange={(v) => setValue(field.fieldId, v)}
+                value={values[field.fieldId] ?? ''}
+                onValueChange={(val) => setValue(field.fieldId, val)}
                 disabled={readOnly}
               >
-                <SelectTrigger className={engaging ? 'border-emerald-100' : undefined}>
-                  <SelectValue placeholder={field.placeholder || 'Select…'} />
+                <SelectTrigger className={cn("h-10", isRTL ? "text-right" : "text-left")}>
+                  <SelectValue placeholder={field.placeholder || "Select option"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
                   {(field.options ?? []).map((opt) => (
                     <SelectItem key={opt} value={opt}>
                       {opt}
@@ -477,77 +476,26 @@ export function ApplicationStepForm({
               </div>
             ) : field.type === 'FILE' ? (
               <div className="space-y-2">
-                {(isWizardFileUrl(values[field.fieldId]) ||
-                  isWizardFileUrl(field.answer?.fileUrl)) && (
+                {values[field.fieldId] ? (
                   <WizardFilePreview
-                    fileUrl={
-                      isWizardFileUrl(values[field.fieldId])
-                        ? values[field.fieldId]
-                        : field.answer?.fileUrl
-                    }
-                    fileName={
-                      fileNames[field.fieldId] ||
-                      (field.answer?.value && !isWizardFileUrl(field.answer.value)
-                        ? field.answer.value
-                        : null)
-                    }
+                    fileUrl={values[field.fieldId]}
+                    fileName={fileNames[field.fieldId]}
+                    onRemove={!readOnly ? () => handleRemoveFile(field.fieldId) : undefined}
+                  />
+                ) : (
+                  <Input
+                    type="file"
+                    disabled={readOnly || uploadingFieldId === field.fieldId}
+                    onChange={(e) => void handleFileUpload(field.fieldId, e.target.files?.[0])}
+                    className="h-10 cursor-pointer text-sm"
                   />
                 )}
-                {!isWizardFileUrl(values[field.fieldId]) &&
-                  !isWizardFileUrl(field.answer?.fileUrl) &&
-                  Boolean(
-                    (values[field.fieldId] || field.answer?.value || '').trim()
-                  ) && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
-                      <p className="font-medium truncate">
-                        {values[field.fieldId] || field.answer?.value}
-                      </p>
-                      <p className="text-xs text-amber-800/80 mt-0.5">
-                        Filename was saved, but the file itself is not available for preview.
-                        Please re-upload the document.
-                      </p>
-                    </div>
-                  )}
-                {!readOnly && (
-                  <div className="space-y-1.5">
-                    <Input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-                      disabled={uploadingFieldId === field.fieldId || saving}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        void handleFileUpload(field.fieldId, file)
-                        e.target.value = ''
-                      }}
-                      className={
-                        engaging
-                          ? 'cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-emerald-800 hover:file:bg-emerald-100'
-                          : undefined
-                      }
-                    />
-                    {uploadingFieldId === field.fieldId && (
-                      <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Uploading…
-                      </p>
-                    )}
-                    {!applicationId || !fileUploadBasePath ? (
-                      <p className="text-xs text-amber-700">
-                        Save is available after the application is loaded.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        PDF, PNG, or JPG · max 10MB
-                      </p>
-                    )}
+                {uploadingFieldId === field.fieldId && (
+                  <div className={cn("flex items-center gap-1.5 text-xs text-muted-foreground", isRTL && "flex-row-reverse")}>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                    <span>Uploading file…</span>
                   </div>
                 )}
-                {readOnly &&
-                  !isWizardFileUrl(values[field.fieldId]) &&
-                  !isWizardFileUrl(field.answer?.fileUrl) &&
-                  !(values[field.fieldId] || field.answer?.value || '').trim() && (
-                    <p className="text-sm text-muted-foreground">No file uploaded.</p>
-                  )}
               </div>
             ) : (
               <Input
@@ -566,12 +514,12 @@ export function ApplicationStepForm({
                 onChange={(e) => setValue(field.fieldId, e.target.value)}
                 placeholder={field.placeholder || undefined}
                 disabled={readOnly}
-                className={engaging ? 'focus-visible:ring-emerald-500 h-10 disabled:opacity-80 disabled:cursor-not-allowed disabled:bg-gray-100' : undefined}
+                className={cn(isRTL ? 'text-right' : 'text-left', engaging ? 'focus-visible:ring-emerald-500 h-10 disabled:opacity-80 disabled:cursor-not-allowed disabled:bg-gray-100' : undefined)}
               />
             )}
 
             {errors[field.fieldId] && (
-              <p className="text-xs text-destructive">{errors[field.fieldId]}</p>
+              <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{errors[field.fieldId]}</p>
             )}
           </div>
           )
@@ -588,21 +536,21 @@ export function ApplicationStepForm({
         <div
           className={cn(
             'flex flex-wrap items-center justify-between gap-2 pt-2 border-t',
+            isRTL ? 'flex-row-reverse' : 'flex-row',
             engaging && 'pt-4'
           )}
         >
-          <div className="flex gap-2">
+          <div className={cn("flex gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
             {onBack && stepIndex > 0 && (
-              <Button type="button" variant="outline" onClick={onBack} disabled={saving} className='cursor-pointer'>
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back
+              <Button type="button" variant="outline" onClick={onBack} disabled={saving} className="cursor-pointer">
+                {isRTL ? <ArrowRight className="h-4 w-4 ml-1" /> : <ArrowLeft className="h-4 w-4 mr-1" />}
+                {t('admin.wizards.modal.back')}
               </Button>
             )}
             {onSaveAndExit && (
-              <Button type="button" variant="outline" onClick={handleSaveExit} disabled={saving} className='cursor-pointer'>
-                <Save className="h-4 w-4 mr-1" />
-                {/* {saveExitLabel} */}
-                Save as Draft
+              <Button type="button" variant="outline" onClick={handleSaveExit} disabled={saving} className="cursor-pointer">
+                <Save className={cn("h-4 w-4", isRTL ? "ml-1" : "mr-1")} />
+                {t('client.fill.saveAsDraft')}
               </Button>
             )}
           </div>
@@ -616,19 +564,21 @@ export function ApplicationStepForm({
             disabled={saving}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className={cn("h-4 w-4 animate-spin", isRTL ? "ml-2" : "mr-2")} />
             ) : isLastStep && showSubmit ? (
-              <Check className="h-4 w-4 mr-2" />
+              <Check className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+            ) : isRTL ? (
+              <ArrowLeft className="h-4 w-4 ml-2" />
             ) : (
               <ArrowRight className="h-4 w-4 mr-2" />
             )}
             {isLastStep && showSubmit
               ? allowSubmit === false
-                ? 'Complete approvals to submit'
-                : 'Submit application'
+                ? t('client.fill.completeApprovalsToSubmit')
+                : t('client.fill.submitApplication')
               : allowStepAdvance === false
-                ? 'Save for admin review'
-                : 'Save & continue'}
+                ? t('client.fill.saveForAdminReview')
+                : t('client.fill.saveAndContinue')}
           </Button>
         </div>
       )}

@@ -20,7 +20,9 @@ import {
   AREA_OF_INTEREST_OPTIONS,
   AreaOfInterestKey,
 } from '@/components/admin/forms/types'
-import { ArrowLeft, Check, Loader2, Search, UserRound } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Loader2, Search, UserRound } from 'lucide-react'
+
+import { useLocale } from '@/contexts/LocaleContext'
 
 type ClientOption = {
   id: string
@@ -42,6 +44,20 @@ export function StartApplicationForClientModal({
   onStarted,
 }: StartApplicationForClientModalProps) {
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const getAreaLabel = (area: string) => {
+    switch (area) {
+      case 'CR':
+        return t('admin.wizards.areaOption.cr')
+      case 'PR':
+        return t('admin.wizards.areaOption.pr')
+      default:
+        return area
+    }
+  }
+
   const [step, setStep] = useState<'client' | 'type'>('client')
   const [clients, setClients] = useState<ClientOption[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
@@ -154,13 +170,13 @@ export function StartApplicationForClientModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b space-y-1">
-          <DialogTitle>Start Application for Client</DialogTitle>
+      <DialogContent dir={isRTL ? 'rtl' : 'ltr'} className="sm:max-w-lg p-0 gap-0 overflow-hidden">
+        <DialogHeader className={cn("px-5 pt-5 pb-3 border-b space-y-1", isRTL ? "text-right" : "text-left")}>
+          <DialogTitle>{t('admin.applications.startForClient')}</DialogTitle>
           <DialogDescription>
             {step === 'client'
-              ? 'Select a registered client, then choose CR or PR.'
-              : `Choose the application type for ${selectedClient?.name}.`}
+              ? isRTL ? 'اختر عميلاً مسجلاً، ثم اختر نوع الطلب (تسجيل الشركة أو خاص).' : 'Select a registered client, then choose CR or PR.'
+              : isRTL ? `اختر نوع الطلب لـ ${selectedClient?.name}.` : `Choose the application type for ${selectedClient?.name}.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -168,12 +184,12 @@ export function StartApplicationForClientModal({
           {step === 'client' ? (
             <>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Search className={cn("absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none", isRTL ? "right-2.5" : "left-2.5")} />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, email, company…"
-                  className="pl-8 h-9"
+                  placeholder={isRTL ? "ابحث حسب الاسم، البريد، الشركة..." : "Search by name, email, company…"}
+                  className={cn("h-9", isRTL ? "pr-8 text-right" : "pl-8 text-left")}
                   autoFocus
                 />
               </div>
@@ -185,7 +201,9 @@ export function StartApplicationForClientModal({
                   </div>
                 ) : filteredClients.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-10 px-4">
-                    {search.trim() ? 'No clients match your search.' : 'No clients found.'}
+                    {search.trim()
+                      ? isRTL ? 'لا يوجد عملاء يطابقون بحثك.' : 'No clients match your search.'
+                      : isRTL ? 'لم يتم العثور على عملاء.' : 'No clients found.'}
                   </p>
                 ) : (
                   <ul className="p-1.5 space-y-0.5">
@@ -197,13 +215,14 @@ export function StartApplicationForClientModal({
                             type="button"
                             onClick={() => setSelectedClient(client)}
                             className={cn(
-                              'w-full text-left rounded-md px-3 py-2.5 transition-colors',
+                              'w-full rounded-md px-3 py-2.5 transition-colors',
+                              isRTL ? 'text-right' : 'text-left',
                               active
                                 ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200'
                                 : 'hover:bg-muted/60'
                             )}
                           >
-                            <div className="flex items-start gap-2.5">
+                            <div className={cn("flex items-start gap-2.5", isRTL ? "flex-row-reverse" : "flex-row")}>
                               <span
                                 className={cn(
                                   'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
@@ -223,7 +242,7 @@ export function StartApplicationForClientModal({
                                   {client.name}
                                 </span>
                                 <span className="block text-xs text-muted-foreground truncate">
-                                  {client.email || 'No email'}
+                                  {client.email || (isRTL ? 'لا يوجد بريد' : 'No email')}
                                   {client.company ? ` · ${client.company}` : ''}
                                 </span>
                               </span>
@@ -238,8 +257,8 @@ export function StartApplicationForClientModal({
             </>
           ) : (
             <div className="space-y-3">
-              <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
-                <p className="text-xs text-muted-foreground">Selected client</p>
+              <div className={cn("rounded-lg border bg-muted/30 px-3 py-2.5", isRTL ? "text-right" : "text-left")}>
+                <p className="text-xs text-muted-foreground">{isRTL ? 'العميل المحدد' : 'Selected client'}</p>
                 <p className="text-sm font-medium">{selectedClient?.name}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   {selectedClient?.email}
@@ -247,7 +266,7 @@ export function StartApplicationForClientModal({
               </div>
 
               <div className="space-y-2">
-                <Label>Application type</Label>
+                <Label className={cn("block", isRTL ? "text-right" : "text-left")}>{t('client.applications.applicationType')}</Label>
                 <div className="grid gap-2">
                   {AREA_OF_INTEREST_OPTIONS.map((option) => {
                     const active = selectedArea === option.key
@@ -257,15 +276,20 @@ export function StartApplicationForClientModal({
                         type="button"
                         onClick={() => setSelectedArea(option.key)}
                         className={cn(
-                          'rounded-lg border px-3.5 py-3 text-left transition-colors',
+                          'rounded-lg border px-3.5 py-3 transition-colors',
+                          isRTL ? 'text-right' : 'text-left',
                           active
                             ? 'border-emerald-300 bg-emerald-50 ring-1 ring-inset ring-emerald-200'
                             : 'hover:bg-muted/50'
                         )}
                       >
-                        <span className="block text-sm font-semibold">{option.label}</span>
+                        <span className="block text-sm font-semibold">{getAreaLabel(option.key)}</span>
                         <span className="block text-xs text-muted-foreground mt-0.5">
-                          {option.description}
+                          {isRTL
+                            ? option.key === 'CR'
+                              ? 'إنشاء شركة ذات مسؤولية محدودة في السعودية'
+                              : 'للمستثمرين والمواهب والرياديين وغيرهم'
+                            : option.description}
                         </span>
                       </button>
                     )
@@ -276,7 +300,7 @@ export function StartApplicationForClientModal({
           )}
         </div>
 
-        <DialogFooter className="px-5 py-3 border-t bg-muted/20 gap-2 sm:gap-2">
+        <DialogFooter className={cn("px-5 py-3 border-t bg-muted/20 gap-2 sm:gap-2", isRTL ? "sm:flex-row-reverse" : "sm:flex-row")}>
           {step === 'type' && (
             <Button
               type="button"
@@ -286,37 +310,38 @@ export function StartApplicationForClientModal({
                 setSelectedArea(null)
               }}
               disabled={starting}
+              className="cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Back
+              {isRTL ? <ArrowRight className="h-4 w-4 ml-1.5" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
+              {t('admin.wizards.modal.back')}
             </Button>
           )}
-          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={starting}>
-            Cancel
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={starting} className="cursor-pointer">
+            {t('admin.wizards.dialog.cancel')}
           </Button>
           {step === 'client' ? (
             <Button
               type="button"
-              className="bg-emerald-700 hover:bg-emerald-800"
+              className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
               disabled={!selectedClient}
               onClick={() => setStep('type')}
             >
-              Continue
+              {t('admin.wizards.modal.next')}
             </Button>
           ) : (
             <Button
               type="button"
-              className="bg-emerald-700 hover:bg-emerald-800"
+              className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
               disabled={!selectedArea || starting}
               onClick={() => void handleStart()}
             >
               {starting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Starting…
+                  <Loader2 className={cn("h-4 w-4 animate-spin", isRTL ? "ml-1.5" : "mr-1.5")} />
+                  {t('admin.wizards.modal.creating')}
                 </>
               ) : (
-                'Start application'
+                isRTL ? 'بدء الطلب' : 'Start application'
               )}
             </Button>
           )}

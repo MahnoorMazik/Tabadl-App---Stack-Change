@@ -293,50 +293,78 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const existingDraft = await db.wizardApplication.findFirst({
-      where: {
-        clientId: client.id,
-        areaOfInterest: area,
-        isDeleted: false,
-        status: WizardApplicationStatus.DRAFT,
-      },
-      orderBy: { updatedAt: 'desc' },
-    })
+    const { applicationId, resumed } = await db.$transaction(async (tx) => {
+      const existingDraft = await tx.wizardApplication.findFirst({
+        where: {
+          clientId: client.id,
+          areaOfInterest: area,
+          isDeleted: false,
+          status: WizardApplicationStatus.DRAFT,
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
 
-    if (existingDraft) {
-      const detail = await getWizardApplicationDetail(existingDraft.id)
-      return addCorsHeaders(
-        createSuccessResponse(
-          {
-            application: await mapWizardApplicationDetail(detail!),
-            resumed: true,
+      if (existingDraft) {
+        await tx.wizardApplication.updateMany({
+          where: {
+            clientId: client.id,
+            areaOfInterest: area,
+            isDeleted: false,
+            status: WizardApplicationStatus.DRAFT,
+            id: { not: existingDraft.id },
           },
-          200,
-          { requestId, message: 'Existing draft application resumed' }
-        )
-      )
-    }
+          data: { isDeleted: true, deletedAt: new Date() },
+        })
+        return { applicationId: existingDraft.id, resumed: true }
+      }
 
-    const created = await db.wizardApplication.create({
-      data: {
-        applicationNumber: generateWizardApplicationNumber(),
-        clientId: client.id,
-        wizardId: anchor.id,
-        areaOfInterest: area,
-        status: WizardApplicationStatus.DRAFT,
-        currentStepIndex: 0,
-      },
+      const created = await tx.wizardApplication.create({
+        data: {
+          applicationNumber: generateWizardApplicationNumber(),
+          clientId: client.id,
+          wizardId: anchor.id,
+          areaOfInterest: area,
+          status: WizardApplicationStatus.DRAFT,
+          currentStepIndex: 0,
+        },
+      })
+
+      const drafts = await tx.wizardApplication.findMany({
+        where: {
+          clientId: client.id,
+          areaOfInterest: area,
+          isDeleted: false,
+          status: WizardApplicationStatus.DRAFT,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      })
+
+      if (drafts.length > 1) {
+        const keeperId = drafts[0].id
+        await tx.wizardApplication.updateMany({
+          where: { id: { in: drafts.slice(1).map((d) => d.id) } },
+          data: { isDeleted: true, deletedAt: new Date() },
+        })
+        return { applicationId: keeperId, resumed: keeperId !== created.id }
+      }
+
+      return { applicationId: created.id, resumed: false }
     })
 
-    const detail = await getWizardApplicationDetail(created.id)
+    const detail = await getWizardApplicationDetail(applicationId)
+
     return addCorsHeaders(
       createSuccessResponse(
         {
           application: await mapWizardApplicationDetail(detail!),
-          resumed: false,
+          resumed,
         },
-        201,
-        { requestId, message: 'Application started for client' }
+        resumed ? 200 : 201,
+        {
+          requestId,
+          message: resumed ? 'Existing draft application resumed' : 'Application started for client',
+        }
       )
     )
   } catch (error: unknown) {

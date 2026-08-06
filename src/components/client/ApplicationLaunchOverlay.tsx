@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useLocale } from '@/contexts/LocaleContext'
 
 type ApplicationLaunchOverlayProps = {
   open: boolean
@@ -17,6 +18,11 @@ export function ApplicationLaunchOverlay({
   mode = 'start',
   className,
 }: ApplicationLaunchOverlayProps) {
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const areaStr = areaLabel || (isRTL ? 'الطلب' : 'application')
+
   return (
     <AnimatePresence>
       {open && (
@@ -26,6 +32,7 @@ export function ApplicationLaunchOverlay({
             'bg-background/80 backdrop-blur-md',
             className
           )}
+          dir={isRTL ? 'rtl' : 'ltr'}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -33,7 +40,7 @@ export function ApplicationLaunchOverlay({
           role="alertdialog"
           aria-busy="true"
           aria-live="polite"
-          aria-label="Starting application"
+          aria-label={isRTL ? 'جارٍ بدء الطلب' : 'Starting application'}
         >
           <motion.div
             className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-emerald-200/80 bg-linear-to-br from-emerald-50 via-white to-teal-50 shadow-2xl shadow-emerald-900/10 px-8 py-10 text-center"
@@ -57,8 +64,8 @@ export function ApplicationLaunchOverlay({
               transition={{ delay: 0.08 }}
             >
               {mode === 'continue'
-                ? 'Continuing your application'
-                : 'Your application is starting'}
+                ? t('client.fill.continuingApp')
+                : t('client.fill.startingApp')}
             </motion.h2>
 
             <motion.p
@@ -67,13 +74,9 @@ export function ApplicationLaunchOverlay({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.14 }}
             >
-              {areaLabel
-                ? mode === 'continue'
-                  ? `Loading your ${areaLabel} draft…`
-                  : `Preparing your ${areaLabel} forms — one moment…`
-                : mode === 'continue'
-                  ? 'Loading your draft…'
-                  : 'Preparing your forms — one moment…'}
+              {mode === 'continue'
+                ? t('client.fill.loadingDraft').replace('{area}', areaStr)
+                : t('client.fill.preparingForms').replace('{area}', areaStr)}
             </motion.p>
 
             <motion.div

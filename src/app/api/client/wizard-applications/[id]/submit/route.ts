@@ -24,6 +24,8 @@ import {
   assertClientMayEditStepAnswers,
   syncStepReviewAfterClientSave,
 } from '@/lib/wizards/wizard-step-approval'
+import { sendApplicationStatusEmail } from '@/lib/email/application-email-service'
+import { sendApplicationStatusWhatsApp } from '@/lib/whatsapp/application-whatsapp'  // ✅ ADD THIS
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -42,7 +44,7 @@ const submitBodySchema = z.object({
     .optional(),
 })
 
-/** POST /api/client/wizard-applications/[id]/submit — save final step (optional) then submit → PENDING */
+/** POST /api/client/wizard-applications/[id]/submit */
 export async function POST(request: NextRequest, context: RouteContext) {
   const requestId = getRequestId(request)
   const { id } = await context.params
@@ -76,6 +78,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const app = await db.wizardApplication.findFirst({
       where: { id, clientId: access.client.id, isDeleted: false },
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,  // ✅ ADDED phone for WhatsApp
+          }
+        },
+        wizard: {
+          select: {
+            name: true,
+            areaOfInterest: true,
+          }
+        }
+      }
     })
 
     if (!app) {
@@ -85,6 +103,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
       )
     }
+
+    // ✅ LOG: Check client details
+    console.log('🔍 Client Details:')
+    console.log('   Name:', app.client?.name)
+    console.log('   Email:', app.client?.email)
+    console.log('   Phone:', app.client?.phone)
 
     if (app.status !== WizardApplicationStatus.DRAFT) {
       return addCorsHeaders(
@@ -175,21 +199,129 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
     const totalSteps = appWithWizard?.wizard.steps.length ?? 0
 
-    await db.wizardApplication.update({
+    const updatedApp = await db.wizardApplication.update({
       where: { id },
       data: {
         status: WizardApplicationStatus.PENDING,
         submittedAt: new Date(),
         currentStepIndex: Math.max(0, totalSteps - 1),
       },
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,  // ✅ ADDED phone for WhatsApp
+          }
+        },
+        wizard: {
+          select: {
+            name: true,
+            areaOfInterest: true,
+          }
+        }
+      }
     })
+
+    console.log('✅ Application submitted:', updatedApp.applicationNumber)
+
+    // 📧 SEND SUBMISSION EMAIL
+    let emailResult = { success: false, error: 'No email sent' }
+    
+    if (updatedApp.client?.email) {
+      try {
+        console.log('📧 Sending email to:', updatedApp.client.email)
+        
+        const result = await sendApplicationStatusEmail({
+          applicationId: updatedApp.id,
+          applicationNumber: updatedApp.applicationNumber,
+          status: 'SUBMITTED',
+          recipientEmail: updatedApp.client.email,
+          serviceName: updatedApp.areaOfInterest || updatedApp.wizard?.name,
+          adminNotes: 'Your application has been submitted successfully. Our team will review it shortly.',
+        })
+        
+        emailResult = {
+          success: result.success,
+          error: result.error || 'Unknown error',
+        }
+
+        if (result.success) {
+          console.log('✅ Submission email sent to:', updatedApp.client.email)
+        } else {
+          console.error('❌ Submission email failed:', result.error)
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send submission email:', emailError)
+        emailResult = {
+          success: false,
+          error: emailError instanceof Error ? emailError.message : 'Unknown error',
+        }
+      }
+    } else {
+      console.log('⚠️ No email found for client, skipping email')
+    }
+
+    // 📱 SEND WHATSAPP NOTIFICATION - 🔥 THIS IS WHAT WAS MISSING!
+    let whatsappResult = { success: false, error: 'No WhatsApp sent' }
+    
+    console.log('🔍 Checking WhatsApp conditions:')
+    console.log('   Client Phone exists?', !!updatedApp.client?.phone)
+    console.log('   Client Phone value:', updatedApp.client?.phone)
+    
+    if (updatedApp.client?.phone) {
+      try {
+        console.log('📱 Sending WhatsApp notification for submission')
+        console.log('📱 Recipient:', updatedApp.client.phone)
+        console.log('📱 Application:', updatedApp.applicationNumber)
+        
+        const result = await sendApplicationStatusWhatsApp({
+          applicationId: updatedApp.id,
+          applicationNumber: updatedApp.applicationNumber,
+          status: 'SUBMITTED',
+          recipientPhone: updatedApp.client.phone,
+          serviceName: updatedApp.areaOfInterest || updatedApp.wizard?.name,
+          adminNotes: 'Your application has been submitted successfully. Our team will review it shortly.',
+        })
+        
+        whatsappResult = {
+          success: result.success,
+          error: result.error || 'Unknown error',
+        }
+        
+        if (result.success) {
+          console.log('✅ WhatsApp notification sent successfully!')
+        } else {
+          console.log('❌ WhatsApp failed:', result.error)
+        }
+      } catch (whatsappError) {
+        console.error('❌ Failed to send WhatsApp:', whatsappError)
+        whatsappResult = {
+          success: false,
+          error: whatsappError instanceof Error ? whatsappError.message : 'Unknown error',
+        }
+      }
+    } else {
+      console.log('⚠️ No phone number found for client, skipping WhatsApp')
+      console.log('   Client ID:', updatedApp.client?.id)
+      console.log('   Client Name:', updatedApp.client?.name)
+    }
 
     const detail = await getWizardApplicationDetail(id)
     return addCorsHeaders(
       createSuccessResponse(
-        { application: await mapWizardApplicationDetail(detail!) },
+        { 
+          application: await mapWizardApplicationDetail(detail!),
+          emailSent: emailResult.success,
+          whatsappSent: whatsappResult.success,  // ✅ ADDED
+          whatsappError: whatsappResult.error,   // ✅ ADDED
+        },
         200,
-        { requestId, message: 'Application submitted — status is now Pending' }
+        { 
+          requestId, 
+          message: `Application submitted — status is now Pending. ${emailResult.success ? '📧 Email sent' : '📧 Email failed'} | ${whatsappResult.success ? '📱 WhatsApp sent' : '📱 WhatsApp failed'}`
+        }
       )
     )
   } catch (error: unknown) {

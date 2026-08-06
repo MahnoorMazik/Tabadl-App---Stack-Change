@@ -45,7 +45,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     href: '/dashboard',
   },
   {
-    title: 'Complete Profile',
+    title: t('client.sidebar.completeProfile'),
     icon: User,
     href: '/client/profile',
   },
@@ -57,11 +57,6 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         title: t('client.sidebar.allApplications'),
         icon: FileText,
         href: '/client/applications',
-      },
-      {
-        title: t('client.sidebar.timeline'),
-        icon: Calendar,
-        href: '/client/timeline',
       },
     ],
   },
@@ -97,7 +92,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     href: '/client/messages',
   },
   {
-    title: 'My Invoices',
+    title: t('client.sidebar.myInvoices'),
     icon: Receipt,
     href: '/client/invoices',
   },
@@ -117,7 +112,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
       },
     ],
   },
-];
+]
 
 interface ClientSidebarProps {
   className?: string

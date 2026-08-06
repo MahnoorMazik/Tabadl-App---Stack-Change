@@ -18,6 +18,8 @@ import { CanvasField, mapApiTemplateDetail } from '@/components/admin/forms/type
 import { WizardListItem } from './types'
 import { cn } from '@/lib/utils'
 
+import { useLocale } from '@/contexts/LocaleContext'
+
 interface WizardPreviewModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -36,6 +38,9 @@ export function WizardPreviewModal({
   const [fields, setFields] = useState<CanvasField[]>([])
   const [formName, setFormName] = useState('')
   const [loadingForm, setLoadingForm] = useState(false)
+
+  const { locale } = useLocale()
+  const isRTL = locale === 'ar'
 
   const steps = wizard?.steps ?? []
   const currentStep = steps[stepIndex]
@@ -119,7 +124,7 @@ export function WizardPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent dir={isRTL ? 'rtl' : 'ltr'} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{wizard.name || 'Application wizard preview'}</DialogTitle>
           <DialogDescription>

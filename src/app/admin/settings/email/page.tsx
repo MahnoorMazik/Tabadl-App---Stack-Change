@@ -51,6 +51,7 @@ export default function EmailSettingsPage() {
   
   const [loading, setLoading] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [isConfigured, setIsConfigured] = useState(false)
   const [testResult, setTestResult] = useState<{ 
     success: boolean
     message: string
@@ -109,6 +110,11 @@ export default function EmailSettingsPage() {
        
        // Handle structured response format: { success: true, data: { emailConfig: {...} } }
        const emailConfigData = response.data?.data?.emailConfig || response.data?.emailConfig
+       const configured =
+         response.data?.data?.isConfigured ??
+         response.data?.isConfigured ??
+         false
+       setIsConfigured(Boolean(configured))
        if (emailConfigData) {
         // Ensure arrays are always arrays
         const configWithDefaults = {
@@ -175,6 +181,7 @@ export default function EmailSettingsPage() {
       
       // Clear errors on success
       setErrors({})
+      setIsConfigured(true)
       
       toast({
         title: 'Success',
@@ -381,6 +388,14 @@ export default function EmailSettingsPage() {
       showConstruction={false}
     >
       <div className="max-w-6xl mx-auto space-y-6">
+        {!loading && !isConfigured && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              SMTP settings are not saved in the database yet. Application status emails will not send until you enter the SMTP password and click <strong>Save Configuration</strong>. Test Email alone does not save settings.
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Mail Driver & Host Configuration */}
         <Card>
           <CardHeader>

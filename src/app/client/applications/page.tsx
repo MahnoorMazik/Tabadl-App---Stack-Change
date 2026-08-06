@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
@@ -39,8 +39,9 @@ import { useToast } from '@/hooks/use-toast'
 import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
-import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+import { wizardStatusClasses } from '@/lib/wizards/wizard-status'
 import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
+import { useLocale } from '@/contexts/LocaleContext'
 
 type ApplicationItem = {
   id: string
@@ -57,17 +58,23 @@ type ApplicationItem = {
 const LAUNCH_MIN_MS = 1400
 const PAGE_SIZE = 10
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, label, isRTL }: { status: string; label: string; isRTL: boolean }) {
   return (
-    <Badge className={cn('border hover:opacity-100 px-2 py-0.5 font-medium rounded-md', wizardStatusClasses(status))}>
-      {status === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
-      {(status === 'APPROVED' || status === 'COMPLETED') && (
-        <CheckCircle className="h-3 w-3 mr-1" />
+    <Badge
+      className={cn(
+        'border hover:opacity-100 px-2 py-0.5 font-medium rounded-md inline-flex items-center',
+        wizardStatusClasses(status),
+        isRTL ? 'flex-row-reverse' : 'flex-row'
       )}
-      {status === 'REJECTED' && <AlertCircle className="h-3 w-3 mr-1" />}
-      {status === 'DRAFT' && <FileText className="h-3 w-3 mr-1" />}
-      {status === 'HARD_COPY_REQUIRED' && <FileText className="h-3 w-3 mr-1" />}
-      {wizardStatusLabel(status)}
+    >
+      {status === 'PENDING' && <Clock className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {(status === 'APPROVED' || status === 'COMPLETED') && (
+        <CheckCircle className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />
+      )}
+      {status === 'REJECTED' && <AlertCircle className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {status === 'DRAFT' && <FileText className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {status === 'HARD_COPY_REQUIRED' && <FileText className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {label}
     </Badge>
   )
 }
@@ -75,6 +82,8 @@ function StatusBadge({ status }: { status: string }) {
 export default function ClientApplicationsPage() {
   const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const {
     isSidebarCollapsed,
     isMobileSidebarOpen,
@@ -92,6 +101,8 @@ export default function ClientApplicationsPage() {
     label: string
     continuing: boolean
   } | null>(null)
+  /** Sync lock so double-clicks cannot start two creates before React state updates. */
+  const launchLockRef = useRef(false)
 
   const fetchApplications = useCallback(async (silent = false) => {
     if (!silent) setLoadingApps(true)
@@ -159,8 +170,52 @@ export default function ClientApplicationsPage() {
   const draftForArea = (area: AreaOfInterestKey) =>
     applications.find((a) => a.areaOfInterest === area && a.status === 'DRAFT')
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'DRAFT':
+        return t('client.applications.status.draft')
+      case 'PENDING':
+        return t('client.applications.status.pending')
+      case 'IN_PROGRESS':
+        return t('client.applications.status.inProgress')
+      case 'HARD_COPY_REQUIRED':
+        return t('client.applications.status.hardCopyRequired')
+      case 'APPROVED':
+        return t('client.applications.status.approved')
+      case 'REJECTED':
+        return t('client.applications.status.rejected')
+      case 'COMPLETED':
+        return t('client.applications.status.completed')
+      default:
+        return status
+    }
+  }
+
+  const getAreaLabel = (area: AreaOfInterestKey) => {
+    switch (area) {
+      case 'CR':
+        return t('client.applications.area.cr.label')
+      case 'PR':
+        return t('client.applications.area.pr.label')
+      default:
+        return area
+    }
+  }
+
+  const getAreaDescription = (area: AreaOfInterestKey) => {
+    switch (area) {
+      case 'CR':
+        return t('client.applications.area.cr.description')
+      case 'PR':
+        return t('client.applications.area.pr.description')
+      default:
+        return ''
+    }
+  }
+
   const beginApplication = async (area: AreaOfInterestKey, label: string) => {
-    if (launch) return
+    if (launchLockRef.current || launch) return
+    launchLockRef.current = true
 
     const draft = draftForArea(area)
     setLaunch({ area, label, continuing: Boolean(draft) })
@@ -169,6 +224,7 @@ export default function ClientApplicationsPage() {
 
     try {
       let appId: string
+      let resumed = Boolean(draft)
 
       if (draft) {
         appId = draft.id
@@ -181,27 +237,66 @@ export default function ClientApplicationsPage() {
             description: `There is no active form for ${label} yet. Please check back later.`,
             variant: 'destructive',
           })
-          setLaunch(null)
           return
         }
 
+        // Always go through API — it resumes an existing DRAFT for this area (no duplicate).
         const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
         const app = res.data?.data?.application
         if (!app?.id) {
           throw new Error('Could not start application')
         }
         appId = app.id
+        resumed = Boolean(res.data?.data?.resumed)
+
+        // Optimistically mark draft in local list so the behind-tab UI shows Continue immediately.
+        setApplications((prev) => {
+          if (prev.some((a) => a.id === app.id)) return prev
+          return [
+            {
+              id: app.id,
+              applicationNumber: app.applicationNumber ?? '',
+              status: app.status ?? 'DRAFT',
+              areaOfInterest: app.areaOfInterest ?? area,
+              submittedAt: app.submittedAt ?? null,
+              updatedAt: app.updatedAt ?? new Date().toISOString(),
+              adminNotes: app.adminNotes ?? null,
+              wizard: app.wizard ?? {
+                id: app.wizardId ?? '',
+                name: label,
+                areaOfInterest: area,
+              },
+              progress: app.progress ?? {
+                totalSteps: flow.totalSteps,
+                completedSteps: 0,
+                currentStepIndex: 0,
+              },
+            },
+            ...prev,
+          ]
+        })
       }
 
       await minWait
       window.open(`/client/applications/${appId}`, '_blank', 'noopener,noreferrer')
-      setLaunch(null)
+
+      if (resumed && !draft) {
+        toast({
+          title: 'Opening existing draft',
+          description: `You already have an unfinished ${label} application — continuing that one.`,
+        })
+      }
+
+      // Sync list so the original tab shows Continue / draft badge without waiting for focus.
+      void fetchApplications(true)
     } catch (error: any) {
       toast({
         title: 'Could not open application',
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
+    } finally {
+      launchLockRef.current = false
       setLaunch(null)
     }
   }
@@ -213,8 +308,8 @@ export default function ClientApplicationsPage() {
       onToggleMobile={toggleMobileSidebar}
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
-      title="Applications"
-      description="Start a new application or track ones you already applied"
+      title={t('client.applications.pageTitle')}
+      description={t('client.applications.pageDescription')}
       icon={<ClipboardList className="h-5 w-5 text-emerald-600" />}
     >
       <ApplicationLaunchOverlay
@@ -234,7 +329,7 @@ export default function ClientApplicationsPage() {
             onValueChange={(v) => setActiveTab(v as 'new' | 'applied')}
             className="space-y-4"
           >
-            <TabsList className="gap-3 flex justify-end ml-auto h-auto bg-transparent p-0 rounded-none shadow-none">
+            <TabsList className={cn('gap-3 flex h-auto bg-transparent p-0 rounded-none shadow-none', isRTL ? 'mr-auto flex-row-reverse' : 'ml-auto')}>
               <TabsTrigger
                 value="new"
                 className={cn(
@@ -244,11 +339,12 @@ export default function ClientApplicationsPage() {
                   'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
                   'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
                   'data-[state=inactive]:border-gray-300',
-                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border'
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border',
+                  isRTL ? 'flex-row-reverse' : 'flex-row'
                 )}
               >
                 <FileText className="h-4 w-4" />
-                New application
+                {t('client.applications.newTab')}
               </TabsTrigger>
               <TabsTrigger
                 value="applied"
@@ -259,11 +355,12 @@ export default function ClientApplicationsPage() {
                   'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
                   'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
                   'data-[state=inactive]:border-gray-300',
-                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border'
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border',
+                  isRTL ? 'flex-row-reverse' : 'flex-row'
                 )}
               >
                 <ListChecks className="h-4 w-4" />
-                Applied applications
+                {t('client.applications.appliedTab')}
                 {applications.length > 0 && (
                   <Badge
                     className={cn(
@@ -289,10 +386,11 @@ export default function ClientApplicationsPage() {
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Start a new application</CardTitle>
-                  <CardDescription className="text-muted-foreground text-sm">
-                    Choose your area of interest — we&apos;ll open the active application wizard
-                    for that service right away.
+                  <CardTitle className={cn('text-lg font-semibold', isRTL ? 'text-right' : 'text-left')}>
+                    {t('client.applications.newCardTitle')}
+                  </CardTitle>
+                  <CardDescription className={cn('text-muted-foreground text-sm', isRTL ? 'text-right' : 'text-left')}>
+                    {t('client.applications.newCardDescription')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-3">
@@ -305,22 +403,23 @@ export default function ClientApplicationsPage() {
                           key={option.key}
                           type="button"
                           disabled={Boolean(launch)}
-                          onClick={() => void beginApplication(option.key, option.label)}
+                          onClick={() => void beginApplication(option.key, getAreaLabel(option.key))}
                           className={cn(
-                            'group relative flex justify-start flex-col rounded-xl border bg-white dark:bg-card p-4 text-left transition-all cursor-pointer hover:border-primary/30 hover:bg-primary/10',
+                            'group relative flex justify-start flex-col rounded-xl border bg-white dark:bg-card p-4 transition-all cursor-pointer hover:border-primary/30 hover:bg-primary/10',
                             'hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/10',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
                             isLaunching && 'border-emerald-500 ring-2 ring-emerald-500/30',
-                            launch && !isLaunching && 'opacity-60 pointer-events-none'
+                            launch && !isLaunching && 'opacity-60 pointer-events-none',
+                            isRTL ? 'text-right' : 'text-left'
                           )}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-base">{option.label}</span>
+                          <div className={cn('flex items-center gap-2 mb-2', isRTL ? 'justify-between flex-row-reverse' : 'justify-between flex-row')}>
+                            <span className="font-semibold text-base flex-1">{getAreaLabel(option.key)}</span>
 
-                            <div className="flex items-center gap-2">
+                            <div className={cn('flex items-center gap-2 shrink-0', isRTL ? 'flex-row-reverse' : 'flex-row')}>
                               {draft && (
                                 <Badge className="text-[12px] bg-amber-100 text-amber-900 border-amber-200 w-fit">
-                                  Draft in progress
+                                  {t('client.applications.draftBadge')}
                                 </Badge>
                               )}
                               <Badge variant="secondary" className="text-[12px] bg-gray-100 border-gray-300">
@@ -329,11 +428,11 @@ export default function ClientApplicationsPage() {
                             </div>
 
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                            {option.description}
+                          <p className={cn('text-sm text-muted-foreground leading-relaxed', isRTL ? 'text-right' : 'text-left')}>
+                            {getAreaDescription(option.key)}
                           </p>
-                          <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
-                            {draft ? 'Continue draft →' : 'Start application →'}
+                          <p className={cn('mt-3 text-sm font-medium text-emerald-700 group-hover:text-emerald-800', isRTL ? 'text-right' : 'text-left')}>
+                            {draft ? `${t('client.applications.continueDraft')} ${isRTL ? '←' : '→'}` : `${t('client.applications.startApplication')} ${isRTL ? '←' : '→'}`}
                           </p>
                           
                         </button>
@@ -354,26 +453,26 @@ export default function ClientApplicationsPage() {
             >
               <Card>
                 <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <CardTitle>Applied applications</CardTitle>
-                      <CardDescription className="mt-0.5">
+                  <div className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3', isRTL ? 'sm:flex-row-reverse' : 'sm:flex-row')}>
+                    <div className={cn(isRTL ? 'text-right' : 'text-left')}>
+                      <CardTitle>{t('client.applications.appliedTab')}</CardTitle>
+                      <CardDescription className={cn('mt-0.5', isRTL ? 'text-right' : 'text-left')}>
                         {loadingApps
-                          ? 'Loading…'
+                          ? t('client.applications.loading')
                           : filteredApplications.length === 0
                             ? search
-                              ? 'No results found'
-                              : 'No applications yet'
-                            : `${filteredApplications.length} application${filteredApplications.length === 1 ? '' : 's'}${search ? ' found' : ''}. Track status and continue drafts anytime.`}
+                              ? t('client.applications.noResults')
+                              : t('client.applications.noApplicationsYet')
+                            : `${filteredApplications.length} ${filteredApplications.length === 1 ? t('client.applications.applicationCountSingular') : t('client.applications.applicationCountPlural')}${search ? ` ${t('client.applications.foundSuffix')}` : ''}. ${t('client.applications.trackStatus')}`}
                       </CardDescription>
                     </div>
                     <div className="relative sm:w-64">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                      <Search className={cn('absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none', isRTL ? 'right-2.5' : 'left-2.5')} />
                       <Input
-                        placeholder="Search applications…"
+                        placeholder={t('client.applications.searchPlaceholder')}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-8 h-9 text-sm"
+                        className={cn('h-9 text-sm', isRTL ? 'pr-8 text-right' : 'pl-8 text-left')}
                       />
                     </div>
                   </div>
@@ -385,34 +484,34 @@ export default function ClientApplicationsPage() {
                     </div>
                   ) : applications.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-10 text-center space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        No applications yet. Start one from the New application tab.
+                      <p className={cn('text-sm text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                        {t('client.applications.emptyStateMessage')}
                       </p>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => setActiveTab('new')}
                       >
-                        <Plus className="h-4 w-4 mr-1.5" />
-                        Start new application
+                        <Plus className={cn('h-4 w-4', isRTL ? 'ml-1.5' : 'mr-1.5')} />
+                        {t('client.applications.startNewApplication')}
                       </Button>
                     </div>
                   ) : filteredApplications.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                      No applications match your search.
+                    <div className={cn('rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                      {t('client.applications.noSearchResults')}
                     </div>
                   ) : (
                     <>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Application</TableHead>
-                            <TableHead>Area</TableHead>
-                            <TableHead>Progress</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Admin update</TableHead>
-                            <TableHead className="w-28">Updated</TableHead>
-                            <TableHead className="w-28 text-right">Actions</TableHead>
+                            <TableHead>{t('client.applications.table.application')}</TableHead>
+                            <TableHead>{t('client.applications.table.area')}</TableHead>
+                            <TableHead>{t('client.applications.table.progress')}</TableHead>
+                            <TableHead>{t('client.applications.table.status')}</TableHead>
+                            <TableHead>{t('client.applications.table.adminUpdate')}</TableHead>
+                            <TableHead className="w-28">{t('client.applications.table.updated')}</TableHead>
+                            <TableHead className={cn('w-28', isRTL ? 'text-left' : 'text-right')}>{t('client.applications.table.actions')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -437,23 +536,23 @@ export default function ClientApplicationsPage() {
                                 <TableCell>
                                   <span className="text-sm text-muted-foreground whitespace-nowrap">
                                     {app.progress.completedSteps}/{app.progress.totalSteps}{' '}
-                                    step{app.progress.totalSteps === 1 ? '' : 's'}
+                                    {app.progress.totalSteps === 1 ? t('client.applications.table.stepSingular') : t('client.applications.table.stepPlural')}
                                   </span>
                                 </TableCell>
                                 <TableCell>
-                                  <StatusBadge status={app.status} />
+                                  <StatusBadge status={app.status} label={getStatusLabel(app.status)} isRTL={isRTL} />
                                 </TableCell>
-                                <TableCell className="max-w-[220px]">
+                                <TableCell className="max-w-55">
                                   {app.adminNotes ? (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="rounded-md bg-amber-100 border border-amber-200/80 px-2 py-1.5 shadow-sm text-xs text-amber-950 truncate cursor-default max-w-[200px]">
+                                        <div className="rounded-md bg-amber-100 border border-amber-200/80 px-2 py-1.5 shadow-sm text-xs text-amber-950 truncate cursor-default max-w-50">
                                           {app.adminNotes}
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent
                                         side="top"
-                                        className="max-w-xs whitespace-pre-wrap break-words bg-amber-50 text-amber-950 border border-amber-200"
+                                        className="max-w-xs whitespace-pre-wrap wrap-break-word bg-amber-50 text-amber-950 border border-amber-200"
                                       >
                                         {app.adminNotes}
                                       </TooltipContent>
@@ -465,8 +564,8 @@ export default function ClientApplicationsPage() {
                                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                   {format(new Date(app.updatedAt), 'dd/MM/yyyy')}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end gap-1">
+                                <TableCell className={cn(isRTL ? 'text-left' : 'text-right')}>
+                                  <div className={cn('flex items-center gap-1', isRTL ? 'justify-start' : 'justify-end')}>
                                     <Button
                                       type="button"
                                       variant="ghost"
@@ -479,7 +578,7 @@ export default function ClientApplicationsPage() {
                                           'noopener,noreferrer'
                                         )
                                       }
-                                      aria-label={isDraft ? 'Continue application' : 'View application'}
+                                      aria-label={isDraft ? t('client.applications.continueApplication') : t('client.applications.viewApplication')}
                                     >
                                       {isDraft ? (
                                         <ArrowRight className="h-4 w-4" />
@@ -496,23 +595,24 @@ export default function ClientApplicationsPage() {
                       </Table>
 
                       {filteredApplications.length > PAGE_SIZE && (
-                        <div className="flex items-center justify-between border-t pt-4 mt-2">
-                          <p className="text-xs text-muted-foreground">
-                            Page {safePage} of {totalPages} &mdash;{' '}
-                            {filteredApplications.length} record
-                            {filteredApplications.length === 1 ? '' : 's'}
+                        <div className={cn("flex items-center justify-between border-t pt-4 mt-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                          <p className={cn('text-xs text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                            {t('client.applications.table.pageOf').replace('{page}', String(safePage)).replace('{totalPages}', String(totalPages))}{' '}
+                            &mdash;{' '}
+                            {filteredApplications.length}{' '}
+                            {filteredApplications.length === 1 ? t('client.applications.table.record') : t('client.applications.table.records')}
                           </p>
-                          <div className="flex items-center gap-1">
+                          <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
                             <Button
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-8 w-8 cursor-pointer"
                               onClick={() => setPage((p) => Math.max(1, p - 1))}
                               disabled={safePage === 1}
-                              aria-label="Previous page"
+                              aria-label={t('client.applications.previousPage')}
                             >
-                              <ChevronLeft className="h-4 w-4" />
+                              {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                             </Button>
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                               <Button
@@ -520,13 +620,13 @@ export default function ClientApplicationsPage() {
                                 type="button"
                                 variant={p === safePage ? 'default' : 'outline'}
                                 size="icon"
-                                className={`h-8 w-8 text-xs ${
+                                className={`h-8 w-8 text-xs cursor-pointer ${
                                   p === safePage
                                     ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
                                     : ''
                                 }`}
                                 onClick={() => setPage(p)}
-                                aria-label={`Page ${p}`}
+                                aria-label={t('client.applications.pageLabel').replace('{page}', String(p))}
                               >
                                 {p}
                               </Button>
@@ -535,12 +635,12 @@ export default function ClientApplicationsPage() {
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-8 w-8 cursor-pointer"
                               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                               disabled={safePage === totalPages}
-                              aria-label="Next page"
+                              aria-label={t('client.applications.nextPage')}
                             >
-                              <ChevronRight className="h-4 w-4" />
+                              {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             </Button>
                           </div>
                         </div>

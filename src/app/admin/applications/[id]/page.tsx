@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import {
   ArrowLeft,
+  ArrowRight,
   FileText,
   Loader2,
   Save,
@@ -30,6 +31,9 @@ import {
   User,
   Calendar,
   Phone,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -38,7 +42,9 @@ import {
 } from '@/lib/wizards/wizard-status'
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import { useLocale } from '@/contexts/LocaleContext'
 import { any } from 'zod'
+import { WhatsAppStatus } from '@/components/admin/notifications/WhatsAppStatus'
 
 type AppDetail = {
   id: string
@@ -77,7 +83,7 @@ type AppDetail = {
       placeholder?: string | null
       answer: { value: string | null; fileUrl: string | null }
     }>
-  }>  | any
+  }>
   progress: { totalSteps: number; completedSteps: number }
 }
 
@@ -125,6 +131,8 @@ export default function AdminApplicationDetailPage() {
   const id = String(params.id)
   const router = useRouter()
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const [app, setApp] = useState<AppDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [stepIndex, setStepIndex] = useState(0)
@@ -140,6 +148,8 @@ export default function AdminApplicationDetailPage() {
   const [reviewSaving, setReviewSaving] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
+  const [emailStatus, setEmailStatus] = useState<{ sent: boolean; message: string } | null>(null)
+  const [whatsappStatus, setWhatsappStatus] = useState<{ sent: boolean; message: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -149,6 +159,8 @@ export default function AdminApplicationDetailPage() {
       setApp(detail)
       setAdminNotes(detail.adminNotes ?? '')
       setStepIndex(Math.min(detail.currentStepIndex ?? 0, Math.max(0, detail.steps.length - 1)))
+      setEmailStatus(null)
+      setWhatsappStatus(null)
     } catch {
       toast({ title: 'Application not found', variant: 'destructive' })
       router.replace('/admin/applications')
@@ -237,12 +249,68 @@ export default function AdminApplicationDetailPage() {
 
   const updateStatus = async (status: string) => {
     if (!app) return
+    
+    if (status === app.status) {
+      toast({
+        title: 'No change',
+        description: 'Application already has this status',
+        variant: 'default',
+      })
+      return
+    }
+
     setStatusSaving(true)
+    setEmailStatus(null)
+    setWhatsappStatus(null)
+    
     try {
-      await axios.patch(`/api/admin/wizard-applications/${app.id}`, { status })
-      toast({ title: 'Status updated — client will see this' })
+      const response = await axios.patch(
+        `/api/admin/wizard-applications/${app.id}/status`,
+        { 
+          status,
+          adminNotes: adminNotes.trim() || undefined,
+          sendEmail: true,
+          sendWhatsApp: true,
+        }
+      )
+      
+      const data = response.data.data
+      
+      // Only show success chips when a channel actually sent. Never show red failure UI on successful status update.
+      if (data.emailSent) {
+        setEmailStatus({
+          sent: true,
+          message: `✅ Email sent to ${app.client.email}`,
+        })
+      } else {
+        setEmailStatus(null)
+      }
+      
+      if (data.whatsappSent) {
+        setWhatsappStatus({
+          sent: true,
+          message: `✅ WhatsApp sent to ${app.client.phone || 'client'}`,
+        })
+      } else {
+        setWhatsappStatus(null)
+      }
+
+      // Status update succeeded → always green toast (ignore notification skip/fail for toast color)
+      toast({ 
+        title: `Status updated to ${data.status ?? status}`,
+        description: data.emailSent || data.whatsappSent
+          ? 'Client notified successfully'
+          : 'Application status saved',
+        variant: 'success',
+        className: '!border-emerald-600 !bg-emerald-600 !text-white',
+        duration: 4000,
+      })
+      
       await load()
+      
     } catch (error: any) {
+      setEmailStatus(null)
+      setWhatsappStatus(null)
       toast({
         title: 'Status update failed',
         description: error.response?.data?.error?.message || error.message,
@@ -391,7 +459,6 @@ export default function AdminApplicationDetailPage() {
     app.client.phone ||
     findAnswerByLabels(app.steps, ['phone', 'mobile', 'whatsapp']) ||
     null
-
   const areaLabel = areaOfInterestDisplayLabel(app.areaOfInterest)
 
   return (
@@ -404,34 +471,33 @@ export default function AdminApplicationDetailPage() {
       fullWidth
       actions={
         <Button variant="outline" size="sm" onClick={() => router.push('/admin/applications')}>
-          <ArrowLeft className="h-4 w-4 mr-1.5" />
-          Back to list
+          {isRTL ? <ArrowRight className="h-4 w-4 ml-1.5" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
+          {t('client.applications.backToList')}
         </Button>
       }
     >
-      <div className="flex flex-col xl:flex-row gap-5 items-start max-w-7xl">
+      <div className={cn("flex flex-col xl:flex-row gap-5 items-start max-w-7xl", isRTL ? "xl:flex-row-reverse" : "xl:flex-row")} dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="flex-1 min-w-0 space-y-4 w-full">
-          {/* Overview */}
           <Card className="border-border/80 shadow-sm py-0">
             <CardContent className="py-5 px-5 space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+              <div className={cn("flex flex-wrap items-start justify-between gap-3", isRTL ? "flex-row-reverse" : "flex-row")}>
+                <div className={isRTL ? "text-right" : "text-left"}>
                   <h2 className="text-lg font-semibold">
-                    Overview
+                    {isRTL ? 'نظرة عامة' : 'Overview'}
                   </h2>
-                  <div className='flex items-center gap-3'>
+                  <div className={cn("flex items-center gap-3", isRTL ? "flex-row-reverse" : "flex-row")}>
                     {/* <p className="text-base font-semibold mt-0.5 text-gray-500">
                       {app.wizard.name}
                     </p> */}
                     <p className="inline-flex items-center gap-1.5">
-                      <span className="text-gray-500 text-sm">Updated on: </span>
+                      <span className="text-gray-500 text-sm">{isRTL ? 'آخر تحديث: ' : 'Updated on: '}</span>
                       <span className="text-gray-600 font-medium text-sm">
                         {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
                       </span>
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
+                <div className={cn("flex flex-col gap-2", isRTL ? "items-start" : "items-end")}>
                   <Select
                     value={app.status}
                     onValueChange={updateStatus}
@@ -446,46 +512,52 @@ export default function AdminApplicationDetailPage() {
                     >
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DRAFT">In progress (client)</SelectItem>
-                      <SelectItem value="PENDING">Pending</SelectItem>
-                      <SelectItem value="IN_PROGRESS">Under review</SelectItem>
-                      <SelectItem value="HARD_COPY_REQUIRED">Hard copy required</SelectItem>
-                      <SelectItem value="APPROVED">Approved</SelectItem>
-                      <SelectItem value="REJECTED">Rejected</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
+                      <SelectItem value="DRAFT">{t('admin.applications.status.inProgress')}</SelectItem>
+                      <SelectItem value="PENDING">{t('admin.applications.status.pending')}</SelectItem>
+                      <SelectItem value="IN_PROGRESS">{t('admin.applications.status.underReview')}</SelectItem>
+                      <SelectItem value="HARD_COPY_REQUIRED">{t('admin.applications.status.hardCopyRequired')}</SelectItem>
+                      <SelectItem value="APPROVED">{t('admin.applications.status.approved')}</SelectItem>
+                      <SelectItem value="REJECTED">{t('admin.applications.status.rejected')}</SelectItem>
+                      <SelectItem value="COMPLETED">{t('admin.applications.status.completed')}</SelectItem>
                     </SelectContent>
                   </Select>
-                  {/* <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600">
-                    <span className="text-slate-400 font-medium">Updated</span>
-                    {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
-                  </span> */}
+                  
+                  {emailStatus && (
+                    <div className={cn(
+                      'text-xs flex items-center gap-1.5 px-2 py-1 rounded-md',
+                      emailStatus.sent 
+                        ? 'text-green-700 bg-green-50 border border-green-200' 
+                        : 'text-red-700 bg-red-50 border border-red-200'
+                    )}>
+                      {emailStatus.sent ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3" />
+                      )}
+                      <span className="truncate max-w-[200px]">{emailStatus.message}</span>
+                    </div>
+                  )}
+                  
+                  {/* WhatsApp Status */}
+                  {whatsappStatus && (
+                    <div className={cn(
+                      'text-xs flex items-center gap-1.5 px-2 py-1 rounded-md',
+                      whatsappStatus.sent 
+                        ? 'text-green-700 bg-green-50 border border-green-200' 
+                        : 'text-red-700 bg-red-50 border border-red-200'
+                    )}>
+                      {whatsappStatus.sent ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <AlertCircle className="h-3 w-3" />
+                      )}
+                      <span className="truncate max-w-[200px]">{whatsappStatus.message}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-900">
-                  <span className="text-indigo-500 font-medium">Client</span>
-                  {app.client.name}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
-                  <span className="text-slate-400 font-medium">Email</span>
-                  {app.client.email}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs text-violet-900">
-                  <span className="text-violet-500 font-medium">AOI</span>
-                  {app.areaOfInterest} · {areaOfInterestDisplayLabel(app.areaOfInterest)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900">
-                  <span className="text-emerald-600 font-medium">Progress</span>
-                  {app.progress.completedSteps}/{app.progress.totalSteps} filled
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono text-slate-600">
-                  {app.applicationNumber}
-                </span>
-              </div> */}
-
-              {/* Client profile strip — same layout as reference, theme + app fields */}
               <div className="flex flex-wrap items-center gap-4">
                 <span className="inline-flex items-center gap-1.5">
                   <span className='text-gray-500 text-sm'>
@@ -497,9 +569,7 @@ export default function AdminApplicationDetailPage() {
                 </span>
 
                 <span className="inline-flex items-center gap-1.5">
-                  <span className='text-gray-500 text-sm'>
-                    Email:
-                  </span>
+                  <Mail className="h-3.5 w-3.5 text-gray-400" />
                   <span className="text-gray-600 font-medium text-sm">
                     {app.client.email}
                   </span>
@@ -525,18 +595,6 @@ export default function AdminApplicationDetailPage() {
                   </span>
                   <span className="text-gray-600 font-medium text-sm">{app.applicationNumber}</span>
                 </span>
-
-                {/* {phone && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>
-                      Phone: <span className="text-foreground">{phone}</span>
-                    </span>
-                  </span>
-                )} */}
-
-                {/* <span>
-                  Primary ID: <span className="text-foreground">{primaryId}</span>
-                </span> */}
               </div>
             </CardContent>
           </Card>
@@ -570,8 +628,6 @@ export default function AdminApplicationDetailPage() {
                   saveIndicator={saveIndicator}
                   engaging
                   saveExitLabel="Save"
-                  applicationId={app.id}
-                  fileUploadBasePath="/api/admin/wizard-applications"
                   onDirtyChange={setFormDirty}
                   serverSyncVersion={serverSyncVersion}
                   headerActions={
@@ -610,13 +666,10 @@ export default function AdminApplicationDetailPage() {
                   }
                   onBack={() => setStepIndex((i) => Math.max(0, i - 1))}
                   onSave={async (answers, opts) => {
-                    await saveAnswers(answers, {
-                      goNext: opts?.goNext,
-                      fileNames: opts?.fileNames,
-                    })
+                    await saveAnswers(answers, { goNext: opts?.goNext })
                   }}
-                  onSaveAndExit={async (answers, opts) => {
-                    await saveAnswers(answers, { fileNames: opts?.fileNames })
+                  onSaveAndExit={async (answers) => {
+                    await saveAnswers(answers)
                   }}
                   showSubmit={false}
                 />
@@ -635,16 +688,16 @@ export default function AdminApplicationDetailPage() {
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
               <Pin className="h-5 w-5 text-red-600 fill-red-500 drop-shadow" />
             </div>
-            <div className="mt-2 rounded-sm bg-amber-100 border border-amber-200 shadow-[2px_6px_16px_rgba(0,0,0,0.12)] px-4 py-4 space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-amber-800/80">
-                Sticky note for client
+            <div className="mt-2 rounded-sm bg-amber-100 border border-amber-200 shadow-[2px_6px_16px_rgba(0,0,0,0.12)] px-4 py-4 space-y-3" dir={isRTL ? 'rtl' : 'ltr'}>
+              <p className={cn("text-sm font-semibold uppercase tracking-wide text-amber-800/80", isRTL ? "text-right" : "text-left")}>
+                {isRTL ? 'ملاحظة لاصقة للعميل' : 'Sticky note for client'}
               </p>
               <Textarea
                 rows={6}
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Write an update the client will see…"
-                className="bg-amber-50/80 border-amber-300/60 text-amber-950 placeholder:text-amber-800/40 resize-none focus-visible:ring-amber-400"
+                placeholder={isRTL ? 'اكتب تحديثًا سيراه العميل...' : 'Write an update the client will see…'}
+                className={cn("bg-amber-50/80 border-amber-300/60 text-amber-950 placeholder:text-amber-800/40 resize-none focus-visible:ring-amber-400", isRTL ? "text-right" : "text-left")}
               />
               <Button
                 size="sm"
@@ -653,14 +706,14 @@ export default function AdminApplicationDetailPage() {
                 disabled={notesSaving}
               >
                 {notesSaving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className={cn("h-4 w-4 animate-spin", isRTL ? "ml-2" : "mr-2")} />
                 ) : (
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
                 )}
-                Pin note
+                {isRTL ? 'تثبيت الملاحظة' : 'Pin note'}
               </Button>
-              <p className="text-xs text-amber-800/70 leading-snug">
-                Client sees this on Applied applications and inside the form.
+              <p className={cn("text-xs text-amber-800/70 leading-snug", isRTL ? "text-right" : "text-left")}>
+                {isRTL ? 'يرى العميل هذا في الطلبات المقدمة وداخل النموذج.' : 'Client sees this on Applied applications and inside the form.'}
               </p>
             </div>
           </div>

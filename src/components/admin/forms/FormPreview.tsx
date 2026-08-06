@@ -28,6 +28,7 @@ import { CalendarIcon, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { CanvasField, isDisplayOnlyFieldType } from './types'
 import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
+import { useLocale } from '@/contexts/LocaleContext'
 
 // ─── Country data ───────────────────────────────────────────────────────────
 
@@ -392,11 +393,13 @@ interface FormPreviewProps {
 }
 
 export function FormPreview({ formName, fields }: FormPreviewProps) {
+  const { t } = useLocale()
+
   return (
     <div className="space-y-4">
       {fields.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Add fields to see a preview of the client form.
+          {t('admin.wizards.modal.addFieldsPreview')}
         </div>
       ) : (
         <div className="space-y-4">

@@ -10,6 +10,9 @@ import { GripVertical, Trash2, Pencil } from 'lucide-react'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { WizardStepDraft } from './types'
 
+import { useLocale } from '@/contexts/LocaleContext'
+import { cn } from '@/lib/utils'
+
 interface SortableWizardStepProps {
   step: WizardStepDraft
   index: number
@@ -31,6 +34,9 @@ export function SortableWizardStep({
   onRemove,
   onEditForm,
 }: SortableWizardStepProps) {
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
   const {
     attributes,
     listeners,
@@ -49,40 +55,41 @@ export function SortableWizardStep({
   const displayName =
     selectedForm?.name ??
     step.formName ??
-    (step.formTemplateId ? 'Unknown form' : '')
+    (step.formTemplateId ? (isRTL ? 'نموذج غير معروف' : 'Unknown form') : '')
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      dir={isRTL ? 'rtl' : 'ltr'}
       className={`rounded-xl border bg-white dark:bg-card p-3.5 space-y-3 shadow-sm ${
         isDragging ? 'opacity-80 shadow-md z-10 ring-1 ring-border' : ''
       }`}
     >
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 min-w-0">
+      <div className={cn("flex items-center justify-between gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+        <div className={cn("flex items-center gap-1 min-w-0", isRTL ? "flex-row-reverse" : "flex-row")}>
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground p-1 -ml-1 shrink-0 rounded-sm hover:bg-muted/60 transition-colors"
+            className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground p-1 shrink-0 rounded-sm hover:bg-muted/60 transition-colors"
             aria-label={`Drag to reorder step ${index + 1}`}
             {...attributes}
             {...listeners}
           >
             <GripVertical className="h-4 w-4" />
           </button>
-          <p className="text-sm font-medium">Step {index + 1}</p>
+          <p className="text-sm font-medium">{t('admin.wizards.stepSingular')} {index + 1}</p>
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-3 flex-wrap">
+        <div className={cn("flex flex-1 items-center justify-end gap-3 flex-wrap", isRTL ? "flex-row-reverse justify-start" : "flex-row justify-end")}>
           {step.formTemplateId && onEditForm && (
             <button
               type="button"
               onClick={() => onEditForm(step.formTemplateId)}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:underline hover:text-emerald-600 transition-colors duration-200 cursor-pointer"
+              className={cn("flex items-center gap-1 text-sm text-muted-foreground hover:underline hover:text-emerald-600 transition-colors duration-200 cursor-pointer", isRTL && "flex-row-reverse")}
               aria-label={`Edit form for step ${index + 1}`}
             >
               <Pencil className="h-3.5 w-3.5" />
-              Edit Form
+              {t('admin.wizards.modal.editForm')}
             </button>
           )}
 
@@ -91,7 +98,7 @@ export function SortableWizardStep({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
               onClick={() => onRemove(step.id)}
               aria-label={`Remove step ${index + 1}`}
             >
@@ -101,19 +108,19 @@ export function SortableWizardStep({
         </div>
       </div>
 
-      <div className="w-full sm:w-1/2 space-y-1.5">
-        <Label className="text-sm font-medium">Form</Label>
+      <div className={cn("w-full sm:w-1/2 space-y-1.5", isRTL ? "text-right" : "text-left")}>
+        <Label className="text-sm font-medium">{t('admin.wizards.modal.formLabel')}</Label>
         <Input
           value={displayName}
           disabled
           readOnly
-          placeholder="No form assigned"
-          className="bg-muted/80 text-muted-foreground cursor-not-allowed disabled:opacity-80 disabled:cursor-not-allowed"
+          placeholder={isRTL ? 'لم يتم تعيين نموذج' : 'No form assigned'}
+          className={cn("bg-muted/80 text-muted-foreground cursor-not-allowed disabled:opacity-80 disabled:cursor-not-allowed", isRTL ? "text-right" : "text-left")}
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 pt-1 border-t border-border/60">
-        <div className="flex items-center gap-2">
+      <div className={cn("flex flex-wrap items-center gap-4 pt-1 border-t border-border/60", isRTL ? "flex-row-reverse" : "flex-row")}>
+        <div className={cn("flex items-center gap-2", isRTL && "flex-row-reverse")}>
           <Checkbox
             id={`payment-${step.id}`}
             checked={step.paymentRequired}
@@ -125,11 +132,11 @@ export function SortableWizardStep({
             htmlFor={`payment-${step.id}`}
             className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
           >
-            Payment required
+            {t('client.fill.payment')} {isRTL ? 'مطلوب' : 'required'}
           </Label>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className={cn("flex items-center gap-2", isRTL && "flex-row-reverse")}>
           <Checkbox
             id={`approval-${step.id}`}
             checked={step.approvalRequired}
@@ -141,11 +148,11 @@ export function SortableWizardStep({
             htmlFor={`approval-${step.id}`}
             className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
           >
-            Approval required
+            {isRTL ? 'الموافقة مطلوبة' : 'Approval required'}
           </Label>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className={cn("flex items-center gap-2", isRTL && "flex-row-reverse")}>
           <Checkbox
             id={`admin-use-${step.id}`}
             checked={Boolean(step.adminUseOnly)}
@@ -157,7 +164,7 @@ export function SortableWizardStep({
             htmlFor={`admin-use-${step.id}`}
             className="text-sm font-normal cursor-pointer whitespace-nowrap text-muted-foreground"
           >
-            Admin Use Only
+            {t('client.fill.adminOnly')}
           </Label>
         </div>
       </div>

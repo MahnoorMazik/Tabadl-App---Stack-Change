@@ -58,6 +58,7 @@ import {
 } from './types'
 import { SortableWizardStep } from './SortableWizardStep'
 import { FormBuilder } from '@/components/admin/forms/FormBuilder'
+import { useLocale } from '@/contexts/LocaleContext'
 
 interface CreateWizardModalProps {
   open: boolean
@@ -92,6 +93,20 @@ export function CreateWizardModal({
   editingWizard = null,
 }: CreateWizardModalProps) {
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const getAreaLabel = (area: string) => {
+    switch (area) {
+      case 'CR':
+        return t('admin.wizards.areaOption.cr')
+      case 'PR':
+        return t('admin.wizards.areaOption.pr')
+      default:
+        return area
+    }
+  }
+
   const isEdit = Boolean(editingWizard)
   const [modalStep, setModalStep] = useState<1 | 2>(1)
   const [draft, setDraft] = useState<WizardDraft>(createEmptyWizardDraft)
@@ -501,29 +516,30 @@ export function CreateWizardModal({
 
       {draft.steps.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            No steps added yet. Create a form using the Template Builder — it will
-            automatically appear as a step.
+          <p className="text-sm text-muted-foreground max-w-md mb-4 leading-relaxed mx-auto">
+            {isRTL
+              ? 'لم يتم إضافة خطوات بعد. أنشئ نموذجًا باستخدام منشئ القوالب — وسيظهر تلقائيًا كخطوة.'
+              : 'No steps added yet. Create a form using the Template Builder — it will automatically appear as a step.'}
           </p>
           <Button
             type="button"
             className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
             onClick={() => setBuilderOpen(true)}
           >
-            <Plus className="h-4 w-4 mr-1" />
-            Add step
+            <Plus className={cn("h-4 w-4", isRTL ? "ml-1" : "mr-1")} />
+            {isRTL ? 'إضافة خطوة' : 'Add step'}
           </Button>
         </div>
       ) : (
         <>
-          <div className="flex justify-end">
+          <div className={cn("flex", isRTL ? "justify-start" : "justify-end")}>
             <Button
               type="button"
               className="bg-emerald-700 hover:bg-emerald-800 cursor-pointer"
               onClick={() => setBuilderOpen(true)}
             >
-              <Plus className="h-4 w-4 mr-1" />
-              Add step
+              <Plus className={cn("h-4 w-4", isRTL ? "ml-1" : "mr-1")} />
+              {isRTL ? 'إضافة خطوة' : 'Add step'}
             </Button>
           </div>
 
@@ -565,6 +581,7 @@ export function CreateWizardModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        dir={isRTL ? 'rtl' : 'ltr'}
         className={cn(
           'max-h-[90vh] overflow-y-auto',
           isEdit
@@ -581,9 +598,9 @@ export function CreateWizardModal({
       >
         {isEdit ? (
           <>
-            <DialogTitle className="sr-only">Edit Application</DialogTitle>
+            <DialogTitle className="sr-only">{t('admin.wizards.modal.editTitle')}</DialogTitle>
             <DialogDescription className="sr-only">
-              Edit application name and steps.
+              {t('admin.wizards.modal.step2Desc')}
             </DialogDescription>
 
             {loading ? (
@@ -595,18 +612,18 @@ export function CreateWizardModal({
                 <Card className="flex flex-col overflow-hidden py-0 gap-0 border-border/80 shadow-sm">
                   <div className="flex-1 overflow-y-auto min-h-0 max-h-[min(520px,65vh)]">
                     <div className="p-4 space-y-4 border-b bg-muted/20">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-lg font-semibold">Edit Application</h2>
+                      <div className={cn("flex flex-wrap items-center justify-between gap-2", isRTL && "flex-row-reverse")}>
+                        <h2 className="text-lg font-semibold">{t('admin.wizards.modal.editTitle')}</h2>
                         {selectedService && (
                           <p className="text-sm text-muted-foreground">
-                            {selectedService.label}
+                            {getAreaLabel(selectedService.key)}
                             <span className="text-muted-foreground/80"> ({selectedService.key})</span>
                           </p>
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="wizard-name-edit">
-                          Application name <span className="text-destructive">*</span>
+                        <Label htmlFor="wizard-name-edit" className={cn("block", isRTL ? "text-right" : "text-left")}>
+                          {t('admin.wizards.modal.wizardName')} <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           id="wizard-name-edit"
@@ -614,20 +631,20 @@ export function CreateWizardModal({
                           onChange={(e) =>
                             setDraft((prev) => ({ ...prev, name: e.target.value }))
                           }
-                          placeholder="e.g. Commercial registration application"
-                          className="h-10 bg-background"
+                          placeholder={t('admin.wizards.modal.wizardNamePlaceholder')}
+                          className={cn("h-10 bg-background", isRTL ? "text-right" : "text-left")}
                           aria-invalid={showValidation && !draft.name.trim()}
                         />
                         {showValidation && !draft.name.trim() && (
-                          <p className="text-xs text-destructive">
-                            Application name is required.
+                          <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
+                            {t('admin.wizards.modal.nameRequired')}
                           </p>
                         )}
                       </div>
                     </div>
 
                     <CardContent className="p-4 space-y-3">
-                      <h2 className="text-lg font-semibold mb-1">Application steps</h2>
+                      <h2 className={cn("text-lg font-semibold mb-1", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.heading')}</h2>
                       {stepsList}
                     </CardContent>
                   </div>
@@ -641,11 +658,11 @@ export function CreateWizardModal({
                     >
                       {saving ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Saving…
+                          <Loader2 className={cn("h-4 w-4 animate-spin", isRTL ? "ml-2" : "mr-2")} />
+                          {t('admin.wizards.modal.saving')}
                         </>
                       ) : (
-                        'Save Changes'
+                        t('admin.wizards.modal.saveChanges')
                       )}
                     </Button>
                   </div>
@@ -655,14 +672,14 @@ export function CreateWizardModal({
           </>
         ) : (
           <>
-            <DialogHeader className="space-y-3 gap-0">
+            <DialogHeader className={cn("space-y-1.5 gap-0", isRTL ? "text-right" : "text-left")}>
               <DialogTitle className="text-lg tracking-tight">
-                Create Application Steps
+                {t('admin.wizards.modal.createTitle')}
               </DialogTitle>
               <DialogDescription className="text-sm">
                 {modalStep === 1
-                  ? 'Name your wizard and pick the service it belongs to.'
-                  : 'Add and order form steps for this wizard.'}
+                  ? t('admin.wizards.modal.step1Desc')
+                  : t('admin.wizards.modal.step2Desc')}
               </DialogDescription>
             </DialogHeader>
 
@@ -673,8 +690,8 @@ export function CreateWizardModal({
             ) : modalStep === 1 ? (
               <div className="space-y-6 py-1">
                 <div className="space-y-2">
-                  <Label htmlFor="wizard-name" className="text-sm font-medium">
-                    Wizard name <span className="text-destructive">*</span>
+                  <Label htmlFor="wizard-name" className={cn("text-sm font-medium block", isRTL ? "text-right" : "text-left")}>
+                    {t('admin.wizards.modal.wizardName')} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="wizard-name"
@@ -682,21 +699,21 @@ export function CreateWizardModal({
                     onChange={(e) =>
                       setDraft((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    placeholder="e.g. Commercial registration application"
-                    className="h-10 bg-background focus-visible:ring-emerald-600/30"
+                    placeholder={t('admin.wizards.modal.wizardNamePlaceholder')}
+                    className={cn("h-10 bg-background focus-visible:ring-emerald-600/30", isRTL ? "text-right" : "text-left")}
                   />
                   {setupError && !draft.name.trim() && (
-                    <p className="text-xs text-destructive">Wizard name is required.</p>
+                    <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.nameRequired')}</p>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  <div>
+                  <div className={isRTL ? "text-right" : "text-left"}>
                     <Label className="text-sm font-medium">
-                      Service <span className="text-destructive">*</span>
+                      {t('admin.wizards.modal.service')} <span className="text-destructive">*</span>
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      One wizard per service — CR and PR each have their own live form.
+                      {t('admin.wizards.modal.serviceSub')}
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -715,8 +732,8 @@ export function CreateWizardModal({
                               'border-emerald-500 hover:shadow-emerald-500/10 bg-emerald-500/10'
                           )}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-base">{option.label}</span>
+                          <div className={cn("flex items-center justify-between gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                            <span className="font-semibold text-base">{getAreaLabel(option.key)}</span>
                             <Badge
                               variant="secondary"
                               className="text-[12px] bg-gray-100 border-gray-300 shrink-0"
@@ -724,18 +741,32 @@ export function CreateWizardModal({
                               {option.key}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                            {option.description}
+                          <p className={cn("text-sm text-muted-foreground mt-1.5 leading-relaxed", isRTL ? "text-right" : "text-left")}>
+                            {isRTL
+                              ? option.key === 'CR'
+                                ? 'إنشاء شركة ذات مسؤولية محدودة في السعودية'
+                                : 'للمستثمرين والمواهب والرياديين وغيرهم'
+                              : option.description}
                           </p>
-                          <p className="mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
-                            {selected ? 'Selected →' : 'Select service →'}
+                          <p className={cn("mt-2 text-sm font-medium text-emerald-700 group-hover:text-emerald-800 flex items-center gap-1", isRTL ? "flex-row-reverse justify-end" : "flex-row")}>
+                            {selected ? (
+                              <>
+                                <span>{t('admin.wizards.modal.selected')}</span>
+                                <span>{isRTL ? '←' : '→'}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>{t('admin.wizards.modal.selectService')}</span>
+                                <span>{isRTL ? '←' : '→'}</span>
+                              </>
+                            )}
                           </p>
                         </button>
                       )
                     })}
                   </div>
                   {setupError && !draft.areaOfInterest && (
-                    <p className="text-xs text-destructive">Please select CR or PR.</p>
+                    <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.selectServiceError')}</p>
                   )}
                 </div>
               </div>
@@ -744,7 +775,7 @@ export function CreateWizardModal({
             )}
 
             <DialogFooter
-              className={`gap-2 ${modalStep === 2 ? 'sm:justify-between' : 'sm:justify-end'}`}
+              className={cn("gap-2", modalStep === 2 ? "sm:justify-between" : isRTL ? "sm:justify-start" : "sm:justify-end")}
             >
               {modalStep === 2 ? (
                 <>
@@ -758,34 +789,34 @@ export function CreateWizardModal({
                     disabled={saving}
                     className="flex items-center gap-2 cursor-pointer"
                   >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
+                    {isRTL ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+                    {t('admin.wizards.modal.back')}
                   </Button>
                   <Button
                     type="button"
-                    className="bg-primary hover:bg-primary/90 cursor-pointer"
+                    className="bg-primary hover:bg-primary/90 cursor-pointer bg-emerald-700 hover:bg-emerald-800"
                     onClick={handleCreate}
                     disabled={saving || loading || draft.steps.length === 0}
                   >
                     {saving ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating…
+                        <Loader2 className={cn("h-4 w-4 animate-spin", isRTL ? "ml-2" : "mr-2")} />
+                        {t('admin.wizards.modal.creating')}
                       </>
                     ) : (
-                      'Create Wizard'
+                      t('admin.wizards.modal.createWizard')
                     )}
                   </Button>
                 </>
               ) : (
                 <Button
                   type="button"
-                  className="bg-primary hover:bg-primary/90 cursor-pointer"
+                  className="bg-primary hover:bg-primary/90 cursor-pointer bg-emerald-700 hover:bg-emerald-800"
                   onClick={handleNext}
                   disabled={loading}
                 >
-                  Next
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  {t('admin.wizards.modal.next')}
+                  {isRTL ? <ArrowLeft className="h-4 w-4 mr-2" /> : <ArrowRight className="h-4 w-4 ml-2" />}
                 </Button>
               )}
             </DialogFooter>
@@ -904,17 +935,21 @@ export function CreateWizardModal({
         setBuilderOpen(open)
         if (!open) setEditingFormTemplate(null)
       }}>
-        <SheetContent side="right" className="w-[60vw] sm:max-w-none gap-0">
-          <SheetHeader>
-            <SheetTitle className='text-xl'>
-              {editingFormTemplate ? 'Edit Form' : loadingTemplate ? 'Loading…' : 'Template Builder'}
+        <SheetContent side={isRTL ? "left" : "right"} dir={isRTL ? "rtl" : "ltr"} className="w-[85vw] xl:w-[60vw] sm:max-w-none gap-0">
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-xl">
+              {editingFormTemplate
+                ? (isRTL ? 'تعديل النموذج' : 'Edit Form')
+                : loadingTemplate
+                  ? t('admin.wizards.loading')
+                  : (isRTL ? 'منشئ القوالب' : 'Template Builder')}
             </SheetTitle>
             <SheetDescription>
               {editingFormTemplate
-                ? 'Update this form — changes will be reflected in the step.'
+                ? (isRTL ? 'قم بتحديث هذا النموذج — ستنعكس التغيرات على الخطوة.' : 'Update this form — changes will be reflected in the step.')
                 : loadingTemplate
-                  ? 'Fetching form details…'
-                  : 'Create a complete form, then it will be appended as a step.'}
+                  ? (isRTL ? 'جاري جلب تفاصيل النموذج…' : 'Fetching form details…')
+                  : (isRTL ? 'أنشئ نموذجًا كاملاً وسيتم إلحاقه كخطوة تلقائيًا.' : 'Create a complete form, then it will be appended as a step.')}
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 overflow-hidden pt-2">

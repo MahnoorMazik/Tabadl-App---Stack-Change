@@ -43,7 +43,10 @@ import {
 } from '@/lib/wizards/wizard-step-approval-rules'
 import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-application-utils'
 import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
+import { WhatsAppStatus } from '@/components/admin/notifications/WhatsAppStatus'
+import { useLocale } from '@/contexts/LocaleContext'
 
+export const dynamic = 'force-dynamic'
 type AppDetail = {
   id: string
   applicationNumber: string
@@ -54,6 +57,13 @@ type AppDetail = {
   submittedAt?: string | null
   updatedAt?: string
   wizard: { id: string; name: string }
+  client: {
+    id: string
+    name: string
+    email: string
+    phone?: string | null
+    clientNumber?: string | null
+  }
   steps: Array<{
     id: string
     index: number
@@ -82,17 +92,41 @@ function getAreaLabel(area: string) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const getStatusLabel = (st: string) => {
+    switch (st.toUpperCase()) {
+      case 'DRAFT':
+        return t('admin.applications.status.inProgress')
+      case 'PENDING':
+        return t('admin.applications.status.pending')
+      case 'IN_PROGRESS':
+        return t('admin.applications.status.underReview')
+      case 'HARD_COPY_REQUIRED':
+        return t('admin.applications.status.hardCopyRequired')
+      case 'APPROVED':
+        return t('admin.applications.status.approved')
+      case 'REJECTED':
+        return t('admin.applications.status.rejected')
+      case 'COMPLETED':
+        return t('admin.applications.status.completed')
+      default:
+        return wizardStatusLabel(st)
+    }
+  }
+
   return (
-    <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status))}>
-      {status === 'PENDING' && <Clock className="h-3 w-3 mr-1" />}
+    <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status), isRTL ? 'flex-row-reverse' : 'flex-row')}>
+      {status === 'PENDING' && <Clock className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />}
       {(status === 'APPROVED' || status === 'COMPLETED') && (
-        <CheckCircle2 className="h-3 w-3 mr-1" />
+        <CheckCircle2 className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />
       )}
-      {status === 'REJECTED' && <AlertCircle className="h-3 w-3 mr-1" />}
+      {status === 'REJECTED' && <AlertCircle className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />}
       {(status === 'DRAFT' || status === 'HARD_COPY_REQUIRED') && (
-        <FileText className="h-3 w-3 mr-1" />
+        <FileText className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />
       )}
-      {wizardStatusLabel(status)}
+      {getStatusLabel(status)}
     </Badge>
   )
 }
@@ -103,6 +137,8 @@ export default function ClientApplicationFillPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
   const {
     isSidebarCollapsed,
     isMobileSidebarOpen,
@@ -117,6 +153,8 @@ export default function ClientApplicationFillPage() {
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [formDirty, setFormDirty] = useState(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
+  const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+  const [whatsappError, setWhatsappError] = useState<string>()
   const latestFormValuesRef = useRef<Record<string, string>>({})
   const appFingerprintRef = useRef<string | null>(null)
   const appRef = useRef<AppDetail | null>(null)
@@ -212,7 +250,6 @@ export default function ClientApplicationFillPage() {
 
   const currentStep = app?.steps[stepIndex]
 
-  /** Read-only after full application submit, or when an approval-required step is pending/approved. */
   const isStepReadOnlyForClient = (index: number) => {
     if (!app || applicationLocked) return applicationLocked
     if (!app.steps[index]) return false
@@ -380,7 +417,7 @@ export default function ClientApplicationFillPage() {
     goToStep(next)
   }
 
-  const areaLabel = app ? getAreaLabel(app.areaOfInterest) : ''
+  const areaLabel = app ? (app.areaOfInterest === 'CR' ? t('admin.wizards.areaOption.cr') : app.areaOfInterest === 'PR' ? t('admin.wizards.areaOption.pr') : getAreaLabel(app.areaOfInterest)) : ''
 
   return (
     <MobileLayout
@@ -389,13 +426,17 @@ export default function ClientApplicationFillPage() {
       onToggleMobile={toggleMobileSidebar}
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
-      title={app ? areaLabel || app.wizard.name : 'Application'}
-      description={app ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}` : 'Loading…'}
+      title={app ? areaLabel || app.wizard.name : t('client.applications.pageTitle')}
+      description={
+        app
+          ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}`
+          : t('client.applications.loading')
+      }
       icon={<FileText className="h-5 w-5 text-emerald-600" />}
       actions={
-        <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')}>
-          <ArrowLeft className="h-4 w-4 mr-1.5" />
-          Back
+        <Button variant="outline" size="sm" onClick={() => router.push('/client/applications')} className="cursor-pointer">
+          {isRTL ? <ArrowRight className="h-4 w-4 ml-1.5" /> : <ArrowLeft className="h-4 w-4 mr-1.5" />}
+          {t('admin.wizards.modal.back')}
         </Button>
       }
     >
@@ -404,20 +445,17 @@ export default function ClientApplicationFillPage() {
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col xl:flex-row gap-5 items-start">
+        <div className="max-w-7xl mx-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+          <div className={cn("flex flex-col xl:flex-row gap-5 items-start", isRTL ? "xl:flex-row-reverse" : "xl:flex-row")}>
             <div className="flex-1 min-w-0 w-full space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className={cn("flex flex-wrap items-center gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
                 <StatusBadge status={app.status} />
-                {/* <Badge variant="secondary" className="bg-violet-100 text-violet-800 border border-violet-200">
-                  {areaLabel}
-                </Badge> */}
                 <span className="text-sm text-muted-foreground">
-                  {app.progress.completedSteps}/{app.progress.totalSteps} steps filled
+                  {t('client.fill.stepsFilled').replace('{completed}', String(app.progress.completedSteps)).replace('{total}', String(app.progress.totalSteps))}
                 </span>
                 {app.updatedAt && (
-                  <span className="text-sm text-muted-foreground ml-auto">
-                    Updated {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
+                  <span className={cn("text-sm text-muted-foreground", isRTL ? "mr-auto" : "ml-auto")}>
+                    {t('client.fill.updated')} {format(new Date(app.updatedAt), 'dd MMM yyyy HH:mm')}
                   </span>
                 )}
               </div>
@@ -425,17 +463,23 @@ export default function ClientApplicationFillPage() {
               {applicationLocked && (
                 <div
                   className={cn(
-                    'rounded-xl border px-4 py-3 text-sm',
+                    'rounded-xl border px-4 py-3 text-sm mb-4',
+                    isRTL ? 'text-right' : 'text-left',
                     wizardStatusClasses(app.status)
                   )}
                 >
-                  <p className="font-medium">Status: {wizardStatusLabel(app.status)}</p>
+                  <p className="font-medium">
+                    {t('client.fill.status' as any) || (isRTL ? 'الحالة' : 'Status')}: {wizardStatusLabel(app.status)}
+                  </p>
                   <p className="text-xs mt-0.5 opacity-90">
-                    This application is with our team. Status and form details update when admin
-                    makes changes.
+                    {isRTL
+                      ? 'هذا الطلب لدى فريقنا. يتم تحديث الحالة وتفاصيل النموذج عندما يقوم الإدري بإجراء تغييرات.'
+                      : 'This application is with our team. Status and form details update when admin makes changes.'}
                   </p>
                 </div>
               )}
+
+
 
               <div className="flex flex-col lg:flex-row gap-4 items-start">
                 <ApplicationStepsNav
@@ -449,7 +493,7 @@ export default function ClientApplicationFillPage() {
 
                 <div className="flex-1 min-w-0 w-full">
               <Card className="shadow-md overflow-hidden">
-                <h2 className="text-lg font-semibold mb-3 px-6">{areaLabel}</h2>
+                <h2 className={cn("text-lg font-semibold mb-3 px-6 pt-5", isRTL ? "text-right" : "text-left pt-0")}>{areaLabel || app.wizard.name}</h2>
                 <CardContent className="pb-6">
                   {currentStep?.adminUseOnly ? (
                     <div className="flex flex-col items-center text-center py-10 px-4">
@@ -504,13 +548,9 @@ export default function ClientApplicationFillPage() {
                       saving={saving}
                       saveIndicator={saveIndicator}
                       engaging
-                      applicationId={app.id}
-                      fileUploadBasePath="/api/client/wizard-applications"
                       onBack={() => goToStep(Math.max(0, stepIndex - 1))}
                       onSave={(answers, opts) => saveStep(answers, opts)}
-                      onSaveAndExit={(answers, opts) =>
-                        saveStep(answers, { fileNames: opts?.fileNames })
-                      }
+                      onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
                       onDirtyChange={setFormDirty}
                       serverSyncVersion={serverSyncVersion}
@@ -530,7 +570,6 @@ export default function ClientApplicationFillPage() {
               </div>
             </div>
 
-            {/* Sticky note — admin updates */}
             {app.adminNotes && (
               <aside className="w-full lg:w-64 shrink-0 lg:sticky lg:top-20">
                 <div className="relative mx-auto max-w-xs lg:max-w-none rotate-1 hover:rotate-0 transition-transform">
