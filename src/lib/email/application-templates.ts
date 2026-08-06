@@ -36,7 +36,6 @@ const formatDateTime = (date: Date) => {
   return `${datePart} at ${timePart}`;
 };
 
-// ✅ UPDATED: Support all status types
 type StatusType = "SUBMITTED" | "IN_PROGRESS" | "UNDER_REVIEW" | "HARD_COPY_REQUIRED" | "APPROVED" | "REJECTED" | "COMPLETED";
 
 const createApplicationEmail = ({
@@ -58,7 +57,6 @@ const createApplicationEmail = ({
 }) => {
   let detailRowsHtml = "";
 
-  // Build greeting based on status
   const getGreetingAndOpening = () => {
     const greeting = clientName ? `Dear ${clientName},` : "Dear Valued Client,";
 
@@ -155,7 +153,6 @@ const createApplicationEmail = ({
 
   const { greeting, openingLines } = getGreetingAndOpening();
 
-  // Build greeting HTML
   const greetingHtml = `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
       <tr>
@@ -169,7 +166,6 @@ const createApplicationEmail = ({
     </table>
   `;
 
-  // Build detail rows with proper padding
   if (clientName) {
     detailRowsHtml += `
       <tr>
@@ -192,18 +188,17 @@ const createApplicationEmail = ({
     if (row.label === "Current Status") {
       const displayValue = row.value.toLowerCase();
       
-      // Determine color based on status
-      let statusColor = "#0B6B37"; // default green
+      let statusColor = "#0B6B37";
       if (displayValue.includes('approved') || displayValue.includes('completed')) {
-        statusColor = "#0B6B37"; // green
+        statusColor = "#0B6B37";
       } else if (displayValue.includes('rejected')) {
-        statusColor = "#dc2626"; // red
+        statusColor = "#dc2626";
       } else if (displayValue.includes('progress') || displayValue.includes('review')) {
-        statusColor = "#f59e0b"; // yellow/amber
+        statusColor = "#f59e0b";
       } else if (displayValue.includes('pending') || displayValue.includes('submitted')) {
-        statusColor = "#3b82f6"; // blue
+        statusColor = "#3b82f6";
       } else if (displayValue.includes('hard copy')) {
-        statusColor = "#8b5cf6"; // purple
+        statusColor = "#8b5cf6";
       }
 
       valueDisplay = `<span style="display:inline-block;background:${statusColor};color:#ffffff;padding:6px 18px;border-radius:999px;font-size:13px;font-weight:700;">${row.value}</span>`;
@@ -221,7 +216,6 @@ const createApplicationEmail = ({
     ? `new-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
     : "";
 
-  // Get dynamic "What happens next" content based on status
   const getNextSteps = () => {
     switch (statusType) {
       case "SUBMITTED":
@@ -302,7 +296,6 @@ const createApplicationEmail = ({
       <meta name="format-detection" content="telephone=no">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <style>
-        /* All your existing CSS styles */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body {
           background-color: #f5f5f5 !important;
@@ -315,29 +308,57 @@ const createApplicationEmail = ({
           -webkit-text-size-adjust: 100% !important;
           -ms-text-size-adjust: 100% !important;
         }
-        /* ... rest of your CSS ... */
+        .main-table {
+          max-width: 600px;
+          width: 100%;
+          background-color: #ffffff;
+          border-radius: 30px;
+          overflow: hidden;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+          margin: 0 auto;
+          border-collapse: collapse;
+        }
+        .header-padding {
+          background: linear-gradient(180deg, #0B6B37 0%, #14532D 100%);
+          padding: 35px 24px 25px;
+          text-align: center;
+        }
+        .content-padding {
+          padding: 28px 18px 20px;
+          background-color: #ffffff;
+        }
+        .logo-img {
+          display: block;
+          height: auto;
+          border: 0;
+          max-width: 100%;
+        }
+        .heading {
+          margin: 0 0 6px;
+          color: #0B6B37;
+          font-size: 24px;
+          font-weight: 700;
+          line-height: 1.2;
+        }
       </style>
     </head>
     <body style="margin:0;padding:0;background-color:#f5f5f5;font-family:Helvetica, Arial, sans-serif;width:100%;max-width:100%;min-height:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased;">
-      <!-- Hidden separator -->
       <div style="display:none;font-size:0;line-height:0;max-height:0;mso-hide:all;color:#f5f5f5;background:#f5f5f5;opacity:0;visibility:hidden;overflow:hidden;height:0;width:0;">
         NEW EMAIL THREAD - ${threadId}
       </div>
       
-      <!-- Main email content -->
       <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:20px 10px;width:100%;max-width:100%;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
         <tr>
           <td align="center" style="background-color:#f5f5f5;padding:10px;">
-            <table class="main-table" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:30px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);margin:0 auto;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:30px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);margin:0 auto;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
               
-              <!-- Header -->
               <tr>
-                <td class="header-padding" style="background:linear-gradient(180deg,#0B6B37 0%,#14532D 100%);padding:35px 24px 25px;text-align:center;">
+                <td style="background:linear-gradient(180deg,#0B6B37 0%,#14532D 100%);padding:35px 24px 25px;text-align:center;">
                   <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td align="center">
                         <div style="display:inline-block;background:#ffffff;padding:12px 24px;border-radius:16px;margin-bottom:12px;">
-                          <img class="logo-img" src="${logoSrc}" alt="Tabadl Alkon" width="160" style="display:block;height:auto;border:0;max-width:100%;" />
+                          <img src="${logoSrc}" alt="Tabadl Alkon" width="160" style="display:block;height:auto;border:0;max-width:100%;" />
                         </div>
                         <p style="margin:0;font-size:13px;line-height:1.6;color:rgba(255,255,255,0.95);max-width:400px;margin-left:auto;margin-right:auto;padding:0 10px;">
                           Your trusted partner for business setup in Saudi Arabia — keeping you informed at every step.
@@ -348,22 +369,20 @@ const createApplicationEmail = ({
                 </td>
               </tr>
 
-              <!-- Body -->
               <tr>
-                <td class="content-padding" style="padding:28px 18px 20px;background-color:#ffffff;">
+                <td style="padding:28px 18px 20px;background-color:#ffffff;">
                   ${greetingHtml}
 
                   <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td style="text-align:center;padding-bottom:16px;">
-                        <h1 class="heading" style="margin:0 0 6px;color:#0B6B37;font-size:24px;font-weight:700;line-height:1.2;">
+                        <h1 style="margin:0 0 6px;color:#0B6B37;font-size:24px;font-weight:700;line-height:1.2;">
                           ${heading}
                         </h1>
                       </td>
                     </tr>
                   </table>
 
-                  <!-- Fast response -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td>
@@ -379,7 +398,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- Clear updates -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td>
@@ -395,7 +413,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- Details Table -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafb;border:1px solid #d8e6ef;border-radius:16px;overflow:hidden;margin-bottom:16px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td style="padding:0;">
@@ -406,7 +423,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- What happens next -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td>
@@ -422,7 +438,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- Need help -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td>
@@ -438,7 +453,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- CTA Button -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td align="center">
@@ -449,7 +463,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- Footer Note -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:4px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td>
@@ -460,7 +473,6 @@ const createApplicationEmail = ({
                     </tr>
                   </table>
 
-                  <!-- Signature -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e4ecf1;padding-top:18px;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
                     <tr>
                       <td>
@@ -472,7 +484,6 @@ const createApplicationEmail = ({
                 </td>
               </tr>
 
-              <!-- Footer -->
               <tr>
                 <td style="background:#f8f9fa;padding:14px 20px 16px;text-align:center;">
                   <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
@@ -499,10 +510,9 @@ const createApplicationEmail = ({
   `;
 };
 
-// ✅ UPDATED: All status email templates
 export const APPLICATION_EMAILS = {
   SUBMITTED: {
-    subject: "✅ Application Submitted Successfully",
+    subject: "Application Submitted Successfully",
     buildHtml: ({
       clientName,
       detailRows,
@@ -524,7 +534,7 @@ export const APPLICATION_EMAILS = {
   },
 
   IN_PROGRESS: {
-    subject: "🔄 Application In Progress",
+    subject: "Application In Progress",
     buildHtml: ({
       clientName,
       detailRows,
@@ -546,7 +556,7 @@ export const APPLICATION_EMAILS = {
   },
 
   UNDER_REVIEW: {
-    subject: "📋 Application Under Review",
+    subject: "Application Under Review",
     buildHtml: ({
       clientName,
       detailRows,
@@ -568,7 +578,7 @@ export const APPLICATION_EMAILS = {
   },
 
   HARD_COPY_REQUIRED: {
-    subject: "📄 Hard Copy Required",
+    subject: "Hard Copy Required",
     buildHtml: ({
       clientName,
       detailRows,
@@ -590,7 +600,7 @@ export const APPLICATION_EMAILS = {
   },
 
   APPROVED: {
-    subject: "🎉 Application Approved!",
+    subject: "Application Approved!",
     buildHtml: ({
       clientName,
       detailRows,
@@ -612,7 +622,7 @@ export const APPLICATION_EMAILS = {
   },
 
   REJECTED: {
-    subject: "📌 Application Status Update",
+    subject: "Application Status Update",
     buildHtml: ({
       clientName,
       detailRows,
@@ -634,7 +644,7 @@ export const APPLICATION_EMAILS = {
   },
 
   COMPLETED: {
-    subject: "✅ Application Completed",
+    subject: "Application Completed",
     buildHtml: ({
       clientName,
       detailRows,
