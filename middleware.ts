@@ -6,6 +6,7 @@ const publicRoutes = [
   "/",
   "/login",
   "/signup",
+  "/check-email",
   "/about-us",
   "/contact",
   "/privacy-policy",
@@ -14,6 +15,10 @@ const publicRoutes = [
   "/home-new",
   "/misa",
   "/premium-residency"
+]
+
+const publicRoutePrefixes = [
+  "/verify-email",
 ]
 
 // Define API routes that don't require authentication
@@ -39,6 +44,10 @@ export default auth((req) => {
 
   // Allow public routes
   if (publicRoutes.some(route => pathname === route)) {
+    return NextResponse.next()
+  }
+
+  if (publicRoutePrefixes.some(prefix => pathname.startsWith(prefix))) {
     return NextResponse.next()
   }
 

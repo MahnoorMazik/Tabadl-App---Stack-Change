@@ -417,6 +417,76 @@ If you have any questions, contact us at support@tabadlalkon.com
 }
 
 // ============================================================
+// EMAIL VERIFICATION (SIGNUP)
+// ============================================================
+export async function sendEmailVerificationEmail(
+  to: string,
+  name: string,
+  verificationToken: string
+): Promise<EmailResult> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const verifyUrl = `${baseUrl}/verify-email/${verificationToken}`
+  const currentYear = new Date().getFullYear()
+  const subject = 'Verify your email address'
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+      ${getEmailHeader()}
+      
+      <h2 style="color: #0B6B37; text-align: center; font-size: 24px; margin-bottom: 20px;">Verify Your Email</h2>
+      
+      <p style="color: #334155; font-size: 16px; line-height: 1.6;">Hi ${name},</p>
+      
+      <p style="color: #334155; font-size: 16px; line-height: 1.6;">
+        Thanks for signing up with Tabadl Alkon. Please verify your email address to activate your account and sign in.
+      </p>
+      
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${verifyUrl}" 
+           style="display: inline-block; background: #0B6B37; color: #ffffff; padding: 14px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          Verify Email
+        </a>
+      </div>
+      
+      <div style="background: #fef9e7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 4px;">
+        <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
+          <strong>Important:</strong> This link will expire in 24 hours. If you didn't create an account, you can ignore this email.
+        </p>
+      </div>
+      
+      <p style="color: #6b7280; font-size: 14px; text-align: center;">
+        Need help? Contact us at <a href="mailto:support@tabadlalkon.com" style="color: #0B6B37;">support@tabadlalkon.com</a>
+      </p>
+      
+      ${getEmailFooter()}
+    </div>
+  `
+
+  const text = `
+Verify Your Email
+
+Hi ${name},
+
+Thanks for signing up with Tabadl Alkon. Please verify your email address to activate your account and sign in:
+
+${verifyUrl}
+
+Important: This link will expire in 24 hours. If you didn't create an account, you can ignore this email.
+
+Need help? Contact us at support@tabadlalkon.com
+
+© ${currentYear} Tabadl Alkon. All rights reserved.
+  `.trim()
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text
+  })
+}
+
+// ============================================================
 // PASSWORD RESET EMAIL
 // ============================================================
 export async function sendPasswordResetEmail(

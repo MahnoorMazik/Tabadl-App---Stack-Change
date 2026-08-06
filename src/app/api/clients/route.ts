@@ -187,6 +187,7 @@ export const POST = withAuth(async (request) => {
           email: data.email,
           passwordHash,
           role: UserRole.CLIENT,
+          emailVerified: new Date(),
         },
       })
 

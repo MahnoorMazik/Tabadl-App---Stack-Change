@@ -221,6 +221,18 @@ export default function ClientApplicationsPage() {
     const draft = draftForArea(area)
     setLaunch({ area, label, continuing: Boolean(draft) })
 
+    // Open tab synchronously on user click — async window.open is blocked by browsers.
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      try {
+        popup.document.title = t('client.applications.pageTitle')
+        popup.document.body.innerHTML =
+          '<div style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#047857;">Loading application…</div>'
+      } catch {
+        // Cross-origin / restricted about:blank — still usable via location.href
+      }
+    }
+
     const minWait = new Promise((resolve) => setTimeout(resolve, LAUNCH_MIN_MS))
 
     try {
@@ -233,6 +245,7 @@ export default function ClientApplicationsPage() {
         const check = await axios.get(`/api/client/wizards?areaOfInterest=${area}`)
         const flow = check.data?.data?.merged
         if (!flow?.totalSteps) {
+          popup?.close()
           toast({
             title: t('client.applications.toast.noAppTitle'),
             description: t('client.applications.toast.noAppDesc').replace('{label}', label),
@@ -279,7 +292,15 @@ export default function ClientApplicationsPage() {
       }
 
       await minWait
-      window.open(`/client/applications/${appId}`, '_blank', 'noopener,noreferrer')
+      const appUrl = `/client/applications/${appId}`
+
+      if (popup && !popup.closed) {
+        popup.location.href = appUrl
+      } else {
+        // Popup blocked — open in this tab so the user is not stuck on draft-only.
+        window.location.href = appUrl
+        return
+      }
 
       if (resumed && !draft) {
         toast({
@@ -291,6 +312,7 @@ export default function ClientApplicationsPage() {
       // Sync list so the original tab shows Continue / draft badge without waiting for focus.
       void fetchApplications(true)
     } catch (error: any) {
+      popup?.close()
       toast({
         title: t('client.applications.toast.couldNotOpenTitle'),
         description: error.response?.data?.error?.message || error.message,

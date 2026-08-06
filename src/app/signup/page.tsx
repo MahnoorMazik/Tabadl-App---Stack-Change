@@ -117,10 +117,14 @@ export default function ClientSignupPage() {
     try {
       // Combine country code and phone number
       const fullPhoneNumber = `${formData.phoneCountryCode}${formData.phone}`
-      await register({
+      const result = await register({
         ...formData,
         phone: fullPhoneNumber, // Send combined phone number to API
       }, 'client')
+      if (result.requiresEmailVerification) {
+        router.push(`/check-email?email=${encodeURIComponent(result.email)}`)
+        return
+      }
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || t('auth.registrationFailed'))

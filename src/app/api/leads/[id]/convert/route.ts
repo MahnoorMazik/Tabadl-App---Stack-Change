@@ -116,6 +116,7 @@ export async function POST(
           name: lead.fullName,
           passwordHash,
           role: UserRole.CLIENT,
+          emailVerified: new Date(),
         },
       })
 
