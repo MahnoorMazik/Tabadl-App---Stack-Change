@@ -40,6 +40,7 @@ import {
 import { Loader2, Plus, ArrowLeft, ArrowRight, Search, Wand2, Shapes } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { parseBilingualText, encodeBilingualText } from '@/lib/multilingual-text'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import {
@@ -133,9 +134,14 @@ export function CreateWizardModal({
     })
   )
 
+  const [wizardNameEn, setWizardNameEn] = useState('')
+  const [wizardNameAr, setWizardNameAr] = useState('')
+
   const reset = useCallback(() => {
     setModalStep(1)
     setDraft(createEmptyWizardDraft())
+    setWizardNameEn('')
+    setWizardNameAr('')
     setShowValidation(false)
     setSaving(false)
     setPickerOpen(false)
@@ -147,13 +153,22 @@ export function CreateWizardModal({
   }, [])
 
   useEffect(() => {
+    const encoded = encodeBilingualText(wizardNameEn, wizardNameAr)
+    setDraft((prev) => (prev.name === encoded ? prev : { ...prev, name: encoded }))
+  }, [wizardNameEn, wizardNameAr])
+
+  useEffect(() => {
     if (!open) {
       reset()
       return
     }
 
     if (editingWizard) {
-      setDraft(draftFromWizard(editingWizard))
+      const d = draftFromWizard(editingWizard)
+      setDraft(d)
+      const parsed = parseBilingualText(d.name)
+      setWizardNameEn(parsed.en)
+      setWizardNameAr(parsed.ar)
       setModalStep(2)
       setShowValidation(false)
     }
@@ -192,7 +207,7 @@ export function CreateWizardModal({
     return () => {
       cancelled = true
     }
-  }, [open, reset, toast, editingWizard])
+  }, [open, editingWizard, reset, toast])
 
   const formsForArea = useMemo(() => {
     const activeForms = forms.filter((f) => f.isActive !== false)
@@ -308,10 +323,10 @@ export function CreateWizardModal({
 
   const handleNext = () => {
     setShowValidation(true)
-    if (!draft.name.trim() || !draft.areaOfInterest) {
+    if (!wizardNameEn.trim() || !wizardNameAr.trim() || !draft.areaOfInterest) {
       toast({
-        title: 'Complete setup',
-        description: 'Enter wizard name and select area of interest.',
+        title: isRTL ? 'استكمال الإعدادات' : 'Complete setup',
+        description: isRTL ? 'يرجى إدخال اسم المعالج باللغتين الإنجليزية والعربية واختيار الخدمة.' : 'Enter wizard name in both English and Arabic, and select a service.',
         variant: 'destructive',
       })
       return
@@ -343,10 +358,10 @@ export function CreateWizardModal({
 
   const handleCreate = async () => {
     setShowValidation(true)
-    if (!draft.name.trim()) {
+    if (!wizardNameEn.trim() || !wizardNameAr.trim()) {
       toast({
-        title: 'Name required',
-        description: 'Enter an application name before saving.',
+        title: isRTL ? 'الاسم مطلوب' : 'Name required',
+        description: isRTL ? 'يرجى إدخال اسم المعالج باللغتين الإنجليزية والعربية قبل الحفظ.' : 'Enter wizard name in both English and Arabic before saving.',
         variant: 'destructive',
       })
       return
@@ -362,6 +377,7 @@ export function CreateWizardModal({
     if (!isEdit && (!draft.areaOfInterest || !draft.name.trim())) return
 
     setSaving(true)
+    const encodedName = encodeBilingualText(wizardNameEn.trim(), wizardNameAr.trim())
     const stepsPayload = draft.steps.map((step, index) => ({
       formTemplateId: step.formTemplateId,
       paymentRequired: step.paymentRequired,
@@ -373,11 +389,11 @@ export function CreateWizardModal({
     // Edit: preserve areaOfInterest + serviceIds — do not send serviceIds (avoids clearing)
     const payload = isEdit
       ? {
-          name: draft.name.trim(),
+          name: encodedName,
           steps: stepsPayload,
         }
       : {
-          name: draft.name.trim(),
+          name: encodedName,
           areaOfInterest: draft.areaOfInterest,
           serviceIds: [] as string[],
           steps: stepsPayload,
@@ -560,9 +576,8 @@ export function CreateWizardModal({
                     index={index}
                     canRemove={draft.steps.length > 1}
                     formsForArea={formsForArea}
-                    usedFormIds={usedFormIds}
-                    onUpdate={updateStep}
-                    onRemove={removeStep}
+                    onChange={(patch) => updateStep(step.id, patch)}
+                    onRemove={() => removeStep(step.id)}
                     onEditForm={handleEditForm}
                   />
                 ))}
@@ -621,25 +636,45 @@ export function CreateWizardModal({
                           </p>
                         )}
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="wizard-name-edit" className={cn("block", isRTL ? "text-right" : "text-left")}>
-                          {t('admin.wizards.modal.wizardName')} <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="wizard-name-edit"
-                          value={draft.name}
-                          onChange={(e) =>
-                            setDraft((prev) => ({ ...prev, name: e.target.value }))
-                          }
-                          placeholder={t('admin.wizards.modal.wizardNamePlaceholder')}
-                          className={cn("h-10 bg-background", isRTL ? "text-right" : "text-left")}
-                          aria-invalid={showValidation && !draft.name.trim()}
-                        />
-                        {showValidation && !draft.name.trim() && (
-                          <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
-                            {t('admin.wizards.modal.nameRequired')}
-                          </p>
-                        )}
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-name-en-edit" className={cn("block", isRTL ? "text-right" : "text-left")}>
+                            {t('admin.wizards.modal.wizardNameEn')} <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="wizard-name-en-edit"
+                            value={wizardNameEn}
+                            onChange={(e) => setWizardNameEn(e.target.value)}
+                            placeholder={t('admin.wizards.modal.wizardNamePlaceholderEn')}
+                            className="h-10 bg-background text-left"
+                            aria-invalid={showValidation && !wizardNameEn.trim()}
+                          />
+                          {showValidation && !wizardNameEn.trim() && (
+                            <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
+                              {t('admin.wizards.modal.nameRequiredEn')}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-name-ar-edit" className={cn("block", isRTL ? "text-right" : "text-left")}>
+                            {t('admin.wizards.modal.wizardNameAr')} <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="wizard-name-ar-edit"
+                            value={wizardNameAr}
+                            onChange={(e) => setWizardNameAr(e.target.value)}
+                            placeholder={t('admin.wizards.modal.wizardNamePlaceholderAr')}
+                            dir="rtl"
+                            className="h-10 bg-background text-right"
+                            aria-invalid={showValidation && !wizardNameAr.trim()}
+                          />
+                          {showValidation && !wizardNameAr.trim() && (
+                            <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
+                              {t('admin.wizards.modal.nameRequiredAr')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -689,22 +724,39 @@ export function CreateWizardModal({
               </div>
             ) : modalStep === 1 ? (
               <div className="space-y-6 py-1">
-                <div className="space-y-2">
-                  <Label htmlFor="wizard-name" className={cn("text-sm font-medium block", isRTL ? "text-right" : "text-left")}>
-                    {t('admin.wizards.modal.wizardName')} <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="wizard-name"
-                    value={draft.name}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    placeholder={t('admin.wizards.modal.wizardNamePlaceholder')}
-                    className={cn("h-10 bg-background focus-visible:ring-emerald-600/30", isRTL ? "text-right" : "text-left")}
-                  />
-                  {setupError && !draft.name.trim() && (
-                    <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.nameRequired')}</p>
-                  )}
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wizard-name-en" className={cn("text-sm font-medium block", isRTL ? "text-right" : "text-left")}>
+                      {t('admin.wizards.modal.wizardNameEn')} <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="wizard-name-en"
+                      value={wizardNameEn}
+                      onChange={(e) => setWizardNameEn(e.target.value)}
+                      placeholder={t('admin.wizards.modal.wizardNamePlaceholderEn')}
+                      className="h-10 bg-background text-left"
+                    />
+                    {setupError && !wizardNameEn.trim() && (
+                      <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.nameRequiredEn')}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wizard-name-ar" className={cn("text-sm font-medium block", isRTL ? "text-right" : "text-left")}>
+                      {t('admin.wizards.modal.wizardNameAr')} <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="wizard-name-ar"
+                      value={wizardNameAr}
+                      onChange={(e) => setWizardNameAr(e.target.value)}
+                      placeholder={t('admin.wizards.modal.wizardNamePlaceholderAr')}
+                      dir="rtl"
+                      className="h-10 bg-background text-right"
+                    />
+                    {setupError && !wizardNameAr.trim() && (
+                      <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.nameRequiredAr')}</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3">

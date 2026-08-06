@@ -41,6 +41,8 @@ import { Module, Action } from '@/lib/rbac'
 import { useToast } from '@/hooks/use-toast'
 import { CreateWizardModal } from '@/components/admin/wizards/CreateWizardModal'
 import { WizardPreviewModal } from '@/components/admin/wizards/WizardPreviewModal'
+import { AreaOfInterestKey, AREA_OF_INTEREST_OPTIONS } from '@/components/admin/forms/types'
+import { getLocalizedText } from '@/lib/multilingual-text'
 import { WizardListItem, mapApiWizard } from '@/components/admin/wizards/types'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import { useLocale } from '@/contexts/LocaleContext'
@@ -315,7 +317,7 @@ export default function WizardsPage() {
                       <TableRow key={wizard.id} className="hover:bg-muted/30">
                         <TableCell className={cn("font-medium max-w-48", isRTL ? 'text-right' : 'text-left')}>
                           <div className={cn('flex gap-2 min-w-0 items-center', isRTL ? 'flex-row-reverse justify-end' : 'flex-row')}>
-                            <span className="truncate block">{wizard.name}</span>
+                            <span className="truncate block">{getLocalizedText(wizard.name, locale)}</span>
                             {isLive && (
                               <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shrink-0">
                                 {t('admin.wizards.live')}
@@ -472,11 +474,11 @@ export default function WizardsPage() {
             <AlertDialogDescription>
               {t('admin.wizards.dialog.switchDesc')}{' '}
               <span className="font-medium">
-                {activateTarget?.wizard.name} ({activateTarget?.wizard.areaOfInterest})
+                {getLocalizedText(activateTarget?.wizard.name, locale)} ({activateTarget?.wizard.areaOfInterest})
               </span>{' '}
-              {t('admin.wizards.dialog.willDeactivate')}
+              {t('admin.wizards.dialog.willDeactivate')}{' '}
               <span className="font-medium">
-                {activateTarget?.replaces.name} ({activateTarget?.replaces.areaOfInterest})
+                {getLocalizedText(activateTarget?.replaces.name, locale)} ({activateTarget?.replaces.areaOfInterest})
               </span>
               .
             </AlertDialogDescription>

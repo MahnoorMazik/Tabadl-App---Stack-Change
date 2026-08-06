@@ -385,6 +385,8 @@ function PreviewControl({ field }: { field: CanvasField }) {
   }
 }
 
+import { getLocalizedText } from '@/lib/multilingual-text'
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface FormPreviewProps {
@@ -393,7 +395,7 @@ interface FormPreviewProps {
 }
 
 export function FormPreview({ formName, fields }: FormPreviewProps) {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
 
   return (
     <div className="space-y-4">
@@ -403,32 +405,38 @@ export function FormPreview({ formName, fields }: FormPreviewProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {fields.map((field) => (
-            <div key={field.id} className="space-y-1.5">
-              {isDisplayOnlyFieldType(field.type) ? (
-                <>
-                  {(field.label || '').trim() && (
-                    <p className="text-sm font-semibold text-sky-950">{field.label}</p>
-                  )}
-                  <PreviewControl field={field} />
-                </>
-              ) : (
-                <>
-                  {field.type !== 'CHECKBOX' && (
-                    <Label
-                      htmlFor={`preview-${field.id}`}
-                      className="text-sm inline-flex items-center gap-1.5"
-                    >
-                      {field.label || 'Untitled field'}
-                      {field.required && <span className="text-destructive ml-0.5">*</span>}
-                      <FieldHelpTooltip text={field.helpText} />
-                    </Label>
-                  )}
-                  <PreviewControl field={field} />
-                </>
-              )}
-            </div>
-          ))}
+          {fields.map((field) => {
+            const displayLabel = getLocalizedText(field.label, locale) || 'Untitled field'
+            const displayHelpText = getLocalizedText(field.helpText, locale)
+            const localizedField = { ...field, label: displayLabel, helpText: displayHelpText }
+
+            return (
+              <div key={field.id} className="space-y-1.5">
+                {isDisplayOnlyFieldType(field.type) ? (
+                  <>
+                    {displayLabel.trim() && (
+                      <p className="text-sm font-semibold text-sky-950">{displayLabel}</p>
+                    )}
+                    <PreviewControl field={localizedField} />
+                  </>
+                ) : (
+                  <>
+                    {field.type !== 'CHECKBOX' && (
+                      <Label
+                        htmlFor={`preview-${field.id}`}
+                        className="text-sm inline-flex items-center gap-1.5"
+                      >
+                        {displayLabel}
+                        {field.required && <span className="text-destructive ml-0.5">*</span>}
+                        <FieldHelpTooltip text={displayHelpText} />
+                      </Label>
+                    )}
+                    <PreviewControl field={localizedField} />
+                  </>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

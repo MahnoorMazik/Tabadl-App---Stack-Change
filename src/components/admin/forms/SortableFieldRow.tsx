@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { CanvasField, FIELD_TYPE_LABELS, isDisplayOnlyFieldType } from './types'
+import { parseBilingualText, encodeBilingualText } from '@/lib/multilingual-text'
 
 interface SortableFieldRowProps {
   field: CanvasField
@@ -33,13 +34,28 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
   }
 
   const isInstruction = isDisplayOnlyFieldType(field.type)
+  const parsedLabel = parseBilingualText(field.label)
+  const parsedHelp = parseBilingualText(field.helpText)
+
+  const handleLabelChange = (en: string, ar: string) => {
+    const encoded = encodeBilingualText(en, ar)
+    onUpdate(field.id, {
+      label: encoded,
+      labelOverride: encoded,
+    })
+  }
+
+  const handleHelpChange = (en: string, ar: string) => {
+    const encoded = (en.trim() || ar.trim()) ? encodeBilingualText(en, ar) : null
+    onUpdate(field.id, { helpText: encoded })
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`
-        flex flex-col gap-2 rounded-lg border bg-card p-3
+        flex flex-col gap-2.5 rounded-lg border bg-card p-3
         ${isDragging ? 'opacity-80 shadow-md z-10' : ''}
         ${isInstruction ? 'border-sky-200 bg-sky-50/40' : ''}
       `}
@@ -55,17 +71,19 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
           <GripVertical className="h-4 w-4" />
         </button>
 
-        <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input
-            value={field.label}
-            onChange={(e) =>
-              onUpdate(field.id, {
-                label: e.target.value,
-                labelOverride: e.target.value,
-              })
-            }
-            placeholder={isInstruction ? 'Instruction heading' : 'Field label'}
-            className="h-8"
+            value={parsedLabel.en}
+            onChange={(e) => handleLabelChange(e.target.value, parsedLabel.ar)}
+            placeholder={isInstruction ? 'Heading (English)' : 'Field label (English)'}
+            className="h-8 text-xs"
+          />
+          <Input
+            value={parsedLabel.ar}
+            onChange={(e) => handleLabelChange(parsedLabel.en, e.target.value)}
+            placeholder={isInstruction ? 'العنوان (بالعربية)' : 'اسم الحقل (بالعربية)'}
+            dir="rtl"
+            className="h-8 text-xs text-right"
           />
         </div>
 
@@ -108,40 +126,53 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
         </Button>
       </div>
 
-      <div className="sm:pl-8 space-y-1">
+      <div className="sm:pl-8 space-y-1.5">
         {isInstruction ? (
-          <>
-            <Label
-              htmlFor={`instruction-${field.id}`}
-              className="text-xs font-normal text-muted-foreground"
-            >
-              Instruction text (shown on the form)
-            </Label>
-            <Textarea
-              id={`instruction-${field.id}`}
-              value={field.helpText ?? ''}
-              onChange={(e) => onUpdate(field.id, { helpText: e.target.value })}
-              placeholder="Write the guidance or instructions applicants should read…"
-              rows={3}
-              className="text-sm resize-y min-h-[72px]"
-            />
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <Label className="text-[11px] font-normal text-muted-foreground">Instruction text (English)</Label>
+              <Textarea
+                value={parsedHelp.en}
+                onChange={(e) => handleHelpChange(e.target.value, parsedHelp.ar)}
+                placeholder="Guidance in English…"
+                rows={2}
+                className="text-xs resize-y min-h-[50px]"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] font-normal text-muted-foreground block text-right">نص الإرشادات (بالعربية)</Label>
+              <Textarea
+                value={parsedHelp.ar}
+                onChange={(e) => handleHelpChange(parsedHelp.en, e.target.value)}
+                placeholder="الإرشادات بالعربية..."
+                rows={2}
+                dir="rtl"
+                className="text-xs resize-y min-h-[50px] text-right"
+              />
+            </div>
+          </div>
         ) : (
-          <>
-            <Label
-              htmlFor={`tooltip-${field.id}`}
-              className="text-xs font-normal text-muted-foreground"
-            >
-              Tooltip (shown on ? hover)
-            </Label>
-            <Input
-              id={`tooltip-${field.id}`}
-              value={field.helpText ?? ''}
-              onChange={(e) => onUpdate(field.id, { helpText: e.target.value })}
-              placeholder="Optional help message for applicants…"
-              className="h-8 text-sm"
-            />
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <Label className="text-[11px] font-normal text-muted-foreground">Tooltip (English)</Label>
+              <Input
+                value={parsedHelp.en}
+                onChange={(e) => handleHelpChange(e.target.value, parsedHelp.ar)}
+                placeholder="Help message in English…"
+                className="h-7 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] font-normal text-muted-foreground block text-right">تلميح توضيحي (بالعربية)</Label>
+              <Input
+                value={parsedHelp.ar}
+                onChange={(e) => handleHelpChange(parsedHelp.en, e.target.value)}
+                placeholder="نص توضيحي بالعربية..."
+                dir="rtl"
+                className="h-7 text-xs text-right"
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

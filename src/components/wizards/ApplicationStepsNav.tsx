@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 import { useLocale } from '@/contexts/LocaleContext'
 
@@ -228,7 +229,7 @@ export function ApplicationStepsNav({
                           : 'font-medium text-foreground'
                     )}
                   >
-                    {step.formName}
+                    {getLocalizedText(step.formName, locale)}
                   </span>
                   
                 </span>
@@ -271,7 +272,7 @@ export function ApplicationStepsNav({
                     className="text-xs"
                     disabled={!canSelect(i)}
                   >
-                    Step {i + 1}: {step.formName}
+                    Step {i + 1}: {getLocalizedText(step.formName, locale)}
                     {step.adminUseOnly ? ' (Admin only)' : ''}
                     {step.filled ? ' ✓' : ''}
                   </SelectItem>

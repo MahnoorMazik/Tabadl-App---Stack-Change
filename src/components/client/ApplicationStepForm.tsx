@@ -16,12 +16,14 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowLeft, ArrowRight, Check, Save, Clock, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import axios from 'axios'
 import { WizardFilePreview } from '@/components/wizards/WizardFilePreview'
 import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
 import { isWizardFileUrl } from '@/lib/wizards/wizard-file-utils'
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 export interface StepField {
   id?: string
@@ -114,6 +116,7 @@ export function ApplicationStepForm({
 }: ApplicationStepFormProps) {
   const { t, locale } = useLocale()
   const isRTL = locale === 'ar'
+  const localizedFormName = getLocalizedText(formName, locale)
   const [values, setValues] = useState<Record<string, string>>({})
   const [fileNames, setFileNames] = useState<Record<string, string>>({})
   const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null)
@@ -300,36 +303,24 @@ export function ApplicationStepForm({
 
   return (
     <div className="space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div
+    <Card className={cn('overflow-hidden transition-all duration-200 border-0 sm:border', engaging ? 'shadow-sm hover:shadow-md' : 'shadow-none')}>
+      <CardHeader
         className={cn(
-          'rounded-xl border p-4 sm:p-5 transition-all',
-          engaging
-            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/80 shadow-sm'
-            : 'bg-muted/35 border-border'
+          'border-b bg-gradient-to-r from-muted/50 to-muted/20 pb-4',
+          engaging ? 'px-6' : 'p-4'
         )}
       >
         <div className={cn("flex flex-wrap items-center justify-between gap-3", isRTL ? "flex-row" : "flex-row")}>
-          {/* Main Title & Step Progress Info */}
           <div className={cn("space-y-1 min-w-0", isRTL ? "text-right order-last" : "text-left order-first")}>
             <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">
-              {formName}
+              {localizedFormName}
             </h2>
             <p className="text-xs text-muted-foreground">
               {t('client.fill.stepOf').replace('{step}', String(stepIndex + 1)).replace('{total}', String(totalSteps))}
             </p>
           </div>
 
-          {/* Badges, Status & Header Actions */}
           <div className={cn("flex items-center gap-2 flex-wrap shrink-0", isRTL ? "flex-row order-first" : "flex-row order-last")}>
-            {approvalRequired && (
-              <Badge
-                variant="outline"
-                className={cn("bg-sky-50 text-sky-800 border-sky-200 font-normal shrink-0 text-xs flex items-center gap-1", isRTL && "flex-row-reverse")}
-              >
-                <ShieldCheck className="h-3.5 w-3.5" />
-                {t('client.fill.adminReview')}
-              </Badge>
-            )}
             {headerActions}
             {saveIndicator === 'saving' && (
               <span className={cn("inline-flex items-center text-xs text-muted-foreground bg-background/80 border rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
@@ -338,132 +329,119 @@ export function ApplicationStepForm({
               </span>
             )}
             {saveIndicator === 'saved' && (
-              <span className={cn("inline-flex items-center text-xs text-emerald-700 bg-emerald-100/90 border border-emerald-200 rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
+              <span className={cn("inline-flex items-center text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full px-2.5 py-1 gap-1", isRTL && "flex-row-reverse")}>
                 <Check className="h-3 w-3" />
-                {isRTL ? 'تم الحفظ' : 'Saved'}
+                {t('client.fill.updated')}
               </span>
             )}
           </div>
         </div>
-        {engaging && (
-          <div className="mt-3 h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-600 transition-all duration-500"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
+      </CardHeader>
+
+      <CardContent className={cn('p-4 sm:p-6 space-y-4', isRTL ? 'text-right' : 'text-left')}>
+        {approvalStatus === 'APPROVED' && (
+          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-200">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <AlertTitle className="text-sm font-semibold">{t('client.fill.stepApproved')}</AlertTitle>
+            <AlertDescription className="text-xs">
+              {t('client.fill.stepApprovedDesc')}
+            </AlertDescription>
+          </Alert>
         )}
-      </div>
 
-      {approvalRequired && approvalStatus === 'PENDING' && readOnly && (
-        <Alert className={cn("border-amber-200 bg-amber-50 text-amber-950", isRTL ? "text-right" : "text-left")}>
-          <Clock className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-          <AlertTitle className="text-sm font-semibold">{t('client.fill.pendingApproval')}</AlertTitle>
-          <AlertDescription className="text-xs text-amber-900/90">
-            {t('client.fill.pendingApprovalDesc')}
-          </AlertDescription>
-        </Alert>
-      )}
+        {approvalStatus === 'REJECTED' && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle className="text-sm font-semibold">{t('client.fill.changesRequested')}</AlertTitle>
+            <AlertDescription className="text-xs">
+              {rejectionNote?.trim()
+                ? rejectionNote
+                : t('client.fill.changesRequestedDesc')}
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {approvalRequired && approvalStatus === 'APPROVED' && readOnly && (
-        <Alert className={cn("border-emerald-200 bg-emerald-50 text-emerald-950", isRTL ? "text-right" : "text-left")}>
-          <Check className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-          <AlertTitle className="text-sm font-semibold">{t('client.fill.stepApproved')}</AlertTitle>
-          <AlertDescription className="text-xs text-emerald-900/90">
-            {t('client.fill.stepApprovedDesc')}
-          </AlertDescription>
-        </Alert>
-      )}
+        <div className={cn('space-y-3', engaging && 'space-y-4')}>
+          {fields.map((field, idx) => {
+            const displayLabel = getLocalizedText(field.label, locale)
+            const displayHelpText = getLocalizedText(field.helpText, locale)
 
-      {approvalRequired && approvalStatus === 'REJECTED' && (
-        <Alert variant="destructive" className={cn("border-red-200 bg-red-50 text-red-950 [&>svg]:text-red-600", isRTL ? "text-right" : "text-left")}>
-          <AlertTitle className="text-sm font-semibold">{t('client.fill.changesRequested')}</AlertTitle>
-          <AlertDescription className="text-xs">
-            {rejectionNote?.trim()
-              ? rejectionNote
-              : t('client.fill.changesRequestedDesc')}
-          </AlertDescription>
-        </Alert>
-      )}
+            if (field.type === 'INSTRUCTION') {
+              return (
+                <div
+                  key={field.fieldId}
+                  className={cn(
+                    'rounded-xl border border-sky-200 bg-sky-50 px-4 py-3.5',
+                    engaging && 'shadow-sm',
+                    isRTL ? 'text-right' : 'text-left'
+                  )}
+                >
+                  <div className={cn("flex items-start gap-2.5", isRTL ? "flex-row-reverse" : "flex-row")}>
+                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-[10px] font-semibold">
+                      i
+                    </span>
+                    <div className="min-w-0 space-y-1">
+                      {displayLabel?.trim() && (
+                        <p className="text-sm font-semibold text-sky-950">{displayLabel}</p>
+                      )}
+                      {displayHelpText?.trim() ? (
+                        <p className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed">
+                          {displayHelpText}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
 
-      <div className={cn('space-y-3', engaging && 'space-y-4')}>
-        {fields.map((field, idx) => {
-          if (field.type === 'INSTRUCTION') {
             return (
               <div
                 key={field.fieldId}
                 className={cn(
-                  'rounded-xl border border-sky-200 bg-sky-50 px-4 py-3.5',
-                  engaging && 'shadow-sm',
-                  isRTL ? 'text-right' : 'text-left'
+                  'space-y-1.5 rounded-xl border p-3.5 transition-shadow',
+                  isRTL ? 'text-right' : 'text-left',
+                  engaging
+                    ? 'bg-white dark:bg-card shadow-sm'
+                    : 'bg-card'
                 )}
               >
-                <div className={cn("flex items-start gap-2.5", isRTL ? "flex-row-reverse" : "flex-row")}>
-                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-[10px] font-semibold">
-                    i
+                <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm', isRTL ? 'flex-row justify-start w-full' : 'flex-row')}>
+                  <span className="text-muted-foreground/70 text-xs font-normal">
+                    {idx + 1}.
                   </span>
-                  <div className="min-w-0 space-y-1">
-                    {field.label?.trim() && (
-                      <p className="text-sm font-semibold text-sky-950">{field.label}</p>
-                    )}
-                    {field.helpText?.trim() ? (
-                      <p className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed">
-                        {field.helpText}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            )
-          }
+                  <span>{displayLabel}</span>
+                  {field.isRequired && <span className="text-destructive">*</span>}
+                  <FieldHelpTooltip text={displayHelpText} />
+                </Label>
 
-          return (
-          <div
-            key={field.fieldId}
-            className={cn(
-              'space-y-1.5 rounded-xl border p-3.5 transition-shadow',
-              isRTL ? 'text-right' : 'text-left',
-              engaging
-                ? 'bg-white dark:bg-card shadow-sm'
-                : 'bg-card'
-            )}
-          >
-            <Label className={cn('inline-flex items-center gap-1.5', engaging ? 'text-sm font-medium' : 'text-sm', isRTL ? 'flex-row-reverse justify-end w-full' : 'flex-row')}>
-              <span className="text-muted-foreground/70 text-xs font-normal">
-                {idx + 1}.
-              </span>
-              <span>{field.label}</span>
-              {field.isRequired && <span className="text-destructive">*</span>}
-              <FieldHelpTooltip text={field.helpText} />
-            </Label>
-
-            {field.type === 'TEXTAREA' ? (
-              <Textarea
-                value={values[field.fieldId] ?? ''}
-                onChange={(e) => setValue(field.fieldId, e.target.value)}
-                placeholder={field.placeholder || undefined}
-                disabled={readOnly}
-                rows={4}
-                className={cn(isRTL ? 'text-right' : 'text-left', engaging ? 'disabled:opacity-80 disabled:cursor-not-allowed focus-visible:ring-emerald-500 disabled:bg-gray-100' : undefined)}
-              />
-            ) : field.type === 'SELECT' || field.type === 'RADIO' ? (
-              <Select
-                value={values[field.fieldId] ?? ''}
-                onValueChange={(val) => setValue(field.fieldId, val)}
-                disabled={readOnly}
-              >
-                <SelectTrigger className={cn("h-10", isRTL ? "text-right" : "text-left")}>
-                  <SelectValue placeholder={field.placeholder || "Select option"} />
-                </SelectTrigger>
-                <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
-                  {(field.options ?? []).map((opt) => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : field.type === 'CHECKBOX' ? (
+                {field.type === 'TEXTAREA' ? (
+                  <Textarea
+                    value={values[field.fieldId] ?? ''}
+                    onChange={(e) => setValue(field.fieldId, e.target.value)}
+                    placeholder={field.placeholder || undefined}
+                    disabled={readOnly}
+                    rows={4}
+                    className={cn(isRTL ? 'text-right' : 'text-left', engaging ? 'disabled:opacity-80 disabled:cursor-not-allowed focus-visible:ring-emerald-500 disabled:bg-gray-100' : undefined)}
+                  />
+                ) : field.type === 'SELECT' || field.type === 'RADIO' ? (
+                  <Select
+                    value={values[field.fieldId] ?? ''}
+                    onValueChange={(val) => setValue(field.fieldId, val)}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger className={cn("h-10", isRTL ? "text-right" : "text-left")}>
+                      <SelectValue placeholder={field.placeholder || "Select option"} />
+                    </SelectTrigger>
+                    <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
+                      {(field.options ?? []).map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : field.type === 'CHECKBOX' ? (
               <div className="flex items-center gap-2 pt-1">
                 <Checkbox
                   checked={values[field.fieldId] === 'true'}
@@ -582,6 +560,8 @@ export function ApplicationStepForm({
           </Button>
         </div>
       )}
-    </div>
-  )
+      </CardContent>
+    </Card>
+  </div>
+)
 }

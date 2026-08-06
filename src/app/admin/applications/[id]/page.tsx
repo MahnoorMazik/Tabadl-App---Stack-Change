@@ -43,6 +43,7 @@ import {
 import { ApplicationStepsNav } from '@/components/wizards/ApplicationStepsNav'
 import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
 import { any } from 'zod'
 import { WhatsAppStatus } from '@/components/admin/notifications/WhatsAppStatus'
 
@@ -162,12 +163,12 @@ export default function AdminApplicationDetailPage() {
       setEmailStatus(null)
       setWhatsappStatus(null)
     } catch {
-      toast({ title: 'Application not found', variant: 'destructive' })
+      toast({ title: t('admin.applications.toast.notFoundTitle'), variant: 'destructive' })
       router.replace('/admin/applications')
     } finally {
       setLoading(false)
     }
-  }, [id, router, toast])
+  }, [id, router, t, toast])
 
   useEffect(() => {
     void load()
@@ -233,12 +234,12 @@ export default function AdminApplicationDetailPage() {
         }
       }
       setSaveIndicator('saved')
-      toast({ title: 'Answers saved' })
+      toast({ title: t('admin.applications.toast.answersSavedTitle') })
       setTimeout(() => setSaveIndicator('idle'), 1500)
     } catch (error: any) {
       setSaveIndicator('idle')
       toast({
-        title: 'Save failed',
+        title: t('admin.applications.toast.saveFailedTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -252,8 +253,8 @@ export default function AdminApplicationDetailPage() {
     
     if (status === app.status) {
       toast({
-        title: 'No change',
-        description: 'Application already has this status',
+        title: t('admin.applications.toast.noChangeTitle'),
+        description: t('admin.applications.toast.noChangeDesc'),
         variant: 'default',
       })
       return
@@ -276,11 +277,10 @@ export default function AdminApplicationDetailPage() {
       
       const data = response.data.data
       
-      // Only show success chips when a channel actually sent. Never show red failure UI on successful status update.
       if (data.emailSent) {
         setEmailStatus({
           sent: true,
-          message: `✅ Email sent to ${app.client.email}`,
+          message: isRTL ? `✅ تم إرسال بريد إلكتروني إلى ${app.client.email}` : `✅ Email sent to ${app.client.email}`,
         })
       } else {
         setEmailStatus(null)
@@ -289,18 +289,17 @@ export default function AdminApplicationDetailPage() {
       if (data.whatsappSent) {
         setWhatsappStatus({
           sent: true,
-          message: `✅ WhatsApp sent to ${app.client.phone || 'client'}`,
+          message: isRTL ? `✅ تم إرسال واتساب إلى ${app.client.phone || 'العميل'}` : `✅ WhatsApp sent to ${app.client.phone || 'client'}`,
         })
       } else {
         setWhatsappStatus(null)
       }
 
-      // Status update succeeded → always green toast (ignore notification skip/fail for toast color)
       toast({ 
-        title: `Status updated to ${data.status ?? status}`,
+        title: `${t('admin.applications.toast.statusUpdatedTitle')} (${data.status ?? status})`,
         description: data.emailSent || data.whatsappSent
-          ? 'Client notified successfully'
-          : 'Application status saved',
+          ? t('admin.applications.toast.notifiedSuccess')
+          : t('admin.applications.toast.statusSaved'),
         variant: 'success',
         className: '!border-emerald-600 !bg-emerald-600 !text-white',
         duration: 4000,
@@ -312,7 +311,7 @@ export default function AdminApplicationDetailPage() {
       setEmailStatus(null)
       setWhatsappStatus(null)
       toast({
-        title: 'Status update failed',
+        title: t('admin.applications.toast.updateFailedTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -328,11 +327,11 @@ export default function AdminApplicationDetailPage() {
       await axios.patch(`/api/admin/wizard-applications/${app.id}`, {
         adminNotes: adminNotes.trim() || null,
       })
-      toast({ title: 'Note saved — visible to client' })
+      toast({ title: t('admin.applications.toast.noteSavedTitle') })
       await load()
     } catch (error: any) {
       toast({
-        title: 'Could not save note',
+        title: t('admin.applications.toast.saveFailedTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -343,7 +342,7 @@ export default function AdminApplicationDetailPage() {
 
   const addNextStep = async () => {
     if (!app || !addFormId) {
-      toast({ title: 'Select a form', variant: 'destructive' })
+      toast({ title: t('admin.applications.toast.selectFormTitle'), variant: 'destructive' })
       return
     }
     setAddingStep(true)
@@ -357,10 +356,10 @@ export default function AdminApplicationDetailPage() {
       setAddFormId('')
       setAddPayment(false)
       setStepIndex(Math.max(0, detail.steps.length - 1))
-      toast({ title: 'Next step added' })
+      toast({ title: t('admin.applications.toast.nextStepAddedTitle') })
     } catch (error: any) {
       toast({
-        title: 'Could not add step',
+        title: t('admin.applications.toast.addStepFailedTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -380,12 +379,12 @@ export default function AdminApplicationDetailPage() {
       setServerSyncVersion((v) => v + 1)
       setFormDirty(false)
       toast({
-        title: 'Step approved',
-        description: 'The client cannot change approved answers on this step.',
+        title: t('client.applications.toast.stepApprovedTitle'),
+        description: t('client.applications.toast.stepApprovedDesc'),
       })
     } catch (error: any) {
       toast({
-        title: 'Could not approve step',
+        title: t('admin.applications.toast.updateFailedTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -463,7 +462,7 @@ export default function AdminApplicationDetailPage() {
 
   return (
     <AdminPageTemplate
-      title={app.wizard.name}
+      title={getLocalizedText(app.wizard.name, locale)}
       description={`${app.applicationNumber} · ${app.client.name}`}
       icon={<FileText className="h-5 w-5" />}
       showConstruction={false}

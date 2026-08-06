@@ -26,6 +26,7 @@ import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
 import { StartApplicationForClientModal } from '@/components/admin/applications/StartApplicationForClientModal'
 
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 export const dynamic = 'force-dynamic'
 
@@ -324,7 +325,7 @@ export default function AdminApplicationsPage() {
                         <TableCell className={cn("max-w-52", isRTL ? "text-right" : "text-left")}>
                           <div className={cn("flex flex-col gap-1 min-w-0", isRTL ? "text-right" : "text-left")}>
                             <div className={cn("flex flex-wrap items-center gap-2", isRTL ? "flex-row-reverse justify-end" : "flex-row")}>
-                              <span className="font-medium truncate">{app.wizard.name}</span>
+                              <span className="font-medium truncate">{getLocalizedText(app.wizard.name, locale)}</span>
                               {app.hasPendingApproval && (
                                 <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
                                   {t('admin.applications.badge.review')}

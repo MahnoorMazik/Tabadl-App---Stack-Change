@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, CreditCard, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react'
 import { formApi } from '@/components/admin/forms/api'
 import { FormPreview } from '@/components/admin/forms/FormPreview'
+import { getLocalizedText } from '@/lib/multilingual-text'
 import { CanvasField, mapApiTemplateDetail } from '@/components/admin/forms/types'
 import { WizardListItem } from './types'
 import { cn } from '@/lib/utils'
@@ -165,7 +166,7 @@ export function WizardPreviewModal({
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     Step {index + 1}
                   </span>
-                  <span className="truncate text-xs font-medium">{step.formName}</span>
+                  <span className="truncate text-xs font-medium">{getLocalizedText(step.formName, locale)}</span>
                   {step.paymentRequired && (
                     <span className="mt-0.5 text-[10px] text-amber-700">+ Payment</span>
                   )}
@@ -195,7 +196,7 @@ export function WizardPreviewModal({
                   <p className="font-medium">Payment required</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Client must complete payment before continuing from{' '}
-                    <span className="font-medium text-foreground">{currentStep.formName}</span>.
+                    <span className="font-medium text-foreground">{getLocalizedText(currentStep.formName, locale)}</span>.
                   </p>
                 </div>
               </div>
@@ -203,7 +204,7 @@ export function WizardPreviewModal({
                 <div className="flex justify-between gap-4">
                   <span className="text-muted-foreground">Step</span>
                   <span className="text-right">
-                    {stepIndex + 1} — {currentStep.formName}
+                    {stepIndex + 1} — {getLocalizedText(currentStep.formName, locale)}
                   </span>
                 </div>
                 <div className="flex justify-between gap-4">

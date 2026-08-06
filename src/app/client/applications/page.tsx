@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils'
 import { wizardStatusClasses } from '@/lib/wizards/wizard-status'
 import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 type ApplicationItem = {
   id: string
@@ -117,15 +118,15 @@ export default function ClientApplicationsPage() {
           error.response?.data?.error ||
           'Failed to load applications'
         toast({
-          title: 'Could not load applications',
-          description: typeof message === 'string' ? message : 'Please sign in as a client and try again.',
+          title: t('client.applications.toast.couldNotLoadTitle'),
+          description: typeof message === 'string' ? message : t('client.applications.toast.couldNotLoadDesc'),
           variant: 'destructive',
         })
       }
     } finally {
       if (!silent) setLoadingApps(false)
     }
-  }, [toast])
+  }, [t, toast])
 
   useEffect(() => {
     if (!authLoading && user) void fetchApplications()
@@ -233,8 +234,8 @@ export default function ClientApplicationsPage() {
         const flow = check.data?.data?.merged
         if (!flow?.totalSteps) {
           toast({
-            title: 'No application available',
-            description: `There is no active form for ${label} yet. Please check back later.`,
+            title: t('client.applications.toast.noAppTitle'),
+            description: t('client.applications.toast.noAppDesc').replace('{label}', label),
             variant: 'destructive',
           })
           return
@@ -282,8 +283,8 @@ export default function ClientApplicationsPage() {
 
       if (resumed && !draft) {
         toast({
-          title: 'Opening existing draft',
-          description: `You already have an unfinished ${label} application — continuing that one.`,
+          title: t('client.applications.toast.openingDraftTitle'),
+          description: t('client.applications.toast.openingDraftDesc').replace('{label}', label),
         })
       }
 
@@ -291,7 +292,7 @@ export default function ClientApplicationsPage() {
       void fetchApplications(true)
     } catch (error: any) {
       toast({
-        title: 'Could not open application',
+        title: t('client.applications.toast.couldNotOpenTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -521,7 +522,7 @@ export default function ClientApplicationsPage() {
                               <TableRow key={app.id} className="hover:bg-muted/30">
                                 <TableCell className="font-medium max-w-52">
                                   <div className="flex flex-col gap-1 min-w-0">
-                                    <span className="truncate block">{app.wizard.name}</span>
+                                    <span className="truncate block">{getLocalizedText(app.wizard.name, locale)}</span>
                                     <span className="text-xs text-muted-foreground font-normal">
                                       {app.applicationNumber}
                                     </span>
