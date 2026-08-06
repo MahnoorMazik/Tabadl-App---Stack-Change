@@ -1145,3 +1145,126 @@ Tabadl Alkon CRM System`
     error: errorMessage
   }
 }
+
+/**
+ * ============================================================
+ * 🆕 NEW: Send Password Change Alert Email
+ * ============================================================
+ * This function sends an email notification when a user changes their password.
+ * It's called from both admin and client password change APIs.
+ */
+export async function sendPasswordChangeEmail(to: string, name: string): Promise<EmailResult> {
+  const subject = '🔒 Password Changed Successfully - Tabadl Alkon'
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+      <!-- Header -->
+      <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #dc2626;">
+        <h1 style="color: #dc2626; margin: 0; font-size: 28px;">🔒 Password Changed</h1>
+        <p style="color: #6b7280; margin: 10px 0 0 0; font-size: 16px;">Your Tabadl Alkon account password has been updated</p>
+      </div>
+
+      <!-- Alert Message -->
+      <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 25px; border-radius: 10px; margin-bottom: 30px; text-align: center;">
+        <p style="color: #ffffff; font-size: 18px; margin: 0; line-height: 1.6;">
+          Dear ${name},<br><br>
+          Your password has been successfully changed on <strong>${new Date().toLocaleString()}</strong>.
+        </p>
+      </div>
+
+      <!-- Security Warning -->
+      <div style="background-color: #fef2f2; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #dc2626;">
+        <h3 style="color: #dc2626; margin-top: 0; margin-bottom: 15px; font-size: 18px;">⚠️ Important Security Notice</h3>
+        <p style="color: #374151; margin: 0 0 15px 0; line-height: 1.6;">
+          <strong>If you did not request this password change:</strong>
+        </p>
+        <ul style="color: #374151; margin: 0; padding-left: 20px; line-height: 1.8;">
+          <li>Immediately contact our support team</li>
+          <li>Check your account for any suspicious activity</li>
+          <li>Consider enabling two-factor authentication</li>
+        </ul>
+      </div>
+
+      <!-- What To Do -->
+      <div style="background-color: #f0fdf4; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 4px solid #059669;">
+        <h3 style="color: #059669; margin-top: 0; margin-bottom: 15px; font-size: 18px;">✅ If You Made This Change</h3>
+        <ul style="color: #374151; margin: 0; padding-left: 20px; line-height: 1.8;">
+          <li>You can safely ignore this email</li>
+          <li>Your account remains secure with your new password</li>
+          <li>No further action is required</li>
+        </ul>
+      </div>
+
+      <!-- Security Tips -->
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #e5e7eb;">
+        <h3 style="color: #111827; margin-top: 0; margin-bottom: 15px; font-size: 18px;">🛡️ Password Security Tips</h3>
+        <ul style="color: #374151; margin: 0; padding-left: 20px; line-height: 1.8;">
+          <li>Use a unique password that you don't use elsewhere</li>
+          <li>Make it at least 8 characters with mix of letters, numbers, and symbols</li>
+          <li>Change your password regularly (every 3-6 months)</li>
+          <li>Never share your password with anyone</li>
+          <li>Enable two-factor authentication for extra security</li>
+        </ul>
+      </div>
+
+      <!-- Support Contact -->
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 30px; text-align: center;">
+        <h3 style="color: #111827; margin-top: 0; margin-bottom: 15px; font-size: 18px;">Need Help?</h3>
+        <p style="color: #6b7280; margin: 0 0 10px 0;">If you have any concerns or need assistance:</p>
+        <p style="color: #059669; margin: 5px 0; font-weight: 600;">📧 support@tabadlalkon.com</p>
+        <p style="color: #059669; margin: 5px 0; font-weight: 600;">📞 +966 50 000 0000</p>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align: center; padding-top: 20px; border-top: 1px solid #e5e7eb; margin-top: 30px;">
+        <p style="color: #6b7280; font-size: 14px; margin: 0;">
+          This is an automated notification from Tabadl Alkon CRM.
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0;">
+          &copy; ${new Date().getFullYear()} Tabadl Alkon. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `
+
+  const text = `
+🔒 PASSWORD CHANGED SUCCESSFULLY
+
+Dear ${name},
+
+Your password has been successfully changed on ${new Date().toLocaleString()}.
+
+⚠️ IMPORTANT SECURITY NOTICE:
+If you did not request this password change:
+- Immediately contact our support team
+- Check your account for any suspicious activity
+- Consider enabling two-factor authentication
+
+✅ If You Made This Change:
+- You can safely ignore this email
+- Your account remains secure with your new password
+- No further action is required
+
+🛡️ PASSWORD SECURITY TIPS:
+- Use a unique password that you don't use elsewhere
+- Make it at least 8 characters with mix of letters, numbers, and symbols
+- Change your password regularly (every 3-6 months)
+- Never share your password with anyone
+- Enable two-factor authentication for extra security
+
+NEED HELP?
+📧 support@tabadlalkon.com
+📞 +966 50 000 0000
+
+This is an automated notification from Tabadl Alkon CRM.
+
+© ${new Date().getFullYear()} Tabadl Alkon. All rights reserved.
+  `.trim()
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text
+  })
+}

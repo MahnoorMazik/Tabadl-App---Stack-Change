@@ -12,16 +12,12 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders } from '@/lib/cors'
 import { z } from 'zod'
-import { checkRateLimit, getRateLimitIdentifier, rateLimitConfigs } from '@/lib/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 import { sendPasswordChangeEmail } from '@/lib/email' // ✅ Fixed import
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'New password must be at least 6 characters'),
-  confirmPassword: z.string().min(1, 'Password confirmation is required'),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: 'New password and confirmation do not match',
-  path: ['confirmPassword'],
 })
 
 export const POST = withAuth(async (request: NextRequest) => {
@@ -133,7 +129,7 @@ export const POST = withAuth(async (request: NextRequest) => {
           ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
           userAgent: request.headers.get('user-agent') || 'unknown',
           changes: JSON.stringify({
-            action: 'Password changed',
+            action: 'Client password changed',
             timestamp: new Date().toISOString(),
             role: dbUser.role,
           }),
@@ -147,18 +143,15 @@ export const POST = withAuth(async (request: NextRequest) => {
     // Send email notification (async - don't await)
     try {
       // ✅ Fixed: Use correct function name
-      await sendPasswordChangeEmail(dbUser.email, dbUser.name || 'User')
+      await sendPasswordChangeEmail(dbUser.email, dbUser.name || 'Client')
         .catch(err => console.error('Email send failed:', err))
     } catch (emailError) {
       console.error('Email service error:', emailError)
     }
 
-    // With NextAuth, the session is managed by NextAuth
-    // The client should call update() on the session to refresh it
     return addCorsHeaders(createSuccessResponse(
       { 
-        message: 'Password changed successfully. Please refresh your session.',
-        requiresSessionRefresh: true,
+        message: 'Password changed successfully. Please login again.',
         shouldLogout: true,
       },
       200,
@@ -169,7 +162,7 @@ export const POST = withAuth(async (request: NextRequest) => {
       code: ErrorCodes.INTERNAL_ERROR,
       requestId,
       userId: user?.userId,
-      endpoint: '/api/profile/change-password',
+      endpoint: '/api/client/change-password',
       method: 'POST',
       additionalContext: { errorType: error.constructor.name }
     })
