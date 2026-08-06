@@ -152,7 +152,8 @@ export default function ClientApplicationFillPage() {
   const [stepIndex, setStepIndex] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [formDirty, setFormDirty] = useState(false)
+  /** Ref only — must not be React state or first keystroke re-renders MobileLayout/shell. */
+  const formDirtyRef = useRef(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
   const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
   const [whatsappError, setWhatsappError] = useState<string>()
@@ -231,11 +232,11 @@ export default function ClientApplicationFillPage() {
     const intervalMs = waitingOnApproval ? 5000 : 60000
     const timer = setInterval(() => {
       if (saving) return
-      if (formDirty && !waitingOnApproval) return
+      if (formDirtyRef.current && !waitingOnApproval) return
       void load(true)
     }, intervalMs)
     return () => clearInterval(timer)
-  }, [authLoading, user, load, applicationLocked, formDirty, saving, app?.steps])
+  }, [authLoading, user, load, applicationLocked, saving, app?.steps])
 
   useEffect(() => {
     if (authLoading || !user || !app) return
@@ -321,7 +322,7 @@ export default function ClientApplicationFillPage() {
         answers: answersPayload,
       })
       const savedApp = patchRes.data?.data?.application as AppDetail | undefined
-      setFormDirty(false)
+      formDirtyRef.current = false
       setServerSyncVersion((v) => v + 1)
       if (savedApp) {
         appFingerprintRef.current = wizardApplicationDetailFingerprint(savedApp)
@@ -552,8 +553,12 @@ export default function ClientApplicationFillPage() {
                       onSave={(answers, opts) => saveStep(answers, opts)}
                       onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
-                      onDirtyChange={setFormDirty}
+                      onDirtyChange={(dirty) => {
+                        formDirtyRef.current = dirty
+                      }}
                       serverSyncVersion={serverSyncVersion}
+                      applicationId={app.id}
+                      fileUploadBasePath="/api/client/wizard-applications"
                       saveExitLabel="Save"
                       showSubmit={!applicationLocked}
                       allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}

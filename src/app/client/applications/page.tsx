@@ -41,6 +41,7 @@ import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses } from '@/lib/wizards/wizard-status'
 import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
+import { writeApplicationLaunchLoadingDocument } from '@/lib/client/write-application-launch-loading'
 import { useLocale } from '@/contexts/LocaleContext'
 import { getLocalizedText } from '@/lib/multilingual-text'
 
@@ -225,9 +226,18 @@ export default function ClientApplicationsPage() {
     const popup = window.open('about:blank', '_blank')
     if (popup) {
       try {
-        popup.document.title = t('client.applications.pageTitle')
-        popup.document.body.innerHTML =
-          '<div style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#047857;">Loading application…</div>'
+        const continuing = Boolean(draft)
+        const areaStr = label || (isRTL ? 'الطلب' : 'application')
+        writeApplicationLaunchLoadingDocument(popup, {
+          documentTitle: t('client.applications.pageTitle'),
+          dir: isRTL ? 'rtl' : 'ltr',
+          title: continuing
+            ? t('client.fill.continuingApp')
+            : t('client.fill.startingApp'),
+          subtitle: continuing
+            ? t('client.fill.loadingDraft').replace('{area}', areaStr)
+            : t('client.fill.preparingForms').replace('{area}', areaStr),
+        })
       } catch {
         // Cross-origin / restricted about:blank — still usable via location.href
       }

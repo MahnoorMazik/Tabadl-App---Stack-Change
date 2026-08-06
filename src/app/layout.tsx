@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { Suspense } from "react";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -122,6 +123,7 @@ export default function RootLayout({
             <LocaleProvider>
               <AuthProvider>
                 <NotificationProvider>
+                <TooltipProvider delayDuration={200}>
                 <ManifestSwitcher />
                 {children}
                 <Toaster />
@@ -133,6 +135,7 @@ export default function RootLayout({
                 <PwaInstallCapture />
                 {/* WhatsApp floating button - above other FABs so it stays visible */}
                 <PublicWhatsAppButton />
+                </TooltipProvider>
                 </NotificationProvider>
               </AuthProvider>
             </LocaleProvider>
