@@ -29,8 +29,14 @@ async function main() {
         staffType: 'ADMIN',
         isActive: true,
         customRoleId: adminRole?.id ?? null,
+        tokenVersion: 0, // ✅ Added
+        resetPasswordToken: null, // ✅ Added - for forgot password
+        resetPasswordExpiry: null, // ✅ Added - for forgot password
       },
     })
+    console.log('✅ Admin user created')
+  } else {
+    console.log('✅ Admin user already exists')
   }
 
   await assignDefaultRoles()
@@ -67,6 +73,41 @@ async function main() {
         data: { name: g.name, description: g.description, color: g.color },
       })
     }
+  }
+
+  // ✅ Optional: Create a test client user for testing
+  const clientPasswordHash = bcrypt.hashSync('client123', 12)
+  const existingClient = await prisma.user.findFirst({
+    where: { email: 'client@tk.sa', isDeleted: false },
+  })
+
+  if (!existingClient) {
+    const clientUser = await prisma.user.create({
+      data: {
+        name: 'Client User',
+        email: 'client@tk.sa',
+        passwordHash: clientPasswordHash,
+        role: 'CLIENT',
+        isActive: true,
+        tokenVersion: 0,
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
+      },
+    })
+
+    // Create client profile
+    await prisma.client.create({
+      data: {
+        clientNumber: `CL-${Date.now()}`,
+        name: 'Client User',
+        email: 'client@tk.sa',
+        userId: clientUser.id,
+        profileCompletionStatus: 'INCOMPLETE',
+      },
+    })
+    console.log('✅ Test client user created')
+  } else {
+    console.log('✅ Test client user already exists')
   }
 
   console.log('✅ Database seeded successfully!')

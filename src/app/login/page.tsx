@@ -98,7 +98,7 @@ export default function ClientLoginPage() {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <Link href="/forgot-password" className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 hover:underline">
+              <Link href="/client/forgot-password" className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 hover:underline">
                 {t('auth.forgotPassword')}
               </Link>
             </div>
