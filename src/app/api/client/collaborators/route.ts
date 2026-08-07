@@ -52,7 +52,12 @@ export async function GET(request: NextRequest) {
     const owner = await requireClientOwner(request)
     if ('error' in owner) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, owner.error, owner.status, { requestId })
+        createErrorResponse(
+          ErrorCodes.AUTHORIZATION_ERROR,
+          owner.error || 'Authorization failed',
+          owner.status || 403,
+          { requestId }
+        )
       )
     }
 
@@ -70,7 +75,12 @@ export async function GET(request: NextRequest) {
       createSuccessResponse({ collaborators: rows }, 200, { requestId })
     )
   } catch (error) {
-    logError(error, { requestId, route: 'GET /api/client/collaborators' })
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: '/api/client/collaborators',
+      method: 'GET',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to load collaborators', 500, {
         requestId,
@@ -86,7 +96,12 @@ export async function POST(request: NextRequest) {
     const owner = await requireClientOwner(request)
     if ('error' in owner) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, owner.error, owner.status, { requestId })
+        createErrorResponse(
+          ErrorCodes.AUTHORIZATION_ERROR,
+          owner.error || 'Authorization failed',
+          owner.status || 403,
+          { requestId }
+        )
       )
     }
 
@@ -251,7 +266,12 @@ export async function POST(request: NextRequest) {
         )
       )
     }
-    logError(error, { requestId, route: 'POST /api/client/collaborators' })
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: '/api/client/collaborators',
+      method: 'POST',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to send invite', 500, {
         requestId,

@@ -52,7 +52,11 @@ export async function DELETE(
     const owned = await requireOwnedInvite(request, id)
     if ('error' in owned) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, owned.error, owned.status, {
+        createErrorResponse(
+          ErrorCodes.AUTHORIZATION_ERROR,
+          owned.error || 'Authorization failed',
+          owned.status || 403,
+          {
           requestId,
         })
       )
@@ -75,7 +79,12 @@ export async function DELETE(
       })
     )
   } catch (error) {
-    logError(error, { requestId, route: 'DELETE /api/client/collaborators/[id]' })
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: '/api/client/collaborators/[id]',
+      method: 'DELETE',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to revoke collaborator', 500, {
         requestId,
@@ -95,7 +104,11 @@ export async function POST(
     const owned = await requireOwnedInvite(request, id)
     if ('error' in owned) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, owned.error, owned.status, {
+        createErrorResponse(
+          ErrorCodes.AUTHORIZATION_ERROR,
+          owned.error || 'Authorization failed',
+          owned.status || 403,
+          {
           requestId,
         })
       )
@@ -154,7 +167,12 @@ export async function POST(
       )
     )
   } catch (error) {
-    logError(error, { requestId, route: 'POST /api/client/collaborators/[id]' })
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: '/api/client/collaborators/[id]',
+      method: 'POST',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to resend invite', 500, {
         requestId,

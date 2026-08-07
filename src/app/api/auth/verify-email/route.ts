@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
       if (emailSettings?.enableWelcomeEmail) {
         await sendWelcomeEmail(
           user.email,
-          user.name || user.email,
-          emailSettings
+          user.name || user.email
         )
       }
     } catch (emailError) {
