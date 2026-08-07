@@ -28,7 +28,9 @@ import {
   AlertCircle,
   Receipt,
   User,
+  Users,
 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface SidebarItem {
   title: string
@@ -38,7 +40,29 @@ interface SidebarItem {
   children?: SidebarItem[]
 }
 
-const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
+const createSidebarItems = (t: (key: string) => string, role?: string): SidebarItem[] => {
+  if (role === 'COLLABORATOR') {
+    return [
+      {
+        title: t('client.sidebar.dashboard'),
+        icon: LayoutDashboard,
+        href: '/dashboard',
+      },
+      {
+        title: t('client.sidebar.applicationManagement'),
+        icon: ClipboardList,
+        children: [
+          {
+            title: t('client.sidebar.allApplications'),
+            icon: FileText,
+            href: '/client/applications',
+          },
+        ],
+      },
+    ]
+  }
+
+  return [
   {
     title: t('client.sidebar.dashboard'),
     icon: LayoutDashboard,
@@ -59,6 +83,11 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         href: '/client/applications',
       },
     ],
+  },
+  {
+    title: t('client.sidebar.collaboration'),
+    icon: Users,
+    href: '/client/collaborators',
   },
   {
     title: t('client.sidebar.myDocuments'),
@@ -113,6 +142,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     ],
   },
 ]
+}
 
 interface ClientSidebarProps {
   className?: string
@@ -123,9 +153,10 @@ interface ClientSidebarProps {
 export function ClientSidebar({ className, isCollapsed = false, onToggle }: ClientSidebarProps) {
   const pathname = usePathname()
   const { t } = useLocale()
+  const { user } = useAuth()
   const [openItems, setOpenItems] = useState<string[]>([])
   const [stats, setStats] = useState<any>({})
-  const sidebarItems = createSidebarItems(t)
+  const sidebarItems = createSidebarItems(t, user?.role)
   
   // Close sidebar when route changes on mobile
   useEffect(() => {

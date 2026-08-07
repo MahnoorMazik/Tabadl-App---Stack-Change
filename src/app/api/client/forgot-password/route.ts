@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (user.role !== 'CLIENT') {
+    if (user.role !== 'CLIENT' && user.role !== 'COLLABORATOR') {
       console.log('📧 [FORGOT-PASSWORD] ⚠️ User role is not CLIENT. Role:', user.role)
       return addCorsHeaders(
         createSuccessResponse(

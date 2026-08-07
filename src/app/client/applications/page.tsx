@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Users,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
@@ -44,6 +45,7 @@ import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchO
 import { writeApplicationLaunchLoadingDocument } from '@/lib/client/write-application-launch-loading'
 import { useLocale } from '@/contexts/LocaleContext'
 import { getLocalizedText } from '@/lib/multilingual-text'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 type ApplicationItem = {
   id: string
@@ -105,6 +107,7 @@ export default function ClientApplicationsPage() {
   } | null>(null)
   /** Sync lock so double-clicks cannot start two creates before React state updates. */
   const launchLockRef = useRef(false)
+  const [actingFor, setActingFor] = useState<{ name: string; company: string | null } | null>(null)
 
   const fetchApplications = useCallback(async (silent = false) => {
     if (!silent) setLoadingApps(true)
@@ -128,6 +131,26 @@ export default function ClientApplicationsPage() {
       if (!silent) setLoadingApps(false)
     }
   }, [t, toast])
+
+  useEffect(() => {
+    if (authLoading || !user) return
+    if (user.role !== 'COLLABORATOR') return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await axios.get('/api/client/collaboration/context')
+        const client = res.data?.data?.actingOnBehalfOf
+        if (!cancelled && client) {
+          setActingFor({ name: client.name, company: client.company ?? null })
+        }
+      } catch {
+        // ignore — applications fetch will surface auth errors
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, user])
 
   useEffect(() => {
     if (!authLoading && user) void fetchApplications()
@@ -350,6 +373,18 @@ export default function ClientApplicationsPage() {
         areaLabel={launch?.label}
         mode={launch?.continuing ? 'continue' : 'start'}
       />
+
+      {actingFor && (
+        <Alert className="mb-4 border-emerald-200 bg-emerald-50 text-emerald-950 max-w-6xl mx-auto">
+          <Users className="h-4 w-4 text-emerald-700" />
+          <AlertDescription>
+            {t('client.collaboration.actingBanner').replace(
+              '{name}',
+              actingFor.company || actingFor.name
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {authLoading ? (
         <div className="flex justify-center py-16">

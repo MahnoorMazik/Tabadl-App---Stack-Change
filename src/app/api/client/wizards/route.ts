@@ -34,7 +34,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    if (authResult.user.role !== UserRole.CLIENT && authResult.user.role !== UserRole.STAFF) {
+    if (
+      authResult.user.role !== UserRole.CLIENT &&
+      authResult.user.role !== UserRole.COLLABORATOR &&
+      authResult.user.role !== UserRole.STAFF
+    ) {
       return addCorsHeaders(
         createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, 'Access denied', 403, {
           requestId,

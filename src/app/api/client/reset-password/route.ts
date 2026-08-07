@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Only allow clients - Fixed: Use AUTHORIZATION_ERROR instead of FORBIDDEN_ERROR
-    if (user.role !== 'CLIENT') {
+    if (user.role !== 'CLIENT' && user.role !== 'COLLABORATOR') {
       return addCorsHeaders(
         createErrorResponse(
           ErrorCodes.AUTHORIZATION_ERROR,

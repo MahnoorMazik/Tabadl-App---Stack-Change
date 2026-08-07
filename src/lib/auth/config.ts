@@ -100,8 +100,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Account is inactive. Contact an administrator.")
         }
 
-        if (userType === "client" && user.role !== UserRole.CLIENT) {
-          console.error(`[Auth] User type mismatch - expected CLIENT, got ${user.role}: ${email}`)
+        if (userType === "client" && user.role !== UserRole.CLIENT && user.role !== UserRole.COLLABORATOR) {
+          console.error(`[Auth] User type mismatch - expected CLIENT/COLLABORATOR, got ${user.role}: ${email}`)
           throw new Error("Invalid credentials")
         }
         if (userType === "staff" && user.role !== UserRole.STAFF) {
@@ -115,7 +115,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Incorrect password")
         }
 
-        // Client self-signup must verify email before login
+        // Client self-signup must verify email before login (collaborators verified via invite)
         if (user.role === UserRole.CLIENT && !user.emailVerified) {
           console.error(`[Auth] Email not verified: ${email}`)
           throw new EmailNotVerifiedError()

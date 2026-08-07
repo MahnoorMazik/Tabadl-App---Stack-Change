@@ -566,6 +566,73 @@ Need help? Contact us at support@tabadlalkon.com
 }
 
 // ============================================================
+// COLLABORATOR INVITE EMAIL
+// ============================================================
+export async function sendCollaboratorInviteEmail(options: {
+  to: string
+  inviteToken: string
+  clientName: string
+  inviterName?: string | null
+}): Promise<EmailResult> {
+  const { to, inviteToken, clientName, inviterName } = options
+  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/collaborator/${inviteToken}`
+  const currentYear = new Date().getFullYear()
+  const subject = `${clientName} invited you to collaborate on Tabadl Alkon`
+  const who = inviterName || clientName
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+      ${getEmailHeader()}
+      
+      <h2 style="color: #0B6B37; text-align: center; font-size: 24px; margin-bottom: 20px;">Collaboration Invite</h2>
+      
+      <p style="color: #334155; font-size: 16px; line-height: 1.6;">Hello,</p>
+      
+      <p style="color: #334155; font-size: 16px; line-height: 1.6;">
+        <strong>${who}</strong> invited you to collaborate on their Tabadl Alkon account
+        (<strong>${clientName}</strong>). As a collaborator, you can view and fill applications on their behalf.
+      </p>
+      
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${inviteUrl}" 
+           style="display: inline-block; background: #0B6B37; color: #ffffff; padding: 14px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          Accept Invite
+        </a>
+      </div>
+      
+      <div style="background: #fef9e7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 4px;">
+        <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
+          <strong>Note:</strong> This invite expires in 7 days. A collaborator can only be linked to one client account.
+        </p>
+      </div>
+      
+      <p style="color: #6b7280; font-size: 14px; text-align: center;">
+        Need help? Contact us at <a href="mailto:support@tabadlalkon.com" style="color: #0B6B37;">support@tabadlalkon.com</a>
+      </p>
+      
+      ${getEmailFooter()}
+    </div>
+  `
+
+  const text = `
+Collaboration Invite
+
+Hello,
+
+${who} invited you to collaborate on their Tabadl Alkon account (${clientName}).
+As a collaborator, you can view and fill applications on their behalf.
+
+Accept invite: ${inviteUrl}
+
+Note: This invite expires in 7 days. A collaborator can only be linked to one client account.
+
+© ${currentYear} Tabadl Alkon. All rights reserved.
+  `.trim()
+
+  return sendEmail({ to, subject, html, text })
+}
+
+// ============================================================
 // PASSWORD CHANGE ALERT EMAIL
 // ============================================================
 export async function sendPasswordChangeEmail(to: string, name: string): Promise<EmailResult> {
