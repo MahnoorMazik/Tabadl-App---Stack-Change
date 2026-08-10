@@ -6,6 +6,7 @@ const publicRoutes = [
   "/",
   "/login",
   "/signup",
+  "/check-email",
   "/about-us",
   "/contact",
   "/privacy-policy",
@@ -16,9 +17,15 @@ const publicRoutes = [
   "/premium-residency"
 ]
 
+const publicRoutePrefixes = [
+  "/verify-email",
+  "/invite/collaborator",
+]
+
 // Define API routes that don't require authentication
 const publicApiRoutes = [
   "/api/auth",
+  "/api/collaboration",
   "/api/health",
   "/api/leads/consultation",
   "/api/support-messages",
@@ -39,6 +46,10 @@ export default auth((req) => {
 
   // Allow public routes
   if (publicRoutes.some(route => pathname === route)) {
+    return NextResponse.next()
+  }
+
+  if (publicRoutePrefixes.some(prefix => pathname.startsWith(prefix))) {
     return NextResponse.next()
   }
 
@@ -79,21 +90,34 @@ export default auth((req) => {
   if (pathname.startsWith("/admin") || pathname.startsWith("/staff")) {
     if (userRole !== "STAFF") {
       // Redirect clients to their dashboard
-      if (userRole === "CLIENT") {
+      if (userRole === "CLIENT" || userRole === "COLLABORATOR") {
         return NextResponse.redirect(new URL("/client/applications", nextUrl))
       }
       return NextResponse.redirect(new URL("/", nextUrl))
     }
   }
 
-  // Client routes require CLIENT role
+  // Client routes require CLIENT or COLLABORATOR role
   if (pathname.startsWith("/client")) {
-    if (userRole !== "CLIENT") {
+    if (userRole !== "CLIENT" && userRole !== "COLLABORATOR") {
       // Redirect staff to admin dashboard
       if (userRole === "STAFF") {
         return NextResponse.redirect(new URL("/admin/dashboard", nextUrl))
       }
       return NextResponse.redirect(new URL("/", nextUrl))
+    }
+    // Collaborators only need applications + collaboration overview (not full client portal)
+    if (
+      userRole === "COLLABORATOR" &&
+      (pathname.startsWith("/client/profile") ||
+        pathname.startsWith("/client/documents") ||
+        pathname.startsWith("/client/invoices") ||
+        pathname.startsWith("/client/messages") ||
+        pathname.startsWith("/client/collaborators") ||
+        pathname.startsWith("/client/help") ||
+        pathname.startsWith("/client/settings"))
+    ) {
+      return NextResponse.redirect(new URL("/client/applications", nextUrl))
     }
   }
 
@@ -102,7 +126,7 @@ export default auth((req) => {
     if (userRole === "STAFF") {
       return NextResponse.redirect(new URL("/admin/dashboard", nextUrl))
     }
-    if (userRole === "CLIENT") {
+    if (userRole === "CLIENT" || userRole === "COLLABORATOR") {
       return NextResponse.redirect(new URL("/client/applications", nextUrl))
     }
   }

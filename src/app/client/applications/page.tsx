@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Users,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
@@ -41,8 +42,10 @@ import { MobileLayout } from '@/lib/mobile-layout-utils'
 import { cn } from '@/lib/utils'
 import { wizardStatusClasses } from '@/lib/wizards/wizard-status'
 import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
+import { writeApplicationLaunchLoadingDocument } from '@/lib/client/write-application-launch-loading'
 import { useLocale } from '@/contexts/LocaleContext'
 import { getLocalizedText } from '@/lib/multilingual-text'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 type ApplicationItem = {
   id: string
@@ -104,6 +107,7 @@ export default function ClientApplicationsPage() {
   } | null>(null)
   /** Sync lock so double-clicks cannot start two creates before React state updates. */
   const launchLockRef = useRef(false)
+  const [actingFor, setActingFor] = useState<{ name: string; company: string | null } | null>(null)
 
   const fetchApplications = useCallback(async (silent = false) => {
     if (!silent) setLoadingApps(true)
@@ -127,6 +131,26 @@ export default function ClientApplicationsPage() {
       if (!silent) setLoadingApps(false)
     }
   }, [t, toast])
+
+  useEffect(() => {
+    if (authLoading || !user) return
+    if (user.role !== 'COLLABORATOR') return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await axios.get('/api/client/collaboration/context')
+        const client = res.data?.data?.actingOnBehalfOf
+        if (!cancelled && client) {
+          setActingFor({ name: client.name, company: client.company ?? null })
+        }
+      } catch {
+        // ignore — applications fetch will surface auth errors
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, user])
 
   useEffect(() => {
     if (!authLoading && user) void fetchApplications()
@@ -221,6 +245,27 @@ export default function ClientApplicationsPage() {
     const draft = draftForArea(area)
     setLaunch({ area, label, continuing: Boolean(draft) })
 
+    // Open tab synchronously on user click — async window.open is blocked by browsers.
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      try {
+        const continuing = Boolean(draft)
+        const areaStr = label || (isRTL ? 'الطلب' : 'application')
+        writeApplicationLaunchLoadingDocument(popup, {
+          documentTitle: t('client.applications.pageTitle'),
+          dir: isRTL ? 'rtl' : 'ltr',
+          title: continuing
+            ? t('client.fill.continuingApp')
+            : t('client.fill.startingApp'),
+          subtitle: continuing
+            ? t('client.fill.loadingDraft').replace('{area}', areaStr)
+            : t('client.fill.preparingForms').replace('{area}', areaStr),
+        })
+      } catch {
+        // Cross-origin / restricted about:blank — still usable via location.href
+      }
+    }
+
     const minWait = new Promise((resolve) => setTimeout(resolve, LAUNCH_MIN_MS))
 
     try {
@@ -233,6 +278,7 @@ export default function ClientApplicationsPage() {
         const check = await axios.get(`/api/client/wizards?areaOfInterest=${area}`)
         const flow = check.data?.data?.merged
         if (!flow?.totalSteps) {
+          popup?.close()
           toast({
             title: t('client.applications.toast.noAppTitle'),
             description: t('client.applications.toast.noAppDesc').replace('{label}', label),
@@ -279,7 +325,15 @@ export default function ClientApplicationsPage() {
       }
 
       await minWait
-      window.open(`/client/applications/${appId}`, '_blank', 'noopener,noreferrer')
+      const appUrl = `/client/applications/${appId}`
+
+      if (popup && !popup.closed) {
+        popup.location.href = appUrl
+      } else {
+        // Popup blocked — open in this tab so the user is not stuck on draft-only.
+        window.location.href = appUrl
+        return
+      }
 
       if (resumed && !draft) {
         toast({
@@ -291,6 +345,7 @@ export default function ClientApplicationsPage() {
       // Sync list so the original tab shows Continue / draft badge without waiting for focus.
       void fetchApplications(true)
     } catch (error: any) {
+      popup?.close()
       toast({
         title: t('client.applications.toast.couldNotOpenTitle'),
         description: error.response?.data?.error?.message || error.message,
@@ -318,6 +373,18 @@ export default function ClientApplicationsPage() {
         areaLabel={launch?.label}
         mode={launch?.continuing ? 'continue' : 'start'}
       />
+
+      {actingFor && (
+        <Alert className="mb-4 border-emerald-200 bg-emerald-50 text-emerald-950 max-w-6xl mx-auto">
+          <Users className="h-4 w-4 text-emerald-700" />
+          <AlertDescription>
+            {t('client.collaboration.actingBanner').replace(
+              '{name}',
+              actingFor.company || actingFor.name
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {authLoading ? (
         <div className="flex justify-center py-16">

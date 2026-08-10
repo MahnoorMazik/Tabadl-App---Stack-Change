@@ -22,6 +22,11 @@ model User {
   phone                      String?
   avatar                     String?
   customRoleId               String?
+  resetPasswordToken         String?                       @unique
+  resetPasswordExpiry        DateTime?
+  emailVerified              DateTime?
+  emailVerificationToken     String?                       @unique
+  emailVerificationExpiry    DateTime?
   createdAt                  DateTime                      @default(now())
   updatedAt                  DateTime                      @updatedAt
   accounts                   Account[]
@@ -51,6 +56,7 @@ model User {
   wizardAnswerUpdates        WizardApplicationAnswer[]     @relation("WizardAnswerUpdatedBy")
   wizardStepReviews          WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
   assignedWizardApplications WizardApplication[]           @relation("WizardApplicationAssignedTo")
+  collaborations             ClientCollaborator[]          @relation("CollaboratorUser")
 
   @@index([email, isDeleted])
   @@index([isDeleted])
@@ -189,11 +195,35 @@ model Client {
   paymentIntents          PaymentIntent[]
   payments                Payment[]
   wizardApplications      WizardApplication[]
+  collaborators           ClientCollaborator[]
 
   @@index([email, isDeleted])
   @@index([isDeleted])
   @@index([profileCompletionStatus])
   @@map("clients")
+}
+
+model ClientCollaborator {
+  id                 String                    @id @default(cuid())
+  clientId           String
+  collaboratorUserId String?
+  inviteEmail        String
+  inviteToken        String                    @unique
+  status             CollaborationInviteStatus @default(PENDING)
+  invitedAt          DateTime                  @default(now())
+  acceptedAt         DateTime?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  client             Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  collaboratorUser   User?                     @relation("CollaboratorUser", fields: [collaboratorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, inviteEmail])
+  @@index([inviteEmail, status])
+  @@index([collaboratorUserId, status])
+  @@index([status])
+  @@map("client_collaborators")
 }
 
 model Document {
@@ -1031,6 +1061,14 @@ enum UserRole {
   CLIENT
   STAFF
   ADMIN
+  COLLABORATOR
+}
+
+enum CollaborationInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
 
 enum StaffType {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import axios from 'axios'
 import { differenceInYears, format, isValid, parseISO } from 'date-fns'
@@ -147,7 +147,7 @@ export default function AdminApplicationDetailPage() {
   const [addPayment, setAddPayment] = useState(false)
   const [addingStep, setAddingStep] = useState(false)
   const [reviewSaving, setReviewSaving] = useState(false)
-  const [formDirty, setFormDirty] = useState(false)
+  const formDirtyRef = useRef(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; message: string } | null>(null)
   const [whatsappStatus, setWhatsappStatus] = useState<{ sent: boolean; message: string } | null>(null)
@@ -225,7 +225,7 @@ export default function AdminApplicationDetailPage() {
         answers: buildAnswersPayload(answers, currentStep.fields, opts?.fileNames),
       })
       const savedApp = res.data?.data?.application as AppDetail | undefined
-      setFormDirty(false)
+      formDirtyRef.current = false
       setServerSyncVersion((v) => v + 1)
       if (savedApp) {
         setApp(savedApp)
@@ -377,7 +377,7 @@ export default function AdminApplicationDetailPage() {
       })
       setApp(res.data?.data?.application as AppDetail)
       setServerSyncVersion((v) => v + 1)
-      setFormDirty(false)
+      formDirtyRef.current = false
       toast({
         title: t('client.applications.toast.stepApprovedTitle'),
         description: t('client.applications.toast.stepApprovedDesc'),
@@ -627,8 +627,12 @@ export default function AdminApplicationDetailPage() {
                   saveIndicator={saveIndicator}
                   engaging
                   saveExitLabel="Save"
-                  onDirtyChange={setFormDirty}
+                  onDirtyChange={(dirty) => {
+                    formDirtyRef.current = dirty
+                  }}
                   serverSyncVersion={serverSyncVersion}
+                  applicationId={app.id}
+                  fileUploadBasePath="/api/admin/wizard-applications"
                   headerActions={
                     <>
                       {currentStep.adminUseOnly && (

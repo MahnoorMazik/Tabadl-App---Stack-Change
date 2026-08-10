@@ -130,6 +130,7 @@ export const POST = withPermission(createPerm)(async (request) => {
         staffType: data.staffType || null,
         customRoleId: data.customRoleId || null,
         phone: data.phone || null,
+        emailVerified: new Date(),
       },
       select: userListSelect,
     })

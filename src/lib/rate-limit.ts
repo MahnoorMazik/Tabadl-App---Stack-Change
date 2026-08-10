@@ -56,6 +56,7 @@ export function checkRateLimit(
       {
         error: config.message || 'Too many requests. Please try again later.',
         retryAfter,
+        resetTime: new Date(entry.resetTime).toISOString(),
       },
       {
         status: 429,
@@ -112,5 +113,9 @@ export const rateLimitConfigs = {
     windowMs: 60 * 1000, // 100 requests per minute
     message: 'Too many API requests. Please slow down.',
   },
+  changePassword: {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000, // 5 attempts per hour
+    message: 'Too many password change attempts. Please try again after 1 hour.',
+  },
 }
-

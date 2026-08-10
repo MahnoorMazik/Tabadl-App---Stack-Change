@@ -12,6 +12,8 @@ import {
 } from '@/lib/error-handler'
 import { addCorsHeaders } from '@/lib/cors'
 import { z } from 'zod'
+import { checkRateLimit, getRateLimitIdentifier, rateLimitConfigs } from '@/lib/rate-limit'
+import { sendPasswordChangeEmail } from '@/lib/email' // ✅ Fixed import
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -22,11 +24,25 @@ const changePasswordSchema = z.object({
   path: ['confirmPassword'],
 })
 
-export const POST = withAuth(async (request) => {
+export const POST = withAuth(async (request: NextRequest) => {
   const requestId = getRequestId(request)
-  const user = request.user!
+  // ✅ Fix: Access user from request.user (added by withAuth middleware)
+  const user = (request as any).user
 
   try {
+    // Rate limiting check - 5 attempts per hour for password changes
+    const rateLimitId = getRateLimitIdentifier(request, user?.userId || 'anonymous')
+    const rateLimitConfig = {
+      maxRequests: 5,
+      windowMs: 60 * 60 * 1000, // 1 hour
+      message: 'Too many password change attempts. Please try again after 1 hour.',
+    }
+    
+    const rateLimitResponse = checkRateLimit(rateLimitId, rateLimitConfig)
+    if (rateLimitResponse) {
+      return addCorsHeaders(rateLimitResponse)
+    }
+
     const body = await request.json()
     const validationResult = changePasswordSchema.safeParse(body)
 
@@ -53,11 +69,14 @@ export const POST = withAuth(async (request) => {
 
     // Get user with password hash
     const dbUser = await db.user.findUnique({
-      where: { id: user.userId },
+      where: { id: user?.userId },
       select: {
         id: true,
+        email: true,
+        name: true,
         passwordHash: true,
         tokenVersion: true,
+        role: true,
       }
     })
 
@@ -86,10 +105,11 @@ export const POST = withAuth(async (request) => {
 
     // Update password and increment tokenVersion to invalidate other sessions
     await db.user.update({
-      where: { id: user.userId },
+      where: { id: user?.userId },
       data: {
         passwordHash: newPasswordHash,
         tokenVersion: { increment: 1 }, // Increment to invalidate all other tokens
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -101,12 +121,45 @@ export const POST = withAuth(async (request) => {
       }
     })
 
+    // Create audit log for password change
+    try {
+      await db.auditLog.create({
+        data: {
+          userId: user?.userId,
+          entityType: 'USER',
+          entityId: user?.userId,
+          entityName: dbUser.email,
+          action: 'PASSWORD_CHANGE',
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+          changes: JSON.stringify({
+            action: 'Password changed',
+            timestamp: new Date().toISOString(),
+            role: dbUser.role,
+          }),
+        },
+      })
+    } catch (auditError) {
+      // Log but don't fail the request
+      console.error('Failed to create audit log:', auditError)
+    }
+
+    // Send email notification (async - don't await)
+    try {
+      // ✅ Fixed: Use correct function name
+      await sendPasswordChangeEmail(dbUser.email, dbUser.name || 'User')
+        .catch(err => console.error('Email send failed:', err))
+    } catch (emailError) {
+      console.error('Email service error:', emailError)
+    }
+
     // With NextAuth, the session is managed by NextAuth
     // The client should call update() on the session to refresh it
     return addCorsHeaders(createSuccessResponse(
       { 
         message: 'Password changed successfully. Please refresh your session.',
-        requiresSessionRefresh: true
+        requiresSessionRefresh: true,
+        shouldLogout: true,
       },
       200,
       { requestId, message: 'Password changed successfully' }
@@ -115,7 +168,7 @@ export const POST = withAuth(async (request) => {
     logError(error, {
       code: ErrorCodes.INTERNAL_ERROR,
       requestId,
-      userId: user.userId,
+      userId: user?.userId,
       endpoint: '/api/profile/change-password',
       method: 'POST',
       additionalContext: { errorType: error.constructor.name }
@@ -132,4 +185,3 @@ export const POST = withAuth(async (request) => {
     ))
   }
 })
-

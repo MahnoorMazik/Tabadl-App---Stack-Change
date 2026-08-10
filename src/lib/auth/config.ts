@@ -1,10 +1,14 @@
-import NextAuth, { User } from "next-auth"
+import NextAuth, { User, CredentialsSignin } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { UserRole, StaffType } from "@prisma/client"
 import { Permission } from "@/lib/rbac"
+
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "EMAIL_NOT_VERIFIED"
+}
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -96,8 +100,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Account is inactive. Contact an administrator.")
         }
 
-        if (userType === "client" && user.role !== UserRole.CLIENT) {
-          console.error(`[Auth] User type mismatch - expected CLIENT, got ${user.role}: ${email}`)
+        if (userType === "client" && user.role !== UserRole.CLIENT && user.role !== UserRole.COLLABORATOR) {
+          console.error(`[Auth] User type mismatch - expected CLIENT/COLLABORATOR, got ${user.role}: ${email}`)
           throw new Error("Invalid credentials")
         }
         if (userType === "staff" && user.role !== UserRole.STAFF) {
@@ -109,6 +113,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!isValidPassword) {
           console.error(`[Auth] Invalid password for user: ${email}`)
           throw new Error("Incorrect password")
+        }
+
+        // Client self-signup must verify email before login (collaborators verified via invite)
+        if (user.role === UserRole.CLIENT && !user.emailVerified) {
+          console.error(`[Auth] Email not verified: ${email}`)
+          throw new EmailNotVerifiedError()
         }
 
         // Update last login
