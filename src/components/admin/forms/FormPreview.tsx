@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
+import { FileInput } from '@/components/ui/file-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -366,7 +367,7 @@ function PreviewControl({ field }: { field: CanvasField }) {
       )
 
     case 'FILE':
-      return <Input id={id} type="file" />
+      return <FileInput id={id} />
 
     case 'INSTRUCTION':
       return (

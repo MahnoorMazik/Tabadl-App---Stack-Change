@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FileInput } from '@/components/ui/file-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -461,11 +462,10 @@ export function ApplicationStepForm({
                     onRemove={!readOnly ? () => handleRemoveFile(field.fieldId) : undefined}
                   />
                 ) : (
-                  <Input
-                    type="file"
+                  <FileInput
+                    id={field.fieldId}
                     disabled={readOnly || uploadingFieldId === field.fieldId}
                     onChange={(e) => void handleFileUpload(field.fieldId, e.target.files?.[0])}
-                    className="h-10 cursor-pointer text-sm"
                   />
                 )}
                 {uploadingFieldId === field.fieldId && (

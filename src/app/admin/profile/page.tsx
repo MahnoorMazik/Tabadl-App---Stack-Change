@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast'
 import { parsePhoneNumber } from '@/lib/phone-normalization'
 import { toAvatarUrl } from '@/lib/avatar-utils'
 import { cn } from '@/lib/utils'
+import { parseBilingualText, encodeBilingualText } from '@/lib/multilingual-text'
 import { PwaInstallSection } from '@/components/PwaInstallSection'
 
 // Helper function to get flag emoji from country code (same as signup page)
@@ -267,7 +268,8 @@ export default function AdminProfilePage() {
   // Parse existing phone number on load
   const parsedPhone = user?.phone ? parsePhoneNumber(user.phone) : { countryCode: '+966', localNumber: '', warning: null }
 
-  const [name, setName] = useState(user?.name ?? '')
+  const [nameEn, setNameEn] = useState('')
+  const [nameAr, setNameAr] = useState('')
   const [email, setEmail] = useState(user?.email ?? '')
   const [phoneCountryCode, setPhoneCountryCode] = useState(parsedPhone?.countryCode || '+966')
   const [phoneLocalNumber, setPhoneLocalNumber] = useState(parsedPhone?.localNumber || '')
@@ -296,6 +298,11 @@ export default function AdminProfilePage() {
         if (cancelled) return
         if (data?.customRole) setCustomRole(data.customRole)
         if (data?.avatar != null) setAvatar(toAvatarUrl(data.avatar))
+        if (data?.name) {
+          const parsed = parseBilingualText(data.name)
+          setNameEn(parsed.en)
+          setNameAr(parsed.ar)
+        }
       })
       .catch(() => {})
     return () => { cancelled = true }
@@ -303,17 +310,19 @@ export default function AdminProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    setName(user.name ?? '')
+    const parsed = parseBilingualText(user.name ?? '')
+    setNameEn(parsed.en)
+    setNameAr(parsed.ar)
     setEmail(user.email ?? '')
     // Only update avatar from session when we have a value (avoid overwriting API-fetched avatar with stale null)
     const url = toAvatarUrl(user.avatar ?? null)
     if (url) setAvatar(url)
 
-    const parsed = user.phone ? parsePhoneNumber(user.phone) : null
-    if (parsed) {
-      setPhoneCountryCode(parsed.countryCode)
-      setPhoneLocalNumber(parsed.localNumber)
-      setPhoneWarning(parsed.warning)
+    const parsedPhone = user.phone ? parsePhoneNumber(user.phone) : null
+    if (parsedPhone) {
+      setPhoneCountryCode(parsedPhone.countryCode)
+      setPhoneLocalNumber(parsedPhone.localNumber)
+      setPhoneWarning(parsedPhone.warning)
     }
   }, [user?.id, user?.name, user?.email, user?.phone, user?.avatar])
 
@@ -324,14 +333,16 @@ export default function AdminProfilePage() {
   const handleSave = async () => {
     if (!user) return
 
-    if (!name.trim() || !email.trim()) {
+    if (!nameEn.trim() || !email.trim()) {
       toast({
         variant: 'destructive',
         title: 'Missing information',
-        description: 'Name and email are required.',
+        description: 'English Name and email are required.',
       })
       return
     }
+
+    const finalName = encodeBilingualText(nameEn.trim(), nameAr.trim())
 
     // Simple email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -369,7 +380,7 @@ export default function AdminProfilePage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          name: name.trim(),
+          name: finalName,
           email: email.trim(),
           phone: finalPhone,
         }),
@@ -625,15 +636,30 @@ export default function AdminProfilePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">
+                <Label htmlFor="nameEn">
                   <User className="h-4 w-4 inline mr-2" />
-                  {t('profile.fullName')}
+                  {t('auth.fullNameEn')} <span className="text-destructive">*</span>
                 </Label>
                 <Input 
-                  id="name" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-2" 
+                  id="nameEn" 
+                  value={nameEn}
+                  onChange={(e) => setNameEn(e.target.value)}
+                  placeholder={t('auth.fullNameEnPlaceholder')}
+                  className="mt-2 text-left" 
+                />
+              </div>
+              <div>
+                <Label htmlFor="nameAr">
+                  <User className="h-4 w-4 inline mr-2" />
+                  {t('auth.fullNameAr')}
+                </Label>
+                <Input 
+                  id="nameAr" 
+                  value={nameAr}
+                  onChange={(e) => setNameAr(e.target.value)}
+                  placeholder={t('auth.fullNameArPlaceholder')}
+                  dir="rtl"
+                  className="mt-2 text-right" 
                 />
               </div>
               <div>

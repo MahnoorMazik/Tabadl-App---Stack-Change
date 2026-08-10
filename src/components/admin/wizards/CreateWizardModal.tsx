@@ -404,17 +404,19 @@ export function CreateWizardModal({
         const res = await wizardApi.update(editingWizard.id, payload)
         const wizard = mapApiWizard(res.wizard)
         onUpdated?.(wizard)
+        const displayWizardName = getLocalizedText(wizard.name, locale)
         toast({
           title: 'Application updated',
-          description: `${wizard.name} saved with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
+          description: `${displayWizardName} saved with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
         })
       } else {
         const res = await wizardApi.create(payload)
         const wizard = mapApiWizard(res.wizard)
         onCreated(wizard)
+        const displayWizardName = getLocalizedText(wizard.name, locale)
         toast({
           title: 'Wizard created',
-          description: `${wizard.name} configured with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
+          description: `${displayWizardName} configured with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
         })
       }
       onOpenChange(false)
@@ -601,7 +603,7 @@ export function CreateWizardModal({
           'max-h-[90vh] overflow-y-auto',
           isEdit
             ? [
-                'sm:max-w-3xl border-border bg-background p-0 gap-0',
+                'sm:max-w-4xl w-[95vw] border-border bg-background p-0 gap-0',
                 // Modern open/close: soft fade + rise instead of default zoom snap
                 'duration-300 ease-out',
                 'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
@@ -987,7 +989,7 @@ export function CreateWizardModal({
         setBuilderOpen(open)
         if (!open) setEditingFormTemplate(null)
       }}>
-        <SheetContent side={isRTL ? "left" : "right"} dir={isRTL ? "rtl" : "ltr"} className="w-[85vw] xl:w-[60vw] sm:max-w-none gap-0">
+        <SheetContent side={isRTL ? "left" : "right"} dir={isRTL ? "rtl" : "ltr"} className="w-[95vw] xl:w-[75vw] sm:max-w-none gap-0">
           <SheetHeader className="text-left">
             <SheetTitle className="text-xl">
               {editingFormTemplate
