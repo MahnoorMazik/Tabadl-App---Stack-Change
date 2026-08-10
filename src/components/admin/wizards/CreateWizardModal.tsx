@@ -40,7 +40,7 @@ import {
 import { Loader2, Plus, ArrowLeft, ArrowRight, Search, Wand2, Shapes } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { parseBilingualText, encodeBilingualText } from '@/lib/multilingual-text'
+import { parseBilingualText, encodeBilingualText, getLocalizedText } from '@/lib/multilingual-text'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import {

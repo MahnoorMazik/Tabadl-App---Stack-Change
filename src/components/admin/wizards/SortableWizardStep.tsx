@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { GripVertical, Trash2, Pencil } from 'lucide-react'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
-import { CreateWizardStepInput } from './types'
+import { WizardStepDraft } from './types'
 
 import { useLocale } from '@/contexts/LocaleContext'
 import { cn } from '@/lib/utils'
@@ -16,11 +16,11 @@ import { cn } from '@/lib/utils'
 import { getLocalizedText } from '@/lib/multilingual-text'
 
 interface SortableWizardStepProps {
-  step: CreateWizardStepInput
+  step: WizardStepDraft
   index: number
   canRemove?: boolean
   formsForArea: FormTemplateListItem[]
-  onChange: (patch: Partial<CreateWizardStepInput>) => void
+  onChange: (patch: Partial<WizardStepDraft>) => void
   onRemove: () => void
   onEditForm?: (formId: string) => void
 }
@@ -126,7 +126,7 @@ export function SortableWizardStep({
             id={`payment-${step.id}`}
             checked={step.paymentRequired}
             onCheckedChange={(checked) =>
-              onUpdate(step.id, { paymentRequired: checked === true })
+              onChange({ paymentRequired: checked === true })
             }
           />
           <Label
@@ -142,7 +142,7 @@ export function SortableWizardStep({
             id={`approval-${step.id}`}
             checked={step.approvalRequired}
             onCheckedChange={(checked) =>
-              onUpdate(step.id, { approvalRequired: checked === true })
+              onChange({ approvalRequired: checked === true })
             }
           />
           <Label
@@ -158,7 +158,7 @@ export function SortableWizardStep({
             id={`admin-use-${step.id}`}
             checked={Boolean(step.adminUseOnly)}
             onCheckedChange={(checked) =>
-              onUpdate(step.id, { adminUseOnly: checked === true })
+              onChange({ adminUseOnly: checked === true })
             }
           />
           <Label
