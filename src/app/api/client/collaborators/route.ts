@@ -52,12 +52,7 @@ export async function GET(request: NextRequest) {
     const owner = await requireClientOwner(request)
     if ('error' in owner) {
       return addCorsHeaders(
-        createErrorResponse(
-          ErrorCodes.AUTHORIZATION_ERROR,
-          owner.error || 'Authorization failed',
-          owner.status || 403,
-          { requestId }
-        )
+        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, String(owner.error), owner.status ?? 400, { requestId })
       )
     }
 
@@ -96,12 +91,7 @@ export async function POST(request: NextRequest) {
     const owner = await requireClientOwner(request)
     if ('error' in owner) {
       return addCorsHeaders(
-        createErrorResponse(
-          ErrorCodes.AUTHORIZATION_ERROR,
-          owner.error || 'Authorization failed',
-          owner.status || 403,
-          { requestId }
-        )
+        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, String(owner.error), owner.status ?? 400, { requestId })
       )
     }
 

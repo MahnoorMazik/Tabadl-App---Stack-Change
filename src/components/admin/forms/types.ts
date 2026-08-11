@@ -118,6 +118,24 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   INSTRUCTION: 'Instruction',
 }
 
+export const FIELD_TYPE_LABELS_AR: Record<FormFieldType, string> = {
+  TEXT: 'نصي',
+  TEXTAREA: 'نص متعدد الأسطر',
+  NUMBER: 'رقم',
+  EMAIL: 'بريد إلكتروني',
+  PHONE: 'رقم الهاتف',
+  DATE: 'تاريخ',
+  SELECT: 'قائمة منسدلة',
+  CHECKBOX: 'خانة اختيار',
+  RADIO: 'زر اختيار',
+  FILE: 'ملف',
+  INSTRUCTION: 'تعليمات',
+}
+
+export function getFieldTypeLabel(type: FormFieldType, isRTL: boolean): string {
+  return isRTL ? (FIELD_TYPE_LABELS_AR[type] || FIELD_TYPE_LABELS[type]) : FIELD_TYPE_LABELS[type]
+}
+
 export const FIELD_TYPES: FormFieldType[] = [
   'TEXT',
   'TEXTAREA',

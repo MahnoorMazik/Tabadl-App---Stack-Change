@@ -75,6 +75,7 @@ function getCountryFlag(code: string, name?: string): string {
 export default function ClientSignupPage() {
   const [formData, setFormData] = useState({
     name: '',
+    nameAr: '',
     email: '',
     password: '',
     companyName: '',
@@ -349,16 +350,34 @@ export default function ClientSignupPage() {
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                {t('auth.fullName')}
+                {t('auth.fullNameEn')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="John Doe"
+                placeholder={t('auth.fullNameEnPlaceholder')}
                 value={formData.name}
                 onChange={handleChange}
                 required
                 disabled={loading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nameAr" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                {t('auth.fullNameAr')} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="nameAr"
+                type="text"
+                placeholder={t('auth.fullNameArPlaceholder')}
+                value={formData.nameAr}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                dir="rtl"
+                className="text-right"
               />
             </div>
 

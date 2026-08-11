@@ -52,11 +52,7 @@ export async function DELETE(
     const owned = await requireOwnedInvite(request, id)
     if ('error' in owned) {
       return addCorsHeaders(
-        createErrorResponse(
-          ErrorCodes.AUTHORIZATION_ERROR,
-          owned.error || 'Authorization failed',
-          owned.status || 403,
-          {
+        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, String(owned.error), owned.status ?? 400, {
           requestId,
         })
       )
@@ -104,11 +100,7 @@ export async function POST(
     const owned = await requireOwnedInvite(request, id)
     if ('error' in owned) {
       return addCorsHeaders(
-        createErrorResponse(
-          ErrorCodes.AUTHORIZATION_ERROR,
-          owned.error || 'Authorization failed',
-          owned.status || 403,
-          {
+        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, String(owned.error), owned.status ?? 400, {
           requestId,
         })
       )

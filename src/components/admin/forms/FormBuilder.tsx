@@ -94,7 +94,7 @@ export function FormBuilder({
   }, [initialTemplate])
 
   useEffect(() => {
-    const encoded = encodeBilingualText(nameEn, nameAr)
+    const encoded = (nameEn || nameAr) ? encodeBilingualText(nameEn, nameAr) : ''
     setTemplate((prev) => (prev.name === encoded ? prev : { ...prev, name: encoded }))
   }, [nameEn, nameAr])
 
@@ -235,9 +235,11 @@ export function FormBuilder({
       const savedTemplate =
         result?.template ? mapApiTemplateDetail(result.template) : template
 
+      const displaySavedName = getLocalizedText(savedName, locale)
+
       toast({
         title: mode === 'edit' ? 'Form updated' : 'Form created',
-        description: `"${savedName}" saved with ${savedFieldCount} field${savedFieldCount === 1 ? '' : 's'}.`,
+        description: `"${displaySavedName}" saved with ${savedFieldCount} field${savedFieldCount === 1 ? '' : 's'}.`,
       })
 
       onSaved?.(savedTemplate)

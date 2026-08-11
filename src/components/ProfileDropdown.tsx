@@ -15,9 +15,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toAvatarUrl } from '@/lib/avatar-utils'
+import { getLocalizedText } from '@/lib/multilingual-text'
 import { MAIN_ROLE_NAMES } from '@/lib/rbac'
 import { 
-  User, 
   Settings, 
   LogOut, 
   HelpCircle,
@@ -26,7 +26,7 @@ import {
 
 export function ProfileDropdown() {
   const { user, logout, update: refreshSession } = useAuth()
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const [avatarFromDb, setAvatarFromDb] = useState<string | null>(null)
   const [customRoleFromDb, setCustomRoleFromDb] = useState<{ id: string; name: string } | null>(null)
 
@@ -118,6 +118,8 @@ export function ProfileDropdown() {
     return roleName ? (borders[roleName] ?? 'border-gray-200 dark:border-gray-700') : 'border-gray-200 dark:border-gray-700'
   }
 
+  const displayName = user?.name ? getLocalizedText(user.name, locale) : ''
+
   const basePath = user.role === 'CLIENT' ? '/client' : '/admin'
 
   const avatarBlock = (
@@ -125,12 +127,12 @@ export function ProfileDropdown() {
       {avatarUrl ? (
         <AvatarImage
           src={avatarUrl}
-          alt={user.name ?? 'Profile'}
+          alt={displayName || 'Profile'}
           onError={(e) => { e.currentTarget.style.display = 'none' }}
         />
       ) : null}
       <AvatarFallback className="bg-amber-100 text-amber-700 font-semibold">
-        {user.name ? getInitials(user.name) : ''}
+        {displayName ? getInitials(displayName) : ''}
       </AvatarFallback>
     </Avatar>
   )
@@ -140,12 +142,12 @@ export function ProfileDropdown() {
       {avatarUrl ? (
         <AvatarImage
           src={avatarUrl}
-          alt={user.name ?? 'Profile'}
+          alt={displayName || 'Profile'}
           onError={(e) => { e.currentTarget.style.display = 'none' }}
         />
       ) : null}
       <AvatarFallback className="bg-amber-100 text-amber-700 font-semibold text-lg">
-        {user.name ? getInitials(user.name) : ''}
+        {displayName ? getInitials(displayName) : ''}
       </AvatarFallback>
     </Avatar>
   )
@@ -153,10 +155,10 @@ export function ProfileDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none">
+        <button className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none cursor-pointer">
           {avatarBlock}
           <div className="hidden md:block text-left">
-            <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{user.name}</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{displayName}</p>
             <p className="text-xs text-gray-500 dark:text-muted-foreground">{user.email}</p>
           </div>
         </button>
@@ -166,7 +168,7 @@ export function ProfileDropdown() {
           <div className="flex items-center space-x-3">
             {avatarBlockLarge}
             <div className="flex-1">
-              <p className="font-semibold text-gray-900 dark:text-foreground">{user.name}</p>
+              <p className="font-semibold text-gray-900 dark:text-foreground">{displayName}</p>
               <p className="text-xs text-gray-500 dark:text-muted-foreground">{user.email}</p>
               <div className="mt-1">
                 {getRoleBadge()}
@@ -205,4 +207,3 @@ export function ProfileDropdown() {
     </DropdownMenu>
   )
 }
-

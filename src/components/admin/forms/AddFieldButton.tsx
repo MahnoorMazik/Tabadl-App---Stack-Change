@@ -14,6 +14,8 @@ import { Plus, Loader2 } from 'lucide-react'
 import {
   FormFieldType,
   FIELD_TYPE_LABELS,
+  FIELD_TYPE_LABELS_AR,
+  getFieldTypeLabel,
   ReusableField,
   CanvasField,
   canvasFieldFromReusable,
@@ -22,6 +24,7 @@ import {
 import { formApi, FormApiError } from './api'
 import { useToast } from '@/hooks/use-toast'
 import { encodeBilingualText } from '@/lib/multilingual-text'
+import { useLocale } from '@/contexts/LocaleContext'
 
 interface AddFieldButtonProps {
   type: FormFieldType
@@ -144,21 +147,24 @@ export function AddFieldButton({
     }
   }
 
+  const { locale } = useLocale()
+  const isRTL = locale === 'ar'
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="justify-start gap-1.5">
+        <Button type="button" variant="outline" size="sm" className="justify-start gap-1.5 cursor-pointer">
           <Plus className="h-3.5 w-3.5" />
-          {FIELD_TYPE_LABELS[type]}
+          {getFieldTypeLabel(type, isRTL)}
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-80 p-3 space-y-3" align="start">
+      <PopoverContent dir={isRTL ? 'rtl' : 'ltr'} className="w-80 p-3 space-y-3" align="start">
         <div>
-          <p className="text-sm font-medium">{FIELD_TYPE_LABELS[type]}</p>
+          <p className="text-sm font-medium">{getFieldTypeLabel(type, isRTL)}</p>
           {isInstruction && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Shows guidance on the form — no input from the applicant.
+              {isRTL ? 'يعرض إرشادات في النموذج — لا يتطلب إدخال من المتقدم.' : 'Shows guidance on the form — no input from the applicant.'}
             </p>
           )}
         </div>
@@ -187,7 +193,7 @@ export function AddFieldButton({
               id={`new-field-ar-${type}`}
               value={labelAr}
               onChange={(e) => setLabelAr(e.target.value)}
-              placeholder={isInstruction ? 'مثال: ملاحظات هامة' : FIELD_TYPE_LABELS[type]}
+              placeholder={isInstruction ? 'مثال: ملاحظات هامة' : (FIELD_TYPE_LABELS_AR[type] || FIELD_TYPE_LABELS[type])}
               disabled={creating}
               dir="rtl"
               className="h-8 text-sm text-right"
