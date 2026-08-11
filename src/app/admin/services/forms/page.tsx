@@ -28,9 +28,11 @@ import {
 import { ClipboardList, Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { Module, Action } from '@/lib/rbac'
+import { getLocalizedText } from '@/lib/multilingual-text'
 import { FormTemplateListItem } from '@/components/admin/forms/types'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
 import { useToast } from '@/hooks/use-toast'
+import { useLocale } from '@/contexts/LocaleContext'
 
 function formatUpdatedAt(value: string) {
   try {
@@ -43,6 +45,7 @@ function formatUpdatedAt(value: string) {
 export default function FormTemplatesPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { locale } = useLocale()
   const [templates, setTemplates] = useState<FormTemplateListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -178,7 +181,7 @@ export default function FormTemplatesPage() {
                 {templates.map((template) => (
                   <TableRow key={template.id}>
                     <TableCell className="font-medium">
-                      {template.name}
+                      {getLocalizedText(template.name, locale)}
                       <p className="text-xs text-muted-foreground font-normal mt-0.5">
                         Updated {formatUpdatedAt(template.updatedAt)}
                       </p>

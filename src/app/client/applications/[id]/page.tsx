@@ -45,6 +45,7 @@ import { wizardApplicationDetailFingerprint } from '@/lib/wizards/wizard-applica
 import { buildWizardAnswersPayload } from '@/lib/wizards/wizard-file-utils'
 import { WhatsAppStatus } from '@/components/admin/notifications/WhatsAppStatus'
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 export const dynamic = 'force-dynamic'
 type AppDetail = {
@@ -91,30 +92,30 @@ function getAreaLabel(area: string) {
   return areaOfInterestDisplayLabel(area)
 }
 
+function getWizardStatusLocalizedLabel(st: string, t: (key: string) => string) {
+  switch (st.toUpperCase()) {
+    case 'DRAFT':
+      return t('admin.applications.status.inProgress')
+    case 'PENDING':
+      return t('admin.applications.status.pending')
+    case 'IN_PROGRESS':
+      return t('admin.applications.status.underReview')
+    case 'HARD_COPY_REQUIRED':
+      return t('admin.applications.status.hardCopyRequired')
+    case 'APPROVED':
+      return t('admin.applications.status.approved')
+    case 'REJECTED':
+      return t('admin.applications.status.rejected')
+    case 'COMPLETED':
+      return t('admin.applications.status.completed')
+    default:
+      return wizardStatusLabel(st)
+  }
+}
+
 function StatusBadge({ status }: { status: string }) {
   const { t, locale } = useLocale()
   const isRTL = locale === 'ar'
-
-  const getStatusLabel = (st: string) => {
-    switch (st.toUpperCase()) {
-      case 'DRAFT':
-        return t('admin.applications.status.inProgress')
-      case 'PENDING':
-        return t('admin.applications.status.pending')
-      case 'IN_PROGRESS':
-        return t('admin.applications.status.underReview')
-      case 'HARD_COPY_REQUIRED':
-        return t('admin.applications.status.hardCopyRequired')
-      case 'APPROVED':
-        return t('admin.applications.status.approved')
-      case 'REJECTED':
-        return t('admin.applications.status.rejected')
-      case 'COMPLETED':
-        return t('admin.applications.status.completed')
-      default:
-        return wizardStatusLabel(st)
-    }
-  }
 
   return (
     <Badge className={cn('border hover:opacity-100', wizardStatusClasses(status), isRTL ? 'flex-row-reverse' : 'flex-row')}>
@@ -126,7 +127,7 @@ function StatusBadge({ status }: { status: string }) {
       {(status === 'DRAFT' || status === 'HARD_COPY_REQUIRED') && (
         <FileText className={cn("h-3 w-3", isRTL ? "ml-1" : "mr-1")} />
       )}
-      {getStatusLabel(status)}
+      {getWizardStatusLocalizedLabel(status, t)}
     </Badge>
   )
 }
@@ -151,7 +152,8 @@ export default function ClientApplicationFillPage() {
   const [stepIndex, setStepIndex] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [formDirty, setFormDirty] = useState(false)
+  /** Ref only — must not be React state or first keystroke re-renders MobileLayout/shell. */
+  const formDirtyRef = useRef(false)
   const [serverSyncVersion, setServerSyncVersion] = useState(0)
   const [whatsappStatus, setWhatsappStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
   const [whatsappError, setWhatsappError] = useState<string>()
@@ -200,13 +202,13 @@ export default function ClientApplicationFillPage() {
 
         if (unlockedAfterApproval) {
           toast({
-            title: 'Step approved',
-            description: 'The next step is now open. You can continue filling the form.',
+            title: t('client.applications.toast.stepApprovedTitle'),
+            description: t('client.applications.toast.stepApprovedDesc'),
           })
         }
       } catch {
         if (!silent) {
-          toast({ title: 'Application not found', variant: 'destructive' })
+          toast({ title: t('client.applications.toast.notFoundTitle'), variant: 'destructive' })
           router.replace('/client/applications')
         }
       } finally {
@@ -230,11 +232,11 @@ export default function ClientApplicationFillPage() {
     const intervalMs = waitingOnApproval ? 5000 : 60000
     const timer = setInterval(() => {
       if (saving) return
-      if (formDirty && !waitingOnApproval) return
+      if (formDirtyRef.current && !waitingOnApproval) return
       void load(true)
     }, intervalMs)
     return () => clearInterval(timer)
-  }, [authLoading, user, load, applicationLocked, formDirty, saving, app?.steps])
+  }, [authLoading, user, load, applicationLocked, saving, app?.steps])
 
   useEffect(() => {
     if (authLoading || !user || !app) return
@@ -320,7 +322,7 @@ export default function ClientApplicationFillPage() {
         answers: answersPayload,
       })
       const savedApp = patchRes.data?.data?.application as AppDetail | undefined
-      setFormDirty(false)
+      formDirtyRef.current = false
       setServerSyncVersion((v) => v + 1)
       if (savedApp) {
         appFingerprintRef.current = wizardApplicationDetailFingerprint(savedApp)
@@ -343,8 +345,8 @@ export default function ClientApplicationFillPage() {
           setApp(submittedApp)
         }
         toast({
-          title: 'Application submitted',
-          description: 'Status is now Pending. Our team will review it shortly.',
+          title: t('client.applications.toast.applicationSubmittedTitle'),
+          description: t('client.applications.toast.submittedForReviewDesc'),
         })
         return
       }
@@ -363,7 +365,7 @@ export default function ClientApplicationFillPage() {
     } catch (error: any) {
       setSaveIndicator('idle')
       toast({
-        title: 'Save failed',
+        title: t('client.applications.toast.saveFailedTitle'),
         description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
@@ -391,11 +393,11 @@ export default function ClientApplicationFillPage() {
     if (!canClientAccessStepIndex(app.steps, index)) {
       const block = firstBlockingApprovalStepBefore(app.steps, index)
       toast({
-        title: 'Step locked',
+        title: t('client.applications.toast.stepLockedTitle'),
         description:
           block !== null
             ? approvalAdvanceBlockedReason(app.steps[block])
-            : 'Complete earlier steps first.',
+            : t('client.applications.toast.completeEarlierDesc'),
         variant: 'destructive',
       })
       return
@@ -408,9 +410,8 @@ export default function ClientApplicationFillPage() {
     const next = nextClientFillableStepIndex(app.steps, stepIndex)
     if (next === null) {
       toast({
-        title: 'No further steps',
-        description:
-          'Please wait for an administrator to complete this step, or go back to earlier steps.',
+        title: t('client.applications.toast.noFurtherTitle'),
+        description: t('client.applications.toast.noFurtherDesc'),
       })
       return
     }
@@ -426,7 +427,7 @@ export default function ClientApplicationFillPage() {
       onToggleMobile={toggleMobileSidebar}
       onToggleDesktop={toggleDesktopSidebar}
       onCloseMobile={closeMobileSidebar}
-      title={app ? areaLabel || app.wizard.name : t('client.applications.pageTitle')}
+      title={app ? areaLabel || getLocalizedText(app.wizard.name, locale) : t('client.applications.pageTitle')}
       description={
         app
           ? `${app.applicationNumber} · ${areaLabel || app.areaOfInterest}`
@@ -469,7 +470,7 @@ export default function ClientApplicationFillPage() {
                   )}
                 >
                   <p className="font-medium">
-                    {t('client.fill.status' as any) || (isRTL ? 'الحالة' : 'Status')}: {wizardStatusLabel(app.status)}
+                    {t('client.fill.status')}: {getWizardStatusLocalizedLabel(app.status, t)}
                   </p>
                   <p className="text-xs mt-0.5 opacity-90">
                     {isRTL
@@ -493,7 +494,7 @@ export default function ClientApplicationFillPage() {
 
                 <div className="flex-1 min-w-0 w-full">
               <Card className="shadow-md overflow-hidden">
-                <h2 className={cn("text-lg font-semibold mb-3 px-6 pt-5", isRTL ? "text-right" : "text-left pt-0")}>{areaLabel || app.wizard.name}</h2>
+                <h2 className={cn("text-lg font-semibold mb-3 px-6", isRTL ? "text-right" : "text-left")}>{areaLabel || getLocalizedText(app.wizard.name, locale)}</h2>
                 <CardContent className="pb-6">
                   {currentStep?.adminUseOnly ? (
                     <div className="flex flex-col items-center text-center py-10 px-4">
@@ -552,8 +553,12 @@ export default function ClientApplicationFillPage() {
                       onSave={(answers, opts) => saveStep(answers, opts)}
                       onSaveAndExit={(answers) => saveStep(answers)}
                       latestValuesRef={latestFormValuesRef}
-                      onDirtyChange={setFormDirty}
+                      onDirtyChange={(dirty) => {
+                        formDirtyRef.current = dirty
+                      }}
                       serverSyncVersion={serverSyncVersion}
+                      applicationId={app.id}
+                      fileUploadBasePath="/api/client/wizard-applications"
                       saveExitLabel="Save"
                       showSubmit={!applicationLocked}
                       allowStepAdvance={canClientAccessStepIndex(app.steps, stepIndex + 1)}

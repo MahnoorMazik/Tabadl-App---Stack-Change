@@ -13,24 +13,24 @@ import { WizardStepDraft } from './types'
 import { useLocale } from '@/contexts/LocaleContext'
 import { cn } from '@/lib/utils'
 
+import { getLocalizedText } from '@/lib/multilingual-text'
+
 interface SortableWizardStepProps {
   step: WizardStepDraft
   index: number
-  canRemove: boolean
+  canRemove?: boolean
   formsForArea: FormTemplateListItem[]
-  usedFormIds: string[]
-  onUpdate: (stepId: string, patch: Partial<WizardStepDraft>) => void
-  onRemove: (stepId: string) => void
-  onEditForm?: (formTemplateId: string) => void
+  onChange: (patch: Partial<WizardStepDraft>) => void
+  onRemove: () => void
+  onEditForm?: (formId: string) => void
 }
 
 export function SortableWizardStep({
   step,
   index,
-  canRemove,
+  canRemove = true,
   formsForArea,
-  usedFormIds: _usedFormIds,
-  onUpdate,
+  onChange,
   onRemove,
   onEditForm,
 }: SortableWizardStepProps) {
@@ -52,10 +52,11 @@ export function SortableWizardStep({
   }
 
   const selectedForm = formsForArea.find((f) => f.id === step.formTemplateId)
-  const displayName =
+  const rawName =
     selectedForm?.name ??
     step.formName ??
     (step.formTemplateId ? (isRTL ? 'نموذج غير معروف' : 'Unknown form') : '')
+  const displayName = getLocalizedText(rawName, locale)
 
   return (
     <div
@@ -99,7 +100,7 @@ export function SortableWizardStep({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
-              onClick={() => onRemove(step.id)}
+              onClick={onRemove}
               aria-label={`Remove step ${index + 1}`}
             >
               <Trash2 className="h-4 w-4" />
@@ -125,7 +126,7 @@ export function SortableWizardStep({
             id={`payment-${step.id}`}
             checked={step.paymentRequired}
             onCheckedChange={(checked) =>
-              onUpdate(step.id, { paymentRequired: checked === true })
+              onChange({ paymentRequired: checked === true })
             }
           />
           <Label
@@ -141,7 +142,7 @@ export function SortableWizardStep({
             id={`approval-${step.id}`}
             checked={step.approvalRequired}
             onCheckedChange={(checked) =>
-              onUpdate(step.id, { approvalRequired: checked === true })
+              onChange({ approvalRequired: checked === true })
             }
           />
           <Label
@@ -157,7 +158,7 @@ export function SortableWizardStep({
             id={`admin-use-${step.id}`}
             checked={Boolean(step.adminUseOnly)}
             onCheckedChange={(checked) =>
-              onUpdate(step.id, { adminUseOnly: checked === true })
+              onChange({ adminUseOnly: checked === true })
             }
           />
           <Label

@@ -21,6 +21,7 @@ import {
 } from './types'
 import { formApi, FormApiError } from './api'
 import { useToast } from '@/hooks/use-toast'
+import { encodeBilingualText } from '@/lib/multilingual-text'
 
 interface AddFieldButtonProps {
   type: FormFieldType
@@ -39,8 +40,10 @@ export function AddFieldButton({
 }: AddFieldButtonProps) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
-  const [newLabel, setNewLabel] = useState('')
-  const [newHelpText, setNewHelpText] = useState('')
+  const [labelEn, setLabelEn] = useState('')
+  const [labelAr, setLabelAr] = useState('')
+  const [helpEn, setHelpEn] = useState('')
+  const [helpAr, setHelpAr] = useState('')
   const [optionsText, setOptionsText] = useState('Option 1, Option 2')
   const [creating, setCreating] = useState(false)
 
@@ -48,8 +51,10 @@ export function AddFieldButton({
   const isInstruction = isDisplayOnlyFieldType(type)
 
   const reset = () => {
-    setNewLabel('')
-    setNewHelpText('')
+    setLabelEn('')
+    setLabelAr('')
+    setHelpEn('')
+    setHelpAr('')
     setOptionsText('Option 1, Option 2')
     setCreating(false)
   }
@@ -60,7 +65,24 @@ export function AddFieldButton({
   }
 
   const handleCreate = async () => {
-    const label = newLabel.trim() || FIELD_TYPE_LABELS[type]
+    if (!labelEn.trim() || !labelAr.trim()) {
+      toast({
+        title: 'Field label required',
+        description: 'Please enter field label in both English and Arabic.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (isInstruction && (!helpEn.trim() || !helpAr.trim())) {
+      toast({
+        title: 'Instruction text required',
+        description: 'Add the guidance text in both English and Arabic.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     const options = needsOptions
       ? optionsText
           .split(',')
@@ -77,22 +99,18 @@ export function AddFieldButton({
       return
     }
 
-    if (isInstruction && !newHelpText.trim()) {
-      toast({
-        title: 'Instruction text required',
-        description: 'Add the guidance text applicants should read.',
-        variant: 'destructive',
-      })
-      return
-    }
+    const encodedLabel = encodeBilingualText(labelEn.trim(), labelAr.trim())
+    const encodedHelpText = (helpEn.trim() || helpAr.trim())
+      ? encodeBilingualText(helpEn.trim(), helpAr.trim())
+      : null
 
     setCreating(true)
     try {
       const { field } = await formApi.createField({
-        label,
+        label: encodedLabel,
         type,
         options: options ?? null,
-        helpText: newHelpText.trim() || null,
+        helpText: encodedHelpText,
       })
 
       const reusable: ReusableField = {
@@ -145,62 +163,107 @@ export function AddFieldButton({
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor={`new-field-${type}`}>
-            {isInstruction ? 'Heading' : 'Field label'}
-          </Label>
-          <Input
-            id={`new-field-${type}`}
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            placeholder={isInstruction ? 'e.g. Important notes' : FIELD_TYPE_LABELS[type]}
-            autoFocus
-            disabled={creating}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !isInstruction) {
-                e.preventDefault()
-                void handleCreate()
-              }
-            }}
-          />
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <Label htmlFor={`new-field-en-${type}`} className="text-xs font-medium">
+              {isInstruction ? 'Heading (English)' : 'Field label (English)'} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id={`new-field-en-${type}`}
+              value={labelEn}
+              onChange={(e) => setLabelEn(e.target.value)}
+              placeholder={isInstruction ? 'e.g. Important notes' : FIELD_TYPE_LABELS[type]}
+              autoFocus
+              disabled={creating}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor={`new-field-ar-${type}`} className="text-xs font-medium">
+              {isInstruction ? 'العنوان (بالعربية)' : 'اسم الحقل (بالعربية)'} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id={`new-field-ar-${type}`}
+              value={labelAr}
+              onChange={(e) => setLabelAr(e.target.value)}
+              placeholder={isInstruction ? 'مثال: ملاحظات هامة' : FIELD_TYPE_LABELS[type]}
+              disabled={creating}
+              dir="rtl"
+              className="h-8 text-sm text-right"
+            />
+          </div>
         </div>
 
         {isInstruction ? (
-          <div className="space-y-1.5">
-            <Label htmlFor={`new-field-instruction-${type}`}>
-              Instruction text <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id={`new-field-instruction-${type}`}
-              value={newHelpText}
-              onChange={(e) => setNewHelpText(e.target.value)}
-              placeholder="Write the instructions applicants should read…"
-              rows={4}
-              disabled={creating}
-              className="resize-y"
-            />
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label htmlFor={`new-field-instruction-en-${type}`} className="text-xs font-medium">
+                Instruction text (English) <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id={`new-field-instruction-en-${type}`}
+                value={helpEn}
+                onChange={(e) => setHelpEn(e.target.value)}
+                placeholder="Write the instructions applicants should read…"
+                rows={3}
+                disabled={creating}
+                className="text-xs resize-y"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`new-field-instruction-ar-${type}`} className="text-xs font-medium">
+                نص الإرشادات (بالعربية) <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id={`new-field-instruction-ar-${type}`}
+                value={helpAr}
+                onChange={(e) => setHelpAr(e.target.value)}
+                placeholder="اكتب الإرشادات التي يجب على مقدم الطلب قراءتها..."
+                rows={3}
+                disabled={creating}
+                dir="rtl"
+                className="text-xs resize-y text-right"
+              />
+            </div>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <Label htmlFor={`new-field-tooltip-${type}`}>Tooltip (optional)</Label>
-            <Input
-              id={`new-field-tooltip-${type}`}
-              value={newHelpText}
-              onChange={(e) => setNewHelpText(e.target.value)}
-              placeholder="Help text shown on ? hover"
-              disabled={creating}
-            />
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label htmlFor={`new-field-tooltip-en-${type}`} className="text-xs font-normal text-muted-foreground">Tooltip (English)</Label>
+              <Input
+                id={`new-field-tooltip-en-${type}`}
+                value={helpEn}
+                onChange={(e) => setHelpEn(e.target.value)}
+                placeholder="Help text shown on ? hover"
+                disabled={creating}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor={`new-field-tooltip-ar-${type}`} className="text-xs font-normal text-muted-foreground">تلميح توضيحي (بالعربية)</Label>
+              <Input
+                id={`new-field-tooltip-ar-${type}`}
+                value={helpAr}
+                onChange={(e) => setHelpAr(e.target.value)}
+                placeholder="نص توضيحي عند التمرير على العلامة"
+                disabled={creating}
+                dir="rtl"
+                className="h-8 text-xs text-right"
+              />
+            </div>
           </div>
         )}
 
         {needsOptions && (
           <div className="space-y-1.5">
-            <Label htmlFor={`new-field-options-${type}`}>Options (comma-separated)</Label>
+            <Label htmlFor={`new-field-options-${type}`} className="text-xs font-medium">Options (comma-separated)</Label>
             <Input
               id={`new-field-options-${type}`}
               value={optionsText}
               onChange={(e) => setOptionsText(e.target.value)}
               disabled={creating}
+              className="h-8 text-xs"
             />
           </div>
         )}

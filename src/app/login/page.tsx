@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,25 +11,53 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { validateEmail } from '@/lib/email-validation'
 import Link from 'next/link'
-import { Building2, Lock, AlertCircle } from 'lucide-react'
+import { Building2, Lock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { useLocale } from '@/contexts/LocaleContext'
 
-export default function ClientLoginPage() {
+function ClientLoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [needsVerification, setNeedsVerification] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
   const [emailError, setEmailError] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const justVerified = searchParams.get('verified') === '1'
   const { login } = useAuth()
   const { t } = useLocale()
+
+  const handleResend = async () => {
+    if (!email) return
+    setResending(true)
+    setResendMessage('')
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || t('auth.resendVerificationFailed'))
+      }
+      setResendMessage(t('auth.verificationEmailResent'))
+    } catch (err: any) {
+      setResendMessage(err.message || t('auth.resendVerificationFailed'))
+    } finally {
+      setResending(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setEmailError('')
+    setNeedsVerification(false)
+    setResendMessage('')
     
-    // Validate email before submitting
     const emailValidation = validateEmail(email)
     if (!emailValidation.isValid) {
       setEmailError(emailValidation.error!)
@@ -42,7 +70,12 @@ export default function ClientLoginPage() {
       await login(email, password, 'client')
       router.push('/dashboard')
     } catch (err: any) {
-      setError(err.message || t('auth.invalidCredentials'))
+      if (err.message === 'EMAIL_NOT_VERIFIED') {
+        setNeedsVerification(true)
+        setError(t('auth.emailNotVerified'))
+      } else {
+        setError(err.message || t('auth.invalidCredentials'))
+      }
     } finally {
       setLoading(false)
     }
@@ -62,10 +95,36 @@ export default function ClientLoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {justVerified && (
+              <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                <AlertDescription>{t('auth.emailVerifiedSuccess')}</AlertDescription>
+              </Alert>
+            )}
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                  {error}
+                  {needsVerification && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resending}
+                        className="underline font-medium"
+                      >
+                        {resending ? t('auth.resending') : t('auth.resendVerificationEmail')}
+                      </button>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+            {resendMessage && (
+              <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                <AlertDescription>{resendMessage}</AlertDescription>
               </Alert>
             )}
             
@@ -98,7 +157,7 @@ export default function ClientLoginPage() {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <Link href="/forgot-password" className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 hover:underline">
+              <Link href="/client/forgot-password" className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 hover:underline">
                 {t('auth.forgotPassword')}
               </Link>
             </div>
@@ -132,3 +191,14 @@ export default function ClientLoginPage() {
   )
 }
 
+export default function ClientLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-600 to-teal-600 p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      </div>
+    }>
+      <ClientLoginForm />
+    </Suspense>
+  )
+}

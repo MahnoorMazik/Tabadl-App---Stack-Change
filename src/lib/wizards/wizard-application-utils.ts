@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { mapFormField } from '@/lib/validations/forms'
+import { getAcceptedCollaborationForUser } from '@/lib/collaboration'
 
 export async function getClientForUser(userId: string) {
   return db.client.findFirst({
@@ -10,8 +11,8 @@ export async function getClientForUser(userId: string) {
 
 /**
  * Resolve the client record for wizard-application APIs.
- * Prefers an existing Client profile; auto-creates one for CLIENT-role users
- * who somehow lack a profile (so start/list never fail spuriously).
+ * - CLIENT: own profile (auto-create if missing)
+ * - COLLABORATOR: the single client they were accepted for
  */
 export async function ensureClientAccess(user: {
   userId: string
@@ -19,15 +20,40 @@ export async function ensureClientAccess(user: {
   email: string
   name?: string | null
 }): Promise<
-  | { client: { id: string; name: string; email: string } }
+  | {
+      client: { id: string; name: string; email: string }
+      actingAsCollaborator?: boolean
+      collaborationId?: string
+    }
   | { error: string; status: number }
 > {
+  const role = String(user.role || '').toUpperCase()
+
+  if (role === 'COLLABORATOR') {
+    const link = await getAcceptedCollaborationForUser(user.userId)
+    if (!link?.client) {
+      return {
+        error:
+          'No client collaboration found. Accept an invite from a client first.',
+        status: 403,
+      }
+    }
+    return {
+      client: {
+        id: link.client.id,
+        name: link.client.name,
+        email: link.client.email,
+      },
+      actingAsCollaborator: true,
+      collaborationId: link.id,
+    }
+  }
+
   const existing = await getClientForUser(user.userId)
   if (existing) {
     return { client: existing }
   }
 
-  const role = String(user.role || '').toUpperCase()
   if (role !== 'CLIENT') {
     return {
       error: `Client access required. You are signed in as ${role || 'unknown'} — please log out and sign in with a client account (/login).`,
