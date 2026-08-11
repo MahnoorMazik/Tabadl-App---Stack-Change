@@ -70,7 +70,12 @@ export async function GET(request: NextRequest) {
       createSuccessResponse({ collaborators: rows }, 200, { requestId })
     )
   } catch (error) {
-    logError(error instanceof Error ? error : new Error(String(error)), { code: ErrorCodes.INTERNAL_ERROR, requestId, endpoint: 'GET /api/client/collaborators' })
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: '/api/client/collaborators',
+      method: 'GET',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to load collaborators', 500, {
         requestId,
@@ -251,7 +256,12 @@ export async function POST(request: NextRequest) {
         )
       )
     }
-    logError(error instanceof Error ? error : new Error(String(error)), { code: ErrorCodes.INTERNAL_ERROR, requestId, endpoint: 'POST /api/client/collaborators' })
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      code: ErrorCodes.INTERNAL_ERROR,
+      requestId,
+      endpoint: '/api/client/collaborators',
+      method: 'POST',
+    })
     return addCorsHeaders(
       createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to send invite', 500, {
         requestId,
