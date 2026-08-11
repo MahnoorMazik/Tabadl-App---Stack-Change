@@ -10,40 +10,149 @@ datasource db {
 // Prisma excerpt — Support Tickets (from Zypher ERP schema)
 // Add relation on User: supportTicketsCreated SupportTicket[] @relation("SupportTicketCreatedBy")
 
-model SupportTicket {
-  id           Int                   @id @default(autoincrement())
-  title        String
-  description  String
-  status       SupportTicketStatus   @default(NEW)
-  priority     SupportTicketPriority @default(MEDIUM) // Add this
-  category     String? // Add this
-  createdById  Int
-  assignedToId Int? // Add this
-  clientId     Int? // Add this
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  resolvedAt   DateTime?
-  closedAt     DateTime?
+enum SupportTicketStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
 
-  createdBy   User                      @relation("createdTickets", fields: [createdById], references: [id])
-  assignedTo  User?                     @relation("assignedTickets", fields: [assignedToId], references: [id])
-  client      Client?                   @relation(fields: [clientId], references: [id])
-  attachments SupportTicketAttachment[]
-  messages    SupportTicketMessage[]
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model SupportTicketCommentBox {
+  id       Int           @id @default(autoincrement())
+  ticketId Int
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  comment   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments SupportTicketCommentAttachment[]
+
+  @@index([ticketId])
+}
+
+model SupportTicketCommentAttachment {
+  id           Int                     @id @default(autoincrement())
+  commentBoxId Int
+  commentBox   SupportTicketCommentBox @relation(fields: [commentBoxId], references: [id], onDelete: Cascade)
+
+  fileName  String
+  filePath  String
+  fileSize  Int
+  fileType  String
+  createdAt DateTime @default(now())
+
+  @@index([commentBoxId])
+}
+
+model SupportTicket {
+  id                Int                       @id @default(autoincrement())
+  title             String
+  description       String
+  status            SupportTicketStatus       @default(NEW)
+  priority          SupportTicketPriority     @default(MEDIUM)
+  category          String?
+  createdById       String // ✅ Changed from Int to String
+  assignedToId      String? // ✅ Changed from Int? to String?
+  clientId          String? // ✅ Changed from Int? to String?
+  comment           String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  commentBoxes      SupportTicketCommentBox[]
+  parentId          Int?
+  parent            SupportTicket?            @relation("TicketHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children          SupportTicket[]           @relation("TicketHierarchy")
+  createdBy         User                      @relation("createdTickets", fields: [createdById], references: [id])
+  // assignedTo        User?                     @relation("assignedTickets", fields: [assignedToId], references: [id])
+  assignedTo        SupportAssignee?          @relation(fields: [assignedToId], references: [id])
+  client            Client?                   @relation(fields: [clientId], references: [id])
+  attachments       SupportTicketAttachment[]
+  messages          SupportTicketMessage[]
+  supportCategory   SupportCategory?          @relation(fields: [supportCategoryId], references: [id])
+  supportCategoryId String?
+  user              User?                     @relation(fields: [userId], references: [id])
+  userId            String?
+  // user              User?                     @relation(fields: [userId], references: [id])
+  // supportTickets    SupportTicket[]
+  // supportTicket     SupportTicket?            @relation(fields: [supportTicketId], references: [id])
+  // supportTicketId   Int?
+}
+
+// model SupportCategory {
+//   id        String   @id @default(cuid())
+//   name      String   @unique
+//   isActive  Boolean  @default(true)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   tickets SupportTicket[]
+// }
+
+model SupportCategory {
+  id        String            @id @default(cuid())
+  name      String
+  parentId  String?           @map("parent_id")
+  parent    SupportCategory?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children  SupportCategory[] @relation("CategoryParent")
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  tickets   SupportTicket[]
+
+  @@map("support_categories")
+}
+
+enum SupportAssigneeRole {
+  ARCHITECT
+  FUNCTIONAL_ARCHITECT
+  DEVELOPER
+  SQA_MANAGER
+  SOLUTION_ENGINEER
+  FUNCTIONAL_MANAGER
+  PROJECT_MANAGER
+  PRODUCT_MANAGER
+  SCRUM_MASTER
+  IT_SUPPORT
+
+}
+
+model SupportAssignee {
+  id             String              @id @default(cuid())
+  name           String
+  role           SupportAssigneeRole // ✅ Changed from String to Enum
+  email          String?
+  avatar         String?
+  isActive       Boolean             @default(true) // ✅ Added this field
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  supportTickets SupportTicket[]
+
+  @@map("support_assignees")
 }
 
 model SupportTicketMessage {
   id         Int           @id @default(autoincrement())
   ticketId   Int
   ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  userId     Int
+  userId     String // ✅ Changed from Int to String
   user       User          @relation(fields: [userId], references: [id])
-  message    String        @db.Text
+  message    String
   isInternal Boolean       @default(false)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
   @@index([ticketId])
+  @@index([userId])
   @@map("support_ticket_messages")
 }
 
@@ -61,30 +170,32 @@ model SupportTicketAttachment {
   @@map("support_ticket_attachments")
 }
 
-enum SupportTicketStatus {
-  NEW
-  IN_PROGRESS
-  RESOLVED
-  CLOSED
-}
-
 model User {
-  id                      String                   @id @default(cuid())
-  email                   String
-  name                    String?
-  passwordHash            String
-  role                    UserRole                 @default(CLIENT)
-  staffType               StaffType?
-  isActive                Boolean                  @default(true)
-  isDeleted               Boolean                  @default(false)
-  deletedAt               DateTime?
-  lastLoginAt             DateTime?
-  tokenVersion            Int                      @default(0)
-  phone                   String?
-  avatar                  String?
-  customRoleId            String?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String?
+  firstName    String? // ✅ ADD THIS
+  lastName     String? // ✅ ADD THIS
+  passwordHash String
+  role         UserRole   @default(CLIENT)
+  staffType    StaffType?
+  isActive     Boolean    @default(true)
+  isDeleted    Boolean    @default(false)
+  deletedAt    DateTime?
+  lastLoginAt  DateTime?
+  tokenVersion Int        @default(0)
+  phone        String?
+  avatar       String?
+  customRoleId String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // ✅ ADD SUPPORT TICKET RELATIONS
+  createdTickets  SupportTicket[]        @relation("createdTickets")
+  // assignedTickets SupportTicket[]        @relation("assignedTickets")
+  supportMessages SupportTicketMessage[]
+
+  // Keep existing relations
   approvedApplications    Application[]            @relation("ApplicationApprovedBy")
   assignedApplications    Application[]            @relation("ApplicationAssignedTo")
   clientProfile           Client?
@@ -105,9 +216,9 @@ model User {
   pushSubscriptions       PushSubscription[]
   auditLogs               AuditLog[]
   pageAccessLogs          PageAccessLog[]
-  // NextAuth relations
   accounts                Account[]
   sessions                Session[]
+  supportTickets          SupportTicket[]
 
   @@index([email, isDeleted])
   @@index([isDeleted])
@@ -215,8 +326,8 @@ model Application {
 }
 
 model Client {
-  id               String                  @id @default(cuid())
-  clientNumber     String                  @unique
+  id               String  @id @default(cuid())
+  clientNumber     String  @unique
   name             String
   email            String
   phone            String?
@@ -226,6 +337,7 @@ model Client {
   natureOfBusiness String?
   country          String?
   city             String?
+
   howDidYouHear    String?
   userId           String                  @unique
   groupId          String?
@@ -236,6 +348,7 @@ model Client {
   applications     Application[]
   group            ClientGroup?            @relation(fields: [groupId], references: [id])
   user             User                    @relation(fields: [userId], references: [id])
+  tickets          SupportTicket[]
   invoices         Invoice[]
   paymentIntents   PaymentIntent[]
   leads            Lead[]

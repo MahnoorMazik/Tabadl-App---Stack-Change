@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -8,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Type definitions for pending files
 type PendingFile = {
   file: File;
   id: string;
@@ -18,7 +19,6 @@ type PendingFile = {
   uploaded?: boolean;
 };
 
-// Simple inline loader component
 function ZypherLoader({ size = 16 }: { size?: number }) {
   return (
     <div 
@@ -28,7 +28,6 @@ function ZypherLoader({ size = 16 }: { size?: number }) {
   );
 }
 
-// Simple error handling functions
 async function extractApiError(response: Response): Promise<string> {
   try {
     const data = await response.json();
@@ -38,12 +37,6 @@ async function extractApiError(response: Response): Promise<string> {
   }
 }
 
-async function handleError(err: unknown): Promise<string> {
-  if (err instanceof Error) return err.message;
-  return String(err);
-}
-
-// Simple pending attachment picker component
 function PendingAttachmentPicker({ 
   files, 
   onChange, 
@@ -98,22 +91,9 @@ function PendingAttachmentPicker({
   );
 }
 
-async function uploadPendingFiles(url: string, files: PendingFile[]): Promise<void> {
-  const formData = new FormData();
-  files.forEach(({ file }) => formData.append("attachments", file));
-
-  const response = await fetch(url, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to upload attachments");
-  }
-}
-
 export function NewSupportTicketPage() {
   const router = useRouter();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
@@ -133,9 +113,18 @@ export function NewSupportTicketPage() {
         throw new Error("Description is required");
       }
 
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      // Create the ticket
       const response = await fetch("/api/support", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
@@ -143,23 +132,49 @@ export function NewSupportTicketPage() {
       });
 
       if (!response.ok) {
-        const msg = await extractApiError(response);
-        throw new Error(msg);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Failed to create ticket (${response.status})`);
       }
 
-      const created = (await response.json()) as { id?: number; displayId?: string | null };
-      const ticketRef = created.displayId ?? String(created.id ?? "");
+      const created = await response.json();
+      
+      // Handle both response formats
+      const ticketId = created.id || created.data?.id;
+      const displayId = created.displayId || created.data?.displayId || `TICKET-${String(ticketId).padStart(6, "0")}`;
 
-      if (ticketRef && pendingFiles.length > 0) {
-        await uploadPendingFiles(`/api/support/${encodeURIComponent(ticketRef)}/attachments`, pendingFiles);
+      toast.success("Ticket created successfully");
+
+      // If there are pending files, upload them
+      if (ticketId && pendingFiles.length > 0) {
+        try {
+          const formData = new FormData();
+          pendingFiles.forEach(({ file }) => {
+            formData.append("attachments", file);
+          });
+
+          const uploadResponse = await fetch(`/api/support/${ticketId}/attachments`, {
+            method: "POST",
+            headers: token ? { "Authorization": `Bearer ${token}` } : {},
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            console.warn("Failed to upload attachments");
+            toast.warning("Ticket created but attachments failed to upload");
+          } else {
+            toast.success("Attachments uploaded successfully");
+          }
+        } catch (uploadError) {
+          console.error("Error uploading attachments:", uploadError);
+          toast.warning("Ticket created but some attachments failed to upload");
+        }
       }
 
-      toast.success("Ticket created");
       router.push("/admin/help/support");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create ticket";
       setError(msg);
-      toast.error(await handleError(err));
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -186,8 +201,8 @@ export function NewSupportTicketPage() {
           )}
 
           <div className="grid gap-1.5">
-            <Label htmlFor="title" >
-              Title
+            <Label htmlFor="title">
+              Title <span className="text-destructive">*</span>
             </Label>
             <Input
               id="title"
@@ -202,8 +217,8 @@ export function NewSupportTicketPage() {
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="description" >
-              Description
+            <Label htmlFor="description">
+              Description <span className="text-destructive">*</span>
             </Label>
             <Textarea
               id="description"

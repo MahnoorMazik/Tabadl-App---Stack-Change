@@ -11,7 +11,8 @@ import {
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard,
   ChevronDown, ChevronRight, Menu, X, Globe, Tag, History, Activity, Bell, CreditCard, Bot,
-  Briefcase, Package, PlusCircle
+  Briefcase, Package, PlusCircle,
+  Folder
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -378,6 +379,18 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         title: t('admin.sidebar.supportTickets'),
         icon: Phone,
         href: '/admin/help/support',
+        permission: `${Module.HELP}.${Action.VIEW}`
+      },
+      {
+        title: t('admin.sidebar.Categories'),
+        icon: Folder,
+        href: '/admin/help/categories',
+        permission: `${Module.HELP}.${Action.VIEW}`
+      },
+      {
+        title: t('admin.sidebar.Assigned'),
+        icon: Users,
+        href: '/admin/help/assigned',
         permission: `${Module.HELP}.${Action.VIEW}`
       }
     ]

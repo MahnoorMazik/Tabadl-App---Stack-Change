@@ -1,5 +1,8 @@
+import type { Session } from "next-auth";
 import { StaffType } from "@prisma/client";
 import { db } from "./db";
+import { auth } from "./auth/config";
+import { NextResponse } from "next/dist/server/web/spec-extension/response";
 
 /** Main system roles. Sidebar and page visibility are driven by these. */
 export const MAIN_ROLE_NAMES = {
@@ -428,4 +431,143 @@ export async function hasPermission(
     user.staffType ?? StaffType.ADMIN,
   );
   return checker.hasPermission(permission);
+}
+
+export async function authorize(permission: Permission) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      authorized: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const user = await db.user.findUnique({
+    where: {
+      id: String(session.user.id),
+    },
+    include: {
+      customRole: true,
+    },
+  });
+
+  if (!user) {
+    return {
+      authorized: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  // Admin bypass
+  if (user.staffType === StaffType.ADMIN) {
+    return {
+      authorized: true,
+      user,
+      session,
+    };
+  }
+
+  let permissions: Permission[] = [];
+
+  if (user.customRole?.permissions) {
+    try {
+      // permissions stored as JSON string
+      permissions = JSON.parse(user.customRole.permissions);
+    } catch {
+      // permissions stored as comma-separated string
+      permissions = user.customRole.permissions
+        .split(",")
+        .map((p) => p.trim())
+        .filter(isValidPermission) as Permission[];
+    }
+  }
+
+  if (!permissions.includes(permission)) {
+    return {
+      authorized: false,
+      response: Response.json(
+        {
+          error: "Forbidden",
+          requiredPermission: permission,
+          userPermissions: permissions,
+        },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return {
+    authorized: true,
+    user,
+    session,
+  };
+}
+
+export async function authorizeAny(permissions: Permission[]) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      authorized: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const user = await db.user.findUnique({
+    where: {
+      id: String(session.user.id),
+    },
+    include: {
+      customRole: true,
+    },
+  });
+
+  if (!user) {
+    return {
+      authorized: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  if (user.staffType === StaffType.ADMIN) {
+    return {
+      authorized: true,
+      user,
+      session,
+    };
+  }
+
+  let permissionsList: Permission[] = [];
+  if (user.customRole?.permissions) {
+    try {
+      permissionsList = JSON.parse(user.customRole.permissions);
+    } catch {
+      permissionsList = user.customRole.permissions
+        .split(",")
+        .map((p) => p.trim())
+        .filter(isValidPermission) as Permission[];
+    }
+  }
+
+  const authorized = permissions.some((permission) => permissionsList.includes(permission));
+  if (!authorized) {
+    return {
+      authorized: false,
+      response: Response.json(
+        {
+          error: "Forbidden",
+          requiredPermissions: permissions,
+          userPermissions: permissionsList,
+        },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return {
+    authorized: true,
+    user,
+    session,
+  };
 }
