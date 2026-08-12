@@ -11,7 +11,7 @@ import {
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard,
   ChevronDown, ChevronRight, Menu, X, Globe, Tag, History, Activity, Bell, CreditCard, Bot,
-  Briefcase, Package, PlusCircle, Layers
+  Briefcase, Package, PlusCircle, Layers, UserCog
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -158,6 +158,13 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         permission: `${Module.DOCUMENTS}.${Action.VIEW}`
       }
     ]
+  },
+  // ✅ MOVED: Collaborator Management is now a top-level item
+  {
+    title: t('admin.sidebar.collaboratorManagement'),
+    icon: UserCog,
+    href: '/admin/collaborators',
+    permission: `${Module.COLLABORATORS}.${Action.VIEW}`
   },
   {
     title: t('admin.sidebar.teamManagement'),
@@ -459,11 +466,14 @@ export function PermissionAwareSidebar({ className, isCollapsed = false, onToggl
           return null
         }
         if (item.permission && !permissionChecker.hasPermission(item.permission as any)) return null
+        
         const filteredChildren = item.children?.filter(child => {
           if (child.permission && !permissionChecker.hasPermission(child.permission as any)) return false
           return true
         })
+        
         if (item.children && item.children.length > 0 && (!filteredChildren || filteredChildren.length === 0)) return null
+        
         return { ...item, children: filteredChildren }
       })
       .filter(Boolean) as SidebarItem[]

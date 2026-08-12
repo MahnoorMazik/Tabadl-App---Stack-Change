@@ -29,9 +29,18 @@ import {
   UserPlus,
   RefreshCw,
   Trash2,
+  Ban,
   AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type CollaboratorRow = {
   id: string
@@ -48,6 +57,17 @@ type CollaboratorRow = {
   } | null
 }
 
+// ✅ Define the action type
+type Action = {
+  id: string
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+  variant: 'default' | 'outline' | 'destructive' | 'ghost' | 'link'
+  className: string
+  disabled: boolean
+}
+
 function statusBadge(status: CollaboratorRow['status']) {
   switch (status) {
     case 'ACCEPTED':
@@ -57,7 +77,7 @@ function statusBadge(status: CollaboratorRow['status']) {
     case 'EXPIRED':
       return 'bg-slate-100 text-slate-700 border-slate-200'
     case 'REVOKED':
-      return 'bg-red-100 text-red-800 border-red-200'
+      return 'bg-orange-100 text-orange-800 border-orange-200'
     default:
       return ''
   }
@@ -82,6 +102,11 @@ export default function ClientCollaboratorsPage() {
   const [phone, setPhone] = useState('')
   const [sending, setSending] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  // Dialog states
+  const [showRevokeDialog, setShowRevokeDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedCollaborator, setSelectedCollaborator] = useState<CollaboratorRow | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -158,12 +183,31 @@ export default function ClientCollaboratorsPage() {
     }
   }
 
-  const handleRevoke = async (id: string) => {
-    setBusyId(id)
+  // ✅ Open Revoke Dialog
+  const openRevokeDialog = (collaborator: CollaboratorRow) => {
+    setSelectedCollaborator(collaborator)
+    setShowRevokeDialog(true)
+  }
+
+  // ✅ Open Delete Dialog
+  const openDeleteDialog = (collaborator: CollaboratorRow) => {
+    setSelectedCollaborator(collaborator)
+    setShowDeleteDialog(true)
+  }
+
+  // ✅ Confirm Revoke (Soft Delete)
+  const confirmRevoke = async () => {
+    if (!selectedCollaborator) return
+    setBusyId(selectedCollaborator.id)
     try {
-      await axios.delete(`/api/client/collaborators/${id}`)
-      toast({ title: t('client.collaboration.revoked') })
+      await axios.delete(`/api/client/collaborators/${selectedCollaborator.id}?action=revoke`)
+      toast({ 
+        title: 'Collaborator Revoked',
+        description: `${selectedCollaborator.inviteEmail} has been revoked. You can re-invite them anytime.`,
+      })
       await load()
+      setShowRevokeDialog(false)
+      setSelectedCollaborator(null)
     } catch (error: any) {
       toast({
         title: t('client.collaboration.revokeFailed'),
@@ -173,6 +217,78 @@ export default function ClientCollaboratorsPage() {
     } finally {
       setBusyId(null)
     }
+  }
+
+  // ✅ Confirm Delete (Permanent Delete)
+  const confirmDelete = async () => {
+    if (!selectedCollaborator) return
+    setBusyId(selectedCollaborator.id)
+    try {
+      await axios.delete(`/api/client/collaborators/${selectedCollaborator.id}?action=delete`)
+      toast({ 
+        title: 'Collaborator Permanently Deleted',
+        description: `${selectedCollaborator.inviteEmail} has been permanently removed`,
+        variant: 'destructive',
+      })
+      await load()
+      setShowDeleteDialog(false)
+      setSelectedCollaborator(null)
+    } catch (error: any) {
+      toast({
+        title: 'Delete Failed',
+        description: error.response?.data?.error?.message || error.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // ✅ Determine which actions to show based on status - returns Action[]
+  const getActions = (row: CollaboratorRow): Action[] => {
+    const actions: Action[] = []
+    const isBusy = busyId === row.id
+
+    // 1. RESEND Button - Show for PENDING, EXPIRED, and REVOKED
+    if (row.status === 'PENDING' || row.status === 'EXPIRED' || row.status === 'REVOKED') {
+      actions.push({
+        id: 'resend',
+        icon: <RefreshCw className="h-3.5 w-3.5" />,
+        label: 'Resend',
+        onClick: () => handleResend(row.id),
+        variant: 'outline',
+        className: 'border-blue-200 text-blue-700 hover:bg-blue-50',
+        disabled: isBusy,
+      })
+    }
+
+    // 2. REVOKE Button - Show for PENDING, ACCEPTED (but not REVOKED or EXPIRED)
+    if (row.status !== 'REVOKED' && row.status !== 'EXPIRED') {
+      actions.push({
+        id: 'revoke',
+        icon: <Ban className="h-3.5 w-3.5" />,
+        label: 'Revoke',
+        onClick: () => openRevokeDialog(row),
+        variant: 'outline',
+        className: 'border-orange-300 text-orange-600 hover:bg-orange-50',
+        disabled: isBusy,
+      })
+    }
+
+    // 3. DELETE Button - Show for all statuses except REVOKED
+    if (row.status !== 'REVOKED') {
+      actions.push({
+        id: 'delete',
+        icon: <Trash2 className="h-3.5 w-3.5" />,
+        label: 'Delete',
+        onClick: () => openDeleteDialog(row),
+        variant: 'outline',
+        className: 'border-red-200 text-red-700 hover:bg-red-50',
+        disabled: isBusy,
+      })
+    }
+
+    return actions
   }
 
   return (
@@ -270,63 +386,146 @@ export default function ClientCollaboratorsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <div className="font-medium">{row.inviteEmail}</div>
-                        {row.collaboratorUser?.name ? (
-                          <div className="text-xs text-muted-foreground">
-                            {row.collaboratorUser.name}
+                  {rows.map((row) => {
+                    const actions = getActions(row)
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <div className="font-medium">{row.inviteEmail}</div>
+                          {row.collaboratorUser?.name ? (
+                            <div className="text-xs text-muted-foreground">
+                              {row.collaboratorUser.name}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn('border', statusBadge(row.status))}>
+                            {row.status}
+                            {row.status === 'REVOKED' && (
+                              <span className="ml-1 text-xs">(Can re-invite)</span>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {format(new Date(row.invitedAt), 'dd MMM yyyy')}
+                        </TableCell>
+                        <TableCell className={isRTL ? 'text-left' : 'text-right'}>
+                          <div className={cn('flex gap-1 flex-wrap', isRTL ? 'justify-start' : 'justify-end')}>
+                            {actions.map((action) => {
+                              const isLoading = busyId === row.id && (
+                                action.id === 'resend' || 
+                                action.id === 'revoke' || 
+                                action.id === 'delete'
+                              )
+                              return (
+                                <Button
+                                  key={action.id}
+                                  type="button"
+                                  size="sm"
+                                  variant={action.variant}
+                                  className={action.className}
+                                  disabled={action.disabled}
+                                  onClick={action.onClick}
+                                >
+                                  {isLoading ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    action.icon
+                                  )}
+                                </Button>
+                              )
+                            })}
                           </div>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn('border', statusBadge(row.status))}>
-                          {row.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {format(new Date(row.invitedAt), 'dd MMM yyyy')}
-                      </TableCell>
-                      <TableCell className={isRTL ? 'text-left' : 'text-right'}>
-                        <div className={cn('flex gap-1', isRTL ? 'justify-start' : 'justify-end')}>
-                          {row.status !== 'ACCEPTED' && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={busyId === row.id}
-                              onClick={() => void handleResend(row.id)}
-                            >
-                              {busyId === row.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                          )}
-                          {row.status !== 'REVOKED' && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="text-red-700 border-red-200 hover:bg-red-50"
-                              disabled={busyId === row.id}
-                              onClick={() => void handleRevoke(row.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* ✅ Revoke Confirmation Dialog */}
+      <Dialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-orange-600">Revoke Collaborator Access</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to revoke access for{' '}
+              <strong>{selectedCollaborator?.collaboratorUser?.name || selectedCollaborator?.inviteEmail}</strong>?
+              <br />
+              <br />
+              This will:
+              <ul className="list-disc ml-4 mt-2 space-y-1">
+                <li>Change their status to <strong className="text-orange-600">REVOKED</strong></li>
+                <li>They will lose access to your client data</li>
+                <li>You can <strong className="text-blue-600">re-invite</strong> them anytime using the Resend button</li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRevokeDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={confirmRevoke}
+              disabled={busyId === selectedCollaborator?.id}
+              className="text-orange-600 border-orange-300 hover:bg-orange-50"
+            >
+              {busyId === selectedCollaborator?.id ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Yes, Revoke Access
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Permanently Delete Collaborator</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to <strong>permanently delete</strong>{' '}
+              <strong>{selectedCollaborator?.collaboratorUser?.name || selectedCollaborator?.inviteEmail}</strong>?
+              <br />
+              <br />
+              This action:
+              <ul className="list-disc ml-4 mt-2 space-y-1">
+                <li className="text-red-600 font-semibold">⚠️ CANNOT BE UNDONE</li>
+                <li>Will permanently remove this collaborator relationship</li>
+                <li>Will delete all invitation history</li>
+                <li>The collaborator will need a <strong>new invite</strong> to work with you again</li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={busyId === selectedCollaborator?.id}
+            >
+              {busyId === selectedCollaborator?.id ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Yes, Permanently Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MobileLayout>
   )
 }

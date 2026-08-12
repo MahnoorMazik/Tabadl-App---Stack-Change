@@ -11,10 +11,41 @@ async function main() {
   await seedRBAC()
   await removeOldRoles()
 
+  // ✅ Ensure admin role has collaborator permissions
   const adminRole = await prisma.role.findUnique({
     where: { name: 'Admin', isDeleted: false },
   })
+
+  // ✅ If admin role exists but doesn't have collaborator permissions, update it
+  if (adminRole) {
+    const permissions = JSON.parse(adminRole.permissions || '[]')
+    const collaboratorPermissions = [
+      'collaborators.view',
+      'collaborators.create',
+      'collaborators.update',
+      'collaborators.delete',
+      'collaborators.manage'
+    ]
+    
+    let updated = false
+    for (const perm of collaboratorPermissions) {
+      if (!permissions.includes(perm)) {
+        permissions.push(perm)
+        updated = true
+      }
+    }
+    
+    if (updated) {
+      await prisma.role.update({
+        where: { id: adminRole.id },
+        data: { permissions: JSON.stringify(permissions) }
+      })
+      console.log('✅ Added collaborator permissions to Admin role')
+    }
+  }
+
   const adminPasswordHash = bcrypt.hashSync('admin123', 12)
+  
   const existingAdmin = await prisma.user.findFirst({
     where: { email: 'admin@tk.sa', isDeleted: false },
   })
@@ -29,9 +60,9 @@ async function main() {
         staffType: 'ADMIN',
         isActive: true,
         customRoleId: adminRole?.id ?? null,
-        tokenVersion: 0, // ✅ Added
-        resetPasswordToken: null, // ✅ Added - for forgot password
-        resetPasswordExpiry: null, // ✅ Added - for forgot password
+        tokenVersion: 0,
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
       },
     })
     console.log('✅ Admin user created')
@@ -40,7 +71,6 @@ async function main() {
   }
 
   await assignDefaultRoles()
-
   await seedBusinessWorkflow()
 
   const systemLeadStatuses = [
@@ -75,7 +105,7 @@ async function main() {
     }
   }
 
-  // ✅ Optional: Create a test client user for testing
+  // ✅ Create test client user
   const clientPasswordHash = bcrypt.hashSync('client123', 12)
   const existingClient = await prisma.user.findFirst({
     where: { email: 'client@tk.sa', isDeleted: false },
@@ -95,7 +125,6 @@ async function main() {
       },
     })
 
-    // Create client profile
     await prisma.client.create({
       data: {
         clientNumber: `CL-${Date.now()}`,

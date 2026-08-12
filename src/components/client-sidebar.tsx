@@ -85,7 +85,7 @@ const createSidebarItems = (t: (key: string) => string, role?: string): SidebarI
     ],
   },
   {
-    title: t('client.sidebar.collaboration'),
+    title: t('client.sidebar.collaboratorManagement'),
     icon: Users,
     href: '/client/collaborators',
   },

@@ -24,11 +24,19 @@ import {
   UserCircle
 } from 'lucide-react'
 
+type ClientInfo = {
+  id: string
+  name: string
+  company: string | null
+}
+
 export function ProfileDropdown() {
   const { user, logout, update: refreshSession } = useAuth()
   const { t } = useLocale()
   const [avatarFromDb, setAvatarFromDb] = useState<string | null>(null)
   const [customRoleFromDb, setCustomRoleFromDb] = useState<{ id: string; name: string } | null>(null)
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null)
+  const [clientLoading, setClientLoading] = useState(true)
 
   useEffect(() => {
     if (!user) {
@@ -47,6 +55,33 @@ export function ProfileDropdown() {
       .catch(() => {})
     return () => { cancelled = true }
   }, [user?.id])
+
+  // ✅ Fetch client info for collaborators
+  useEffect(() => {
+    const fetchClientInfo = async () => {
+      // Only fetch for collaborators
+      if (user?.role !== 'COLLABORATOR') {
+        setClientLoading(false)
+        return
+      }
+
+      try {
+        const res = await fetch('/api/collaborator/client-info')
+        if (res.ok) {
+          const data = await res.json()
+          setClientInfo(data.data.client)
+        }
+      } catch (error) {
+        console.error('Failed to fetch client info:', error)
+      } finally {
+        setClientLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchClientInfo()
+    }
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -84,6 +119,9 @@ export function ProfileDropdown() {
   }
 
   const getRoleBadge = () => {
+    if (user.role === 'COLLABORATOR') {
+      return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">Collaborator</Badge>
+    }
     if (user.role === 'CLIENT') {
       return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">{t('admin.clients.client')}</Badge>
     }
@@ -105,9 +143,9 @@ export function ProfileDropdown() {
     return <Badge className={`${cls} text-xs`}>{label}</Badge>
   }
 
-  /** Avatar border color matching role/tag: Admin=purple, Clients=blue, Reports=emerald, Support=amber, Client=emerald, default=gray */
+  /** Avatar border color matching role/tag: Admin=purple, Clients=blue, Reports=emerald, Support=amber, Client=emerald, Collaborator=emerald, default=gray */
   const getAvatarBorderClass = (): string => {
-    if (user.role === 'CLIENT') return 'border-emerald-200 dark:border-emerald-800'
+    if (user.role === 'CLIENT' || user.role === 'COLLABORATOR') return 'border-emerald-200 dark:border-emerald-800'
     const roleName = customRoleFromDb?.name ?? null
     const borders: Record<string, string> = {
       [MAIN_ROLE_NAMES.ADMIN]: 'border-purple-200 dark:border-purple-800',
@@ -118,7 +156,7 @@ export function ProfileDropdown() {
     return roleName ? (borders[roleName] ?? 'border-gray-200 dark:border-gray-700') : 'border-gray-200 dark:border-gray-700'
   }
 
-  const basePath = user.role === 'CLIENT' ? '/client' : '/admin'
+  const basePath = user.role === 'CLIENT' ? '/client' : user.role === 'COLLABORATOR' ? '/collaborator' : '/admin'
 
   const avatarBlock = (
     <Avatar className={`h-10 w-10 border ${getAvatarBorderClass()} cursor-pointer shrink-0`}>
@@ -171,6 +209,21 @@ export function ProfileDropdown() {
               <div className="mt-1">
                 {getRoleBadge()}
               </div>
+              {/* ✅ Show Client Name for Collaborators - Without icon */}
+              {user.role === 'COLLABORATOR' && !clientLoading && clientInfo && (
+                <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    Working for: <span className="font-semibold text-emerald-800 dark:text-emerald-300">{clientInfo.company || clientInfo.name}</span>
+                  </p>
+                </div>
+              )}
+              {user.role === 'COLLABORATOR' && !clientLoading && !clientInfo && (
+                <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    No client assigned yet
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </DropdownMenuLabel>
@@ -205,4 +258,3 @@ export function ProfileDropdown() {
     </DropdownMenu>
   )
 }
-

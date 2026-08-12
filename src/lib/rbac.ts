@@ -16,6 +16,7 @@ export enum Module {
   APPLICATIONS = 'applications',
   DOCUMENTS = 'documents',
   TEAM = 'team',
+  COLLABORATORS = 'collaborators', // ✅ ADDED
   FINANCIAL = 'financial',
   MESSAGES = 'messages',
   REPORTS = 'reports',
@@ -279,6 +280,7 @@ export function getModuleInfo(module: Module) {
     [Module.APPLICATIONS]: { name: 'Applications', description: 'Manage client applications' },
     [Module.DOCUMENTS]: { name: 'Documents', description: 'Document management and approval' },
     [Module.TEAM]: { name: 'Team Management', description: 'Manage staff and team members' },
+    [Module.COLLABORATORS]: { name: 'Collaborators', description: 'Manage collaborator invitations and access' }, // ✅ ADDED
     [Module.FINANCIAL]: { name: 'Financial', description: 'Financial overview and management' },
     [Module.MESSAGES]: { name: 'Messages', description: 'Internal and client communications' },
     [Module.REPORTS]: { name: 'Reports', description: 'Generate and view reports' },
