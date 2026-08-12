@@ -1484,14 +1484,14 @@ export default function RoleManagementPage() {
 
                     {/* Permissions */}
                     <div className="space-y-4">
-                      <Label className="text-sm font-medium">{t('admin.roles.permissions')}</Label>
+                      <Label className="text-sm font-medium">{t('admin.roles.permissions') || 'Permissions'}</Label>
                       <div className="space-y-4 max-h-96 overflow-y-auto">
                         {permissions && permissions.length > 0 ? getVisiblePermissions(permissions).map((moduleData) => {
                           let modulePermissions: string[] = []
                           try {
                             const parsed = JSON.parse(viewingRole.permissions || '[]')
                             modulePermissions = Array.isArray(parsed) ? parsed : []
-                          } catch {
+                           } catch {
                             modulePermissions = []
                           }
                           const hasModulePermissions = moduleData.permissions?.some((p: PermissionItem) => 
