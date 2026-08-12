@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -186,6 +187,14 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
+            <div className="flex justify-end text-sm">
+              <Link
+                href="/admin/forgot-password"
+                className="text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4 pt-6">

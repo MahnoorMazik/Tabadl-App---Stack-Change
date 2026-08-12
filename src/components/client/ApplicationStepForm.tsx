@@ -454,17 +454,36 @@ export function ApplicationStepForm({
       try {
         const formData = new FormData()
         formData.append('file', file)
+        // Do not set Content-Type manually — browser must add the multipart boundary.
         const res = await axios.post(
           `${fileUploadBasePath}/${applicationId}/files`,
           formData
         )
-        const url = res.data?.data?.fileUrl
-        const originalName = res.data?.data?.originalName || file.name
+        const uploaded = res.data?.data?.file as
+          | { url?: string; originalName?: string }
+          | undefined
+        const url =
+          uploaded?.url ||
+          res.data?.data?.fileUrl ||
+          res.data?.data?.url
+        const originalName =
+          uploaded?.originalName ||
+          res.data?.data?.originalName ||
+          file.name
         if (!url) throw new Error('File URL missing')
         setValue(fieldId, url)
         setFileName(fieldId, originalName)
+        setErrors((prev) => {
+          if (!prev[fieldId]) return prev
+          const next = { ...prev }
+          delete next[fieldId]
+          return next
+        })
       } catch (error: any) {
-        const message = error.response?.data?.error?.message || 'File upload failed'
+        const message =
+          error.response?.data?.error?.message ||
+          error.message ||
+          'File upload failed'
         setErrors((prev) => ({ ...prev, [fieldId]: message }))
       } finally {
         setUploadingFieldId(null)

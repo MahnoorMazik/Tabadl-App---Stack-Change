@@ -71,7 +71,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     return addCorsHeaders(
-      createSuccessResponse({ file: result.data }, 200, { requestId })
+      createSuccessResponse(
+        {
+          file: result.data,
+          fileUrl: result.data.url,
+          originalName: result.data.originalName,
+        },
+        200,
+        { requestId }
+      )
     )
   } catch (error: unknown) {
     logError(error instanceof Error ? error : new Error(String(error)), {
