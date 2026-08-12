@@ -15,7 +15,7 @@ function isValidRole(role: string): role is SupportAssigneeRole {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params:Promise<{ id: string } >},
 ) {
   try {
     const authResult = await authorize(SUPPORT_EDIT_PERMISSION);
@@ -24,7 +24,7 @@ export async function PUT(
       return authResult.response!;
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -123,7 +123,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise< { id: string }> },
 ) {
   try {
     const authResult = await authorize(SUPPORT_EDIT_PERMISSION);
@@ -132,7 +132,7 @@ export async function DELETE(
       return authResult.response!;
     }
 
-    const { id } = params;
+    const { id } = await  params;
 
     if (!id) {
       return NextResponse.json(

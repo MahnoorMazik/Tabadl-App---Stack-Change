@@ -1,7 +1,4 @@
-
-
 // app/api/support-tickets/[id]/route.ts
-
 
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
@@ -15,9 +12,9 @@ import {
 import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { authorizeAny } from "@/lib/rbac";
-import { 
-  SUPPORT_ACCESS_PERMISSIONS, 
-  SUPPORT_UPDATE_EDIT 
+import {
+  SUPPORT_ACCESS_PERMISSIONS,
+  SUPPORT_UPDATE_EDIT,
 } from "@/lib/support/permissions";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -30,9 +27,10 @@ const ALLOWED_TYPES = [
 
 // GET - Fetch single ticket
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } },
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   try {
     const session = await auth();
     if (!session?.user) {
@@ -44,7 +42,7 @@ export async function GET(
       return authResult.response!;
     }
 
-    const ticketId = parseInt(params.id, 10);
+    const ticketId = parseInt(id, 10);
     if (isNaN(ticketId)) {
       return NextResponse.json({ error: "Invalid ticket ID" }, { status: 400 });
     }
@@ -102,11 +100,11 @@ export async function GET(
           },
           orderBy: { createdAt: "asc" },
         },
-        _count: { 
-          select: { 
+        _count: {
+          select: {
             messages: true,
-            attachments: true
-          } 
+            attachments: true,
+          },
         },
       },
     });

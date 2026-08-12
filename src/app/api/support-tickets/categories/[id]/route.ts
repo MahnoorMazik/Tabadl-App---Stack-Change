@@ -8,7 +8,7 @@ const SUPPORT_CREATE_PERMISSION = `${Module.SUPPORT}.${Action.CREATE}`;
 // GET - Fetch a single category by ID with all children recursively
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params:Promise<{ id: string }> },
 ) {
   try {
     const authResult = await authorize(SUPPORT_VIEW_PERMISSION);
@@ -17,7 +17,7 @@ export async function GET(
       return authResult.response!;
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -111,7 +111,7 @@ export async function GET(
 // PUT - Update a category by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise< { id: string }> },
 ) {
   try {
     const authResult = await authorize(SUPPORT_CREATE_PERMISSION);
@@ -120,7 +120,7 @@ export async function PUT(
       return authResult.response!;
     }
 
-    const { id } = params;
+    const { id } =await  params;
 
     if (!id) {
       return NextResponse.json(
@@ -267,7 +267,7 @@ export async function PUT(
 // DELETE - Delete a category by ID (cascade children + allow even if used in tickets)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params:Promise< { id: string }> }
 ) {
   try {
     const authResult = await authorize(SUPPORT_CREATE_PERMISSION);
@@ -276,7 +276,7 @@ export async function DELETE(
       return authResult.response!;
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(

@@ -123,7 +123,6 @@ enum SupportAssigneeRole {
   PRODUCT_MANAGER
   SCRUM_MASTER
   IT_SUPPORT
-
 }
 
 model SupportAssignee {
@@ -171,29 +170,42 @@ model SupportTicketAttachment {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  name         String?
-  firstName    String? // ✅ ADD THIS
-  lastName     String? // ✅ ADD THIS
-  passwordHash String
-  role         UserRole   @default(CLIENT)
-  staffType    StaffType?
-  isActive     Boolean    @default(true)
-  isDeleted    Boolean    @default(false)
-  deletedAt    DateTime?
-  lastLoginAt  DateTime?
-  tokenVersion Int        @default(0)
-  phone        String?
-  avatar       String?
-  customRoleId String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String?
+  firstName          String? // ✅ ADD THIS
+  lastName           String? // ✅ ADD THIS
+  passwordHash       String
+  role               UserRole   @default(CLIENT)
+  staffType          StaffType?
+  isActive           Boolean    @default(true)
+  isDeleted          Boolean    @default(false)
+  deletedAt          DateTime?
+  lastLoginAt        DateTime?
+  tokenVersion       Int        @default(0)
+  phone              String?
+  avatar             String?
+  customRoleId       String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  resetPasswordToken String?    @unique
+
+  resetPasswordExpiry     DateTime?
+  emailVerified           DateTime?
+  emailVerificationToken  String?   @unique
+  emailVerificationExpiry DateTime?
 
   // ✅ ADD SUPPORT TICKET RELATIONS
   createdTickets  SupportTicket[]        @relation("createdTickets")
   // assignedTickets SupportTicket[]        @relation("assignedTickets")
   supportMessages SupportTicketMessage[]
+
+  // ADD THESE
+  formTemplatesCreated       FormTemplate[]                @relation("FormTemplateCreatedBy")
+  applicationWizardsCreated  ApplicationWizard[]           @relation("ApplicationWizardCreatedBy")
+  assignedWizardApplications WizardApplication[]           @relation("WizardApplicationAssignedTo")
+  wizardAnswersUpdated       WizardApplicationAnswer[]     @relation("WizardAnswerUpdatedBy")
+  wizardStepReviewsReviewed  WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
 
   // Keep existing relations
   approvedApplications    Application[]            @relation("ApplicationApprovedBy")
@@ -219,7 +231,7 @@ model User {
   accounts                Account[]
   sessions                Session[]
   supportTickets          SupportTicket[]
-  collaborations             ClientCollaborator[]          @relation("CollaboratorUser")
+  collaborations          ClientCollaborator[]     @relation("CollaboratorUser")
 
   @@index([email, isDeleted])
   @@index([isDeleted])
@@ -452,18 +464,20 @@ model ServiceCategory {
 }
 
 model BusinessService {
-  id          String              @id @default(cuid())
-  categoryId  String
-  name        String
-  slug        String              @unique
-  description String?
-  sortOrder   Int                 @default(0)
-  isActive    Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  category    ServiceCategory     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  packages    PackageService[]
-  addOns      AdditionalService[]
+  id                        String                     @id @default(cuid())
+  categoryId                String
+  name                      String
+  slug                      String                     @unique
+  description               String?
+  sortOrder                 Int                        @default(0)
+  isActive                  Boolean                    @default(true)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  category                  ServiceCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  packages                  PackageService[]
+  addOns                    AdditionalService[]
+  formTemplateService       FormTemplateService?
+  applicationWizardServices ApplicationWizardService[]
 
   @@index([categoryId, sortOrder])
   @@map("business_services")
@@ -610,17 +624,17 @@ model ApplicationWizard {
 }
 
 model ApplicationWizardStep {
-  id              String            @id @default(cuid())
-  wizardId        String
-  formTemplateId  String
-  sortOrder       Int               @default(0)
-  paymentRequired Boolean           @default(false)
-  approvalRequired Boolean          @default(false)
-  adminUseOnly    Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
-  formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+  id               String                        @id @default(cuid())
+  wizardId         String
+  formTemplateId   String
+  sortOrder        Int                           @default(0)
+  paymentRequired  Boolean                       @default(false)
+  approvalRequired Boolean                       @default(false)
+  adminUseOnly     Boolean                       @default(false)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  wizard           ApplicationWizard             @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate                  @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
   answers          WizardApplicationAnswer[]
   stepReviews      WizardApplicationStepReview[]
 
@@ -1015,6 +1029,7 @@ model SupportConversation {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastMessageAt DateTime  @default(now())
+
   @@index([status, lastMessageAt])
   @@map("support_conversations")
 }
@@ -1203,11 +1218,11 @@ model EmailSettings {
 
 /// Singleton-style system preferences (one active row).
 model GeneralSettings {
-  id                             String   @id @default(cuid())
-  clientEmailNotifications       Boolean  @default(true)
-  clientWhatsAppNotifications    Boolean  @default(true)
-  createdAt                      DateTime @default(now())
-  updatedAt                      DateTime @updatedAt
+  id                          String   @id @default(cuid())
+  clientEmailNotifications    Boolean  @default(true)
+  clientWhatsAppNotifications Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   @@map("general_settings")
 }
