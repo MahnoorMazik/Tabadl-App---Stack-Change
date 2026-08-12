@@ -43,6 +43,9 @@ import { CORE_ADMIN_EMAIL } from '@/lib/users/constants'
 import axios from 'axios'
 import { useToast } from '@/hooks/use-toast'
 
+import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
+
 export interface UserRow {
   id: string
   name: string | null
@@ -95,6 +98,7 @@ export function UsersList({
   canDelete = false,
 }: UsersListProps) {
   const { toast } = useToast()
+  const { locale } = useLocale()
   const [createOpen, setCreateOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [viewUser, setViewUser] = useState<UserRow | null>(null)
@@ -147,7 +151,7 @@ export function UsersList({
   const exportCsv = () => {
     const headers = ['Name', 'Email', 'Role', 'Custom Role', 'Status', 'Last Login', 'Created']
     const rows = users.map((u) => [
-      u.name ?? '',
+      getLocalizedText(u.name, locale),
       u.email,
       u.role,
       u.customRole?.name ?? '',
@@ -166,7 +170,8 @@ export function UsersList({
   }
 
   const getInitials = (name: string | null, email: string) => {
-    if (name) return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    const localizedName = name ? getLocalizedText(name, locale) : ''
+    if (localizedName) return localizedName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     return email.slice(0, 2).toUpperCase()
   }
 
@@ -234,6 +239,7 @@ export function UsersList({
               users.map((user) => {
                 const isCore = user.email === CORE_ADMIN_EMAIL
                 const isSelf = user.id === currentUserId
+                const displayName = getLocalizedText(user.name, locale)
                 return (
                   <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setViewUser(user)}>
                     <TableCell>
@@ -243,7 +249,7 @@ export function UsersList({
                           <AvatarFallback>{getInitials(user.name, user.email)}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{user.name || '—'}</p>
+                          <p className="font-medium">{displayName || '—'}</p>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
                         </div>
                       </div>
@@ -363,7 +369,7 @@ export function UsersList({
                   <AvatarFallback>{getInitials(viewUser.name, viewUser.email)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold text-base">{viewUser.name}</p>
+                  <p className="font-semibold text-base">{getLocalizedText(viewUser.name, locale)}</p>
                   <p className="text-muted-foreground">{viewUser.email}</p>
                 </div>
               </div>

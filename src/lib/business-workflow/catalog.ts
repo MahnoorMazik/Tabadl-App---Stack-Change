@@ -126,6 +126,7 @@ export const ADDITIONAL_SERVICES = [
     description: 'Official translation of company documents',
     priceUsd: 200,
     priceSar: 750,
+    linkedService: 'document-translation',
   },
   {
     slug: 'annual-compliance',
@@ -133,6 +134,7 @@ export const ADDITIONAL_SERVICES = [
     description: 'Ongoing compliance and renewal management',
     priceUsd: 1200,
     priceSar: 4500,
+    linkedService: 'annual-compliance'
   },
 ] as const
 

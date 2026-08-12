@@ -56,8 +56,7 @@ export async function syncServicePackages(serviceId: string, packageIds: string[
   })
 
   await db.packageService.createMany({
-    data: validPackages.map((p) => ({ packageId: p.id, serviceId })),
-    skipDuplicates: true,
+    data: validPackages.map((p) => ({ packageId: p.id, serviceId }))
   })
 }
 
@@ -71,7 +70,6 @@ export async function syncPackageServices(packageId: string, serviceIds: string[
   })
 
   await db.packageService.createMany({
-    data: validServices.map((s) => ({ packageId, serviceId: s.id })),
-    skipDuplicates: true,
+    data: validServices.map((s) => ({ packageId, serviceId: s.id }))
   })
 }

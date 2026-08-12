@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
 import { MobileLayout } from '@/lib/mobile-layout-utils'
 import {
-  User, Phone, Building, Upload, CheckCircle, AlertCircle, Loader2, FileText, Package,
+  User, Phone, Building, Upload, CheckCircle, AlertCircle, Loader2, FileText, Package, Lock,
 } from 'lucide-react'
 
 interface Requirement {
@@ -71,6 +71,15 @@ export default function ClientProfilePage() {
   const [company, setCompany] = useState('')
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null)
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // Password change state
+  const [showPasswordSection, setShowPasswordSection] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
 
   const authHeaders = useCallback(() => {
     const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
@@ -136,6 +145,55 @@ export default function ClientProfilePage() {
       toast({ title: 'Upload failed', variant: 'destructive' })
     } finally {
       setUploading(null)
+    }
+  }
+
+  // Handle password change
+  const handlePasswordChange = async () => {
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all password fields.')
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.')
+      return
+    }
+
+    setChangingPassword(true)
+    try {
+      const response = await axios.post(
+        '/api/client/change-password',
+        {
+          currentPassword,
+          newPassword,
+        },
+        { headers: authHeaders() }
+      )
+
+      setPasswordSuccess('Password changed successfully!')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPasswordSection(false)
+
+      toast({
+        title: 'Password changed',
+        description: 'Your password has been updated successfully.',
+      })
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || 'Failed to change password'
+      setPasswordError(message)
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -311,6 +369,120 @@ export default function ClientProfilePage() {
                     </div>
                   </div>
                 ))}
+            </CardContent>
+          </Card>
+
+          {/* Password Change Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Change Password
+              </CardTitle>
+              <CardDescription>Update your password to keep your account secure</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!showPasswordSection ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Change your password regularly to maintain account security.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPasswordSection(true)}
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {passwordError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{passwordError}</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {passwordSuccess && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        {passwordSuccess}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div>
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="mt-2"
+                      placeholder="Enter your current password"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="mt-2"
+                      placeholder="Enter new password (min 6 characters)"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Minimum 6 characters
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="mt-2"
+                      placeholder="Confirm your new password"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handlePasswordChange}
+                      disabled={changingPassword}
+                      className="bg-emerald-700 hover:bg-emerald-800"
+                    >
+                      {changingPassword ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Changing...
+                        </>
+                      ) : (
+                        'Change Password'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowPasswordSection(false)
+                        setCurrentPassword('')
+                        setNewPassword('')
+                        setConfirmPassword('')
+                        setPasswordError('')
+                        setPasswordSuccess('')
+                      }}
+                      disabled={changingPassword}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

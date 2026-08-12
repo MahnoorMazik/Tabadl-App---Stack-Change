@@ -1,10 +1,14 @@
-import NextAuth from "next-auth"
+import NextAuth, { User, CredentialsSignin } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { UserRole, StaffType } from "@prisma/client"
 import { Permission } from "@/lib/rbac"
+
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "EMAIL_NOT_VERIFIED"
+}
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -55,6 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login",
   },
+  
   providers: [
     Credentials({
       id: "credentials",
@@ -95,8 +100,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Account is inactive. Contact an administrator.")
         }
 
-        if (userType === "client" && user.role !== UserRole.CLIENT) {
-          console.error(`[Auth] User type mismatch - expected CLIENT, got ${user.role}: ${email}`)
+        if (userType === "client" && user.role !== UserRole.CLIENT && user.role !== UserRole.COLLABORATOR) {
+          console.error(`[Auth] User type mismatch - expected CLIENT/COLLABORATOR, got ${user.role}: ${email}`)
           throw new Error("Invalid credentials")
         }
         if (userType === "staff" && user.role !== UserRole.STAFF) {
@@ -108,6 +113,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!isValidPassword) {
           console.error(`[Auth] Invalid password for user: ${email}`)
           throw new Error("Incorrect password")
+        }
+
+        // Client self-signup must verify email before login (collaborators verified via invite)
+        if (user.role === UserRole.CLIENT && !user.emailVerified) {
+          console.error(`[Auth] Email not verified: ${email}`)
+          throw new EmailNotVerifiedError()
         }
 
         // Update last login
@@ -125,7 +136,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           staffType: user.staffType ?? null,
           avatar: user.avatar ?? null,
           phone: user.phone ?? null,
-        }
+        } as User
       }
     })
   ],
@@ -135,11 +146,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token?.id && trigger !== "signIn") {
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
-          select: { id: true, isActive: true, isDeleted: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            staffType: true,
+            avatar: true,
+            phone: true,
+            isActive: true,
+            isDeleted: true,
+            tokenVersion: true,
+          },
         })
         if (!dbUser || !dbUser.isActive || dbUser.isDeleted) {
           return {}
         }
+        // Keep JWT identity in sync with DB so middleware + API agree on role
+        token.role = dbUser.role
+        token.staffType = dbUser.staffType
+        token.email = dbUser.email
+        token.name = dbUser.name ?? null
+        token.avatar = dbUser.avatar ?? null
+        token.phone = dbUser.phone ?? null
+        token.tokenVersion = dbUser.tokenVersion
       }
 
       // Initial sign in
@@ -162,6 +192,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: true,
             avatar: true,
             phone: true,
+            role: true,
+            staffType: true,
             tokenVersion: true,
             isActive: true,
           },
@@ -171,6 +203,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.name = dbUser.name ?? null
           token.avatar = dbUser.avatar ?? null
           token.phone = dbUser.phone ?? null
+          token.role = dbUser.role
+          token.staffType = dbUser.staffType
           token.tokenVersion = dbUser.tokenVersion
         }
       }

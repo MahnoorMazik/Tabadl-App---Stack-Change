@@ -1,351 +1,469 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import { format } from 'date-fns'
 import { AdminPageTemplate } from '@/components/AdminPageTemplate'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { FileText, Search, Eye, User, Calendar, AlertCircle, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
-import { format } from 'date-fns'
+import {
+  FileText,
+  Search,
+  Loader2,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  UserPlus,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import { wizardStatusClasses, wizardStatusLabel } from '@/lib/wizards/wizard-status'
+import { areaOfInterestDisplayLabel } from '@/components/admin/forms/types'
+import { StartApplicationForClientModal } from '@/components/admin/applications/StartApplicationForClientModal'
+
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
+
+export const dynamic = 'force-dynamic'
+
+const PAGE_SIZE = 10
+
+type PendingApproval = {
+  wizardStepId: string
+  stepIndex: number
+  stepNumber: number
+  formName: string
+}
+
+type ApplicationRow = {
+  id: string
+  applicationNumber: string
+  status: string
+  areaOfInterest: string
+  currentStepIndex: number
+  submittedAt: string | null
+  updatedAt: string
+  createdAt: string
+  client: { id: string; name: string; email: string }
+  wizard: { id: string; name: string; areaOfInterest: string }
+  progress: { totalSteps: number; completedSteps: number; currentStepIndex: number }
+  pendingApprovals?: PendingApproval[]
+  hasPendingApproval?: boolean
+  pendingApprovalCount?: number
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const { t } = useLocale()
+  
+  const getStatusLabel = (st: string) => {
+    switch (st.toUpperCase()) {
+      case 'DRAFT':
+        return t('admin.applications.status.inProgress')
+      case 'PENDING':
+        return t('admin.applications.status.pending')
+      case 'IN_PROGRESS':
+        return t('admin.applications.status.underReview')
+      case 'HARD_COPY_REQUIRED':
+        return t('admin.applications.status.hardCopyRequired')
+      case 'APPROVED':
+        return t('admin.applications.status.approved')
+      case 'REJECTED':
+        return t('admin.applications.status.rejected')
+      case 'COMPLETED':
+        return t('admin.applications.status.completed')
+      default:
+        return wizardStatusLabel(st)
+    }
+  }
+
+  return (
+    <Badge variant="outline" className={cn('border', wizardStatusClasses(status))}>
+      {getStatusLabel(status)}
+    </Badge>
+  )
+}
 
 export default function AdminApplicationsPage() {
-  const { token } = useAuth()
   const { toast } = useToast()
-  const router = useRouter()
-  const { t, formatNumber } = useLocale()
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+
+  const getAreaLabel = (area: string) => {
+    switch (area) {
+      case 'CR':
+        return t('admin.wizards.areaOption.cr')
+      case 'PR':
+        return t('admin.wizards.areaOption.pr')
+      default:
+        return area
+    }
+  }
+
   const [statusFilter, setStatusFilter] = useState('all')
-  const [rowsPerPage, setRowsPerPage] = useState<number | 'all'>(25)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pagination, setPagination] = useState({
-    total: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPreviousPage: false,
-  })
-  const [applications, setApplications] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchError, setSearchError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [applications, setApplications] = useState<ApplicationRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [counts, setCounts] = useState({
+    total: 0,
+    pending: 0,
+    draft: 0,
+    stepApprovalPending: 0,
+  })
+  const [startForClientOpen, setStartForClientOpen] = useState(false)
 
-  // Fetch applications with pagination
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400)
+    return () => clearTimeout(t)
+  }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, statusFilter])
+
   const fetchApplications = useCallback(async () => {
-    // Note: NextAuth uses cookies for authentication, so token may be null
-    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-    
     setLoading(true)
-    setSearchError(null)
-    
     try {
       const params = new URLSearchParams()
-      
-      // Add filters
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
-      if (debouncedSearch) {
-        params.append('search', debouncedSearch)
-      }
-      
-      // Add pagination
-      params.append('page', currentPage.toString())
-      if (rowsPerPage === 'all') {
-        params.append('limit', 'all')
-      } else {
-        params.append('limit', rowsPerPage.toString())
-      }
-      
-      const response = await axios.get(`/api/applications?${params.toString()}`, {
-        headers
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      params.set('limit', 'all')
+
+      const res = await axios.get(`/api/admin/wizard-applications?${params}`)
+      const list: ApplicationRow[] = res.data?.data?.applications ?? []
+      setApplications(list)
+      setCounts({
+        total: list.length,
+        pending: list.filter((a) => a.status === 'PENDING').length,
+        draft: list.filter((a) => a.status === 'DRAFT').length,
+        stepApprovalPending: list.filter((a) => a.hasPendingApproval).length,
       })
-      
-      // Handle structured response format
-      const responseData = response.data?.data || response.data
-      if (responseData?.applications) {
-        setApplications(responseData.applications)
-      }
-      if (responseData?.pagination) {
-        setPagination(responseData.pagination)
-      }
     } catch (error: any) {
-      console.error('Error fetching applications:', error)
-      setSearchError(error.response?.data?.error || t('admin.applications.failedToFetch'))
       setApplications([])
+      toast({
+        title: 'Failed to load applications',
+        description: error.response?.data?.error?.message || error.message,
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
-  }, [token, statusFilter, debouncedSearch, currentPage, rowsPerPage])
+  }, [statusFilter, debouncedSearch, toast])
 
-  // Debounce search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [search])
-
-  // Fetch applications when dependencies change
-  useEffect(() => {
-    fetchApplications()
+    void fetchApplications()
   }, [fetchApplications])
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [statusFilter, debouncedSearch, rowsPerPage])
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1 inline" />Pending</Badge>
-      case 'APPROVED':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1 inline" />Approved</Badge>
-      case 'REJECTED':
-        return <Badge className="bg-red-100 text-red-800"><AlertCircle className="h-3 w-3 mr-1 inline" />Rejected</Badge>
-      default:
-        return <Badge>{status}</Badge>
-    }
-  }
-
-  const getApplicationType = (type: string | null) => {
-    return type?.replace(/_/g, ' ') || t('admin.applications.unknown')
-  }
-
-  // Applications are already filtered and paginated by the server
-  const displayedApplications = applications || []
-
-  // Stats are calculated from current page data (limited accuracy)
-  // TODO: Add dedicated stats endpoint for accurate counts
-  const stats = {
-    total: pagination.total || displayedApplications.length,
-    pending: displayedApplications.filter(a => a.status === 'PENDING').length,
-    approved: displayedApplications.filter(a => a.status === 'APPROVED').length,
-    rejected: displayedApplications.filter(a => a.status === 'REJECTED').length
-  }
+  const totalPages = Math.max(1, Math.ceil(applications.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = useMemo(
+    () => applications.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [applications, safePage]
+  )
 
   return (
     <AdminPageTemplate
       title={t('admin.applications.title')}
-      description={t('admin.applications.description')}
-      icon={<FileText className="h-6 w-6" />}
+      description={t('admin.applications.subtitle')}
+      icon={<FileText className="h-5 w-5" />}
       showConstruction={false}
       requiredPermission="applications.view"
+      fullWidth
     >
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.totalApplications')}</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className={cn("text-sm font-medium text-muted-foreground", isRTL ? "text-right" : "text-left")}>
+                {t('admin.applications.card.total')}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatNumber(stats.total)}</div>
+            <CardContent className={isRTL ? "text-right" : "text-left"}>
+              <p className="text-2xl font-semibold">{counts.total}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-sky-200/80 bg-sky-50/40">
+            <CardHeader className="pb-2">
+              <CardTitle className={cn("text-sm font-medium text-sky-800 flex items-center gap-1.5", isRTL ? "flex-row-reverse justify-end text-right" : "text-left")}>
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {t('admin.applications.card.stepApprovalPending')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className={isRTL ? "text-right" : "text-left"}>
+              <p className="text-2xl font-semibold text-sky-800">{counts.stepApprovalPending}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.pending')}</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className={cn("text-sm font-medium text-muted-foreground", isRTL ? "text-right" : "text-left")}>
+                {t('admin.applications.card.submittedPending')}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{formatNumber(stats.pending)}</div>
+            <CardContent className={isRTL ? "text-right" : "text-left"}>
+              <p className="text-2xl font-semibold text-amber-700">{counts.pending}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.approved')}</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className={cn("text-sm font-medium text-muted-foreground", isRTL ? "text-right" : "text-left")}>
+                {t('admin.applications.card.clientInProgress')}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatNumber(stats.approved)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.rejected')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{formatNumber(stats.rejected)}</div>
+            <CardContent className={isRTL ? "text-right" : "text-left"}>
+              <p className="text-2xl font-semibold">{counts.draft}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters and Search */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Card>
+          <CardHeader>
+            <div className={cn("flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3", isRTL ? "lg:flex-row-reverse" : "lg:flex-row")}>
+              <div className={isRTL ? "text-right" : "text-left"}>
+                <CardTitle>{t('admin.applications.heading')}</CardTitle>
+                <CardDescription className={cn("mt-0.5", isRTL ? "text-right" : "text-left")}>
+                  {loading
+                    ? t('admin.wizards.loading')
+                    : applications.length === 0
+                      ? debouncedSearch || statusFilter !== 'all'
+                        ? t('admin.applications.noMatch')
+                        : t('admin.applications.noApplicationsYet')
+                      : `${applications.length} ${t('admin.applications.applications')}${debouncedSearch ? ` ${t('admin.wizards.foundSuffix')}` : ''}. ${t('admin.applications.headingSub')}`}
+                </CardDescription>
+              </div>
+              <div className={cn("flex flex-col sm:flex-row gap-2 sm:items-center", isRTL ? "sm:flex-row-reverse" : "sm:flex-row")}>
+                <Button
+                  type="button"
+                  className="bg-emerald-700 hover:bg-emerald-800 h-9 cursor-pointer"
+                  onClick={() => setStartForClientOpen(true)}
+                >
+                  <UserPlus className={cn("h-4 w-4", isRTL ? "ml-1.5" : "mr-1.5")} />
+                  {t('admin.applications.startForClient')}
+                </Button>
+                <div className="relative sm:w-64">
+                  <Search className={cn("absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none", isRTL ? "right-2.5" : "left-2.5")} />
                   <Input
                     placeholder={t('admin.applications.searchPlaceholder')}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10"
+                    className={cn("h-9 text-sm", isRTL ? "pr-8 text-right" : "pl-8 text-left")}
                   />
                 </div>
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder={t('admin.applications.filterByStatus')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('common.all')} {t('common.status')}</SelectItem>
-                  <SelectItem value="PENDING">{t('admin.applications.pending')}</SelectItem>
-                  <SelectItem value="APPROVED">{t('admin.applications.approved')}</SelectItem>
-                  <SelectItem value="REJECTED">{t('admin.applications.rejected')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="rowsPerPage" className="text-sm whitespace-nowrap">{t('common.rows')}:</Label>
-                <Select value={rowsPerPage === 'all' ? 'all' : rowsPerPage.toString()} onValueChange={(value) => {
-                  setRowsPerPage(value === 'all' ? 'all' : Number(value))
-                  setCurrentPage(1)
-                }}>
-                  <SelectTrigger id="rowsPerPage" className="w-20">
-                    <SelectValue />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger
+                    className={cn(
+                      'w-full sm:w-[180px] h-9 shadow-xs transition-[color,box-shadow] outline-none',
+                      'focus:ring-0 focus:ring-offset-0',
+                      'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+                      isRTL ? "text-right" : "text-left"
+                    )}
+                  >
+                    <SelectValue placeholder={t('admin.applications.status.all')} />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">{formatNumber(10)}</SelectItem>
-                    <SelectItem value="25">{formatNumber(25)}</SelectItem>
-                    <SelectItem value="50">{formatNumber(50)}</SelectItem>
-                    <SelectItem value="100">{formatNumber(100)}</SelectItem>
-                    <SelectItem value="all">{t('common.all')}</SelectItem>
+                  <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
+                    <SelectItem value="all">{t('admin.applications.status.all')}</SelectItem>
+                    <SelectItem value="DRAFT">{t('admin.applications.status.inProgress')}</SelectItem>
+                    <SelectItem value="PENDING">{t('admin.applications.status.pending')}</SelectItem>
+                    <SelectItem value="IN_PROGRESS">{t('admin.applications.status.underReview')}</SelectItem>
+                    <SelectItem value="HARD_COPY_REQUIRED">{t('admin.applications.status.hardCopyRequired')}</SelectItem>
+                    <SelectItem value="APPROVED">{t('admin.applications.status.approved')}</SelectItem>
+                    <SelectItem value="REJECTED">{t('admin.applications.status.rejected')}</SelectItem>
+                    <SelectItem value="COMPLETED">{t('admin.applications.status.completed')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </CardHeader>
 
-        {/* Applications Table */}
-        <Card>
           <CardContent>
             {loading ? (
-              <div className="text-center py-8">{t('common.loading')}</div>
-            ) : searchError ? (
-              <div className="text-center py-8 text-red-500">
-                {t('common.error')}: {searchError}
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
               </div>
-            ) : displayedApplications.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {search.length >= 3 ? t('common.noResults') : t('admin.applications.noApplications')}
+            ) : applications.length === 0 ? (
+              <div className={cn("rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground", isRTL ? "text-right" : "text-left")}>
+                {debouncedSearch || statusFilter !== 'all'
+                  ? t('admin.applications.noMatch')
+                  : t('admin.applications.noApplicationsYet')}
               </div>
             ) : (
               <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                    <TableHead>{t('admin.applications.applicationNumber')}</TableHead>
-                    <TableHead>{t('admin.applications.type')}</TableHead>
-                    <TableHead>{t('admin.applications.client')}</TableHead>
-                    <TableHead>{t('admin.applications.status')}</TableHead>
-                    <TableHead>{t('admin.applications.submittedDate') || 'Submitted Date'}</TableHead>
-                    <TableHead>{t('admin.applications.assignedTo')}</TableHead>
-                    <TableHead>{t('admin.applications.actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayedApplications.map((app) => (
-                    <TableRow 
-                      key={app.id}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        router.push(`/admin/applications/${app.id}`)
-                      }}
-                    >
-                      <TableCell className="font-medium">{app.applicationNumber}</TableCell>
-                      <TableCell>{getApplicationType(app.type)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <div>
-                            <p className="font-medium">{app.client?.user?.name || app.client?.name || t('admin.applications.notAvailable')}</p>
-                            <p className="text-xs text-gray-500">{app.client?.user?.email || app.client?.email || ''}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(app.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          {format(new Date(app.submittedAt || app.createdAt), 'MMM dd, yyyy')}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {app.assignedTo ? (
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            {app.assignedTo.name}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">{t('admin.applications.unassigned')}</span>
-                        )}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/applications/${app.id}`}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            {t('admin.applications.view')}
-                          </Link>
-                        </Button>
-                      </TableCell>
+                      <TableHead className={isRTL ? "text-right" : "text-left"}>{t('admin.applications.table.client')}</TableHead>
+                      <TableHead className={isRTL ? "text-right" : "text-left"}>{t('admin.applications.table.application')}</TableHead>
+                      <TableHead className={isRTL ? "text-right" : "text-left"}>{t('admin.applications.table.service')}</TableHead>
+                      <TableHead className={isRTL ? "text-right" : "text-left"}>{t('admin.applications.table.steps')}</TableHead>
+                      <TableHead className={isRTL ? "text-right" : "text-left"}>{t('admin.applications.table.status')}</TableHead>
+                      <TableHead className={isRTL ? "text-right" : "text-left"}>{t('admin.applications.table.stepApproval')}</TableHead>
+                      <TableHead className={cn("w-28", isRTL ? "text-right" : "text-left")}>{t('admin.applications.table.updated')}</TableHead>
+                      <TableHead className={cn("w-24", isRTL ? "text-left" : "text-right")}>{t('admin.applications.table.actions')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              
-              {/* Pagination Controls */}
-              {rowsPerPage !== 'all' && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="text-sm text-gray-600">
-                    {t('admin.applications.showing')} {formatNumber(((currentPage - 1) * (typeof rowsPerPage === 'number' ? rowsPerPage : 25)) + 1)} {t('admin.applications.to')} {formatNumber(Math.min(currentPage * (typeof rowsPerPage === 'number' ? rowsPerPage : 25), pagination.total))} {t('admin.applications.of')} {formatNumber(pagination.total)} {t('admin.applications.applications')}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={!pagination.hasPreviousPage}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="text-sm text-gray-600">
-                      {t('common.page')} {formatNumber(currentPage)} {t('admin.applications.of')} {formatNumber(pagination.totalPages)}
+                  </TableHeader>
+                  <TableBody>
+                    {paginated.map((app) => (
+                      <TableRow
+                        key={app.id}
+                        className={cn(
+                          'hover:bg-muted/30',
+                          app.hasPendingApproval && 'bg-sky-50/50 hover:bg-sky-50/80'
+                        )}
+                      >
+                        <TableCell className={cn("font-medium max-w-48", isRTL ? "text-right" : "text-left")}>
+                          <div className={cn("flex flex-col gap-0.5 min-w-0", isRTL ? "text-right" : "text-left")}>
+                            <span className="truncate block">{app.client.name}</span>
+                            <span className="text-xs text-muted-foreground font-normal truncate">
+                              {app.client.email}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={cn("max-w-52", isRTL ? "text-right" : "text-left")}>
+                          <div className={cn("flex flex-col gap-1 min-w-0", isRTL ? "text-right" : "text-left")}>
+                            <div className={cn("flex flex-wrap items-center gap-2", isRTL ? "flex-row-reverse justify-end" : "flex-row")}>
+                              <span className="font-medium truncate">{getLocalizedText(app.wizard.name, locale)}</span>
+                              {app.hasPendingApproval && (
+                                <Badge className="w-fit text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
+                                  {t('admin.applications.badge.review')}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {app.applicationNumber}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={isRTL ? "text-right" : "text-left"}>
+                          <span className="text-sm">
+                            {app.areaOfInterest} · {getAreaLabel(app.areaOfInterest)}
+                          </span>
+                        </TableCell>
+                        <TableCell className={isRTL ? "text-right" : "text-left"}>
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">
+                            {app.progress.completedSteps}/{app.progress.totalSteps}{' '}
+                            {app.progress.totalSteps === 1 ? t('admin.wizards.stepSingular') : t('admin.wizards.stepPlural')}
+                          </span>
+                        </TableCell>
+                        <TableCell className={isRTL ? "text-right" : "text-left"}>
+                          <StatusBadge status={app.status} />
+                        </TableCell>
+                        <TableCell className={isRTL ? "text-right" : "text-left"}>
+                          {app.hasPendingApproval && app.pendingApprovals?.length ? (
+                            <div className={cn("flex flex-col gap-1", isRTL ? "items-end" : "items-start")}>
+                              {app.pendingApprovals.slice(0, 2).map((pending) => (
+                                <Badge
+                                  key={pending.wizardStepId}
+                                  className="w-fit bg-sky-100 text-sky-900 border-sky-200 hover:bg-sky-100"
+                                >
+                                  {t('admin.wizards.stepSingular')} {pending.stepNumber} · {t('admin.applications.badge.pending')}
+                                </Badge>
+                              ))}
+                              {(app.pendingApprovalCount ?? 0) > 2 && (
+                                <span className="text-[11px] text-sky-800">
+                                  +{(app.pendingApprovalCount ?? 0) - 2} {t('admin.wizards.recordPlural')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {format(new Date(app.updatedAt), 'dd/MM/yyyy')}
+                        </TableCell>
+                        <TableCell className={isRTL ? "text-left" : "text-right"}>
+                          <div className={cn("flex items-center gap-1", isRTL ? "justify-start" : "justify-end")}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 border cursor-pointer"
+                              onClick={() =>
+                                window.open(
+                                  `/admin/applications/${app.id}`,
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )
+                              }
+                              aria-label={
+                                app.hasPendingApproval ? 'Review application' : 'View application'
+                              }
+                            >
+                              <FileText className="h-4 w-4" />
+                              <span className="sr-only">Edit application</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {applications.length > PAGE_SIZE && (
+                  <div className={cn("flex items-center justify-between border-t pt-4 mt-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                    <p className="text-xs text-muted-foreground">
+                      {t('admin.wizards.pageOf').replace('{page}', String(safePage)).replace('{totalPages}', String(totalPages))} &mdash; {applications.length} {applications.length === 1 ? t('admin.wizards.recordSingular') : t('admin.wizards.recordPlural')}
+                    </p>
+                    <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 cursor-pointer"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={safePage === 1}
+                        aria-label={t('admin.wizards.previousPage')}
+                      >
+                        {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                      </Button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                        <Button
+                          key={p}
+                          type="button"
+                          variant={p === safePage ? 'default' : 'outline'}
+                          size="icon"
+                          className={`h-8 w-8 text-xs cursor-pointer ${
+                            p === safePage
+                              ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
+                              : ''
+                          }`}
+                          onClick={() => setPage(p)}
+                          aria-label={t('admin.wizards.pageLabel').replace('{page}', String(p))}
+                        >
+                          {p}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 cursor-pointer"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={safePage === totalPages}
+                        aria-label={t('admin.wizards.nextPage')}
+                      >
+                        {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
-                      disabled={!pagination.hasNextPage}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              )}
-              {rowsPerPage === 'all' && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="text-sm text-gray-600">
-                    {t('admin.applications.showingAll')} {formatNumber(pagination.total)} {t('admin.applications.applications')}
-                  </div>
-                </div>
-              )}
+                )}
               </>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <StartApplicationForClientModal
+        open={startForClientOpen}
+        onOpenChange={setStartForClientOpen}
+        onStarted={() => {
+          void fetchApplications()
+        }}
+      />
     </AdminPageTemplate>
   )
 }
-

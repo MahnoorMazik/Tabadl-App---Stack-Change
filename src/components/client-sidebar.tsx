@@ -28,7 +28,9 @@ import {
   AlertCircle,
   Receipt,
   User,
+  Users,
 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface SidebarItem {
   title: string
@@ -38,14 +40,36 @@ interface SidebarItem {
   children?: SidebarItem[]
 }
 
-const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
+const createSidebarItems = (t: (key: string) => string, role?: string): SidebarItem[] => {
+  if (role === 'COLLABORATOR') {
+    return [
+      {
+        title: t('client.sidebar.dashboard'),
+        icon: LayoutDashboard,
+        href: '/dashboard',
+      },
+      {
+        title: t('client.sidebar.applicationManagement'),
+        icon: ClipboardList,
+        children: [
+          {
+            title: t('client.sidebar.allApplications'),
+            icon: FileText,
+            href: '/client/applications',
+          },
+        ],
+      },
+    ]
+  }
+
+  return [
   {
     title: t('client.sidebar.dashboard'),
     icon: LayoutDashboard,
     href: '/dashboard',
   },
   {
-    title: 'Complete Profile',
+    title: t('client.sidebar.completeProfile'),
     icon: User,
     href: '/client/profile',
   },
@@ -58,12 +82,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         icon: FileText,
         href: '/client/applications',
       },
-      {
-        title: t('client.sidebar.timeline'),
-        icon: Calendar,
-        href: '/client/timeline',
-      },
     ],
+  },
+  {
+    title: t('client.sidebar.collaboration'),
+    icon: Users,
+    href: '/client/collaborators',
   },
   {
     title: t('client.sidebar.myDocuments'),
@@ -97,7 +121,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     href: '/client/messages',
   },
   {
-    title: 'My Invoices',
+    title: t('client.sidebar.myInvoices'),
     icon: Receipt,
     href: '/client/invoices',
   },
@@ -117,7 +141,8 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
       },
     ],
   },
-];
+]
+}
 
 interface ClientSidebarProps {
   className?: string
@@ -128,9 +153,10 @@ interface ClientSidebarProps {
 export function ClientSidebar({ className, isCollapsed = false, onToggle }: ClientSidebarProps) {
   const pathname = usePathname()
   const { t } = useLocale()
+  const { user } = useAuth()
   const [openItems, setOpenItems] = useState<string[]>([])
   const [stats, setStats] = useState<any>({})
-  const sidebarItems = createSidebarItems(t)
+  const sidebarItems = createSidebarItems(t, user?.role)
   
   // Close sidebar when route changes on mobile
   useEffect(() => {
@@ -224,7 +250,7 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
               <Button
                 variant="ghost"
                 className={cn(
-                  "w-full justify-between h-auto p-3 text-left hover:bg-accent",
+                  "w-full justify-between h-auto p-3 text-left hover:bg-accent rounded-lg",
                   isCollapsed && "justify-center p-2"
                 )}
               >
@@ -274,8 +300,8 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
         <Button
           variant={isItemActive ? "secondary" : "ghost"}
           className={cn(
-            "w-full justify-between h-auto p-3 text-left hover:bg-accent",
-            isItemActive && "bg-accent",
+            "w-full justify-between h-auto p-3 text-left hover:bg-accent rounded-lg",
+            isItemActive && "bg-accent rounded-lg",
             isCollapsed && "justify-center p-2"
           )}
         >
@@ -331,9 +357,9 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
         </div>
       </div>
 
-      {/* Navigation */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-2">
+      {/* Navigation — padding on inner content so active bg right corners stay visible */}
+      <ScrollArea className="flex-1">
+        <div className="p-4 pe-3 space-y-2">
           {sidebarItems.map((item) => renderSidebarItem(item))}
         </div>
       </ScrollArea>

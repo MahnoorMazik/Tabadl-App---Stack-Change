@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendEmailVerificationEmail } from '@/lib/email'
 import { normalizePhone } from '@/lib/phone-normalization'
 import { z } from 'zod'
 import { UserRole } from '@prisma/client'
 import { ensureClientProfileRecords } from '@/lib/business-workflow/profile-completion'
+import crypto from 'crypto'
+
+import { encodeBilingualText } from '@/lib/multilingual-text'
 
 const registerSchema = z.object({
   name: z.string().min(2),
+  nameAr: z.string().optional(),
   email: z.string().email(),
   password: z.string().min(6),
   companyName: z.string().optional(),
@@ -20,48 +24,59 @@ export async function POST(request: NextRequest) {
     let body
     try {
       body = await request.json()
-    } catch (parseError) {
+    } catch {
       return NextResponse.json(
         { error: 'Invalid JSON format' },
         { status: 400 }
       )
     }
 
-    const { name, email, password, companyName, phone } = registerSchema.parse(body)
+    const { name, nameAr, email, password, companyName, phone } = registerSchema.parse(body)
 
-    // Check if user already exists (only among non-deleted users)
+    // Encode English and Arabic names into JSON string
+    const finalName = nameAr?.trim() ? encodeBilingualText(name.trim(), nameAr.trim()) : name.trim()
+
     const existingUser = await db.user.findFirst({
       where: { email, isDeleted: false }
     })
 
     if (existingUser) {
+      if (!existingUser.emailVerified && existingUser.role === UserRole.CLIENT) {
+        return NextResponse.json(
+          {
+            error: 'An account with this email already exists but is not verified. Please check your email or request a new verification link.',
+            code: 'EMAIL_NOT_VERIFIED',
+          },
+          { status: 409 }
+        )
+      }
       return NextResponse.json(
         { error: 'User already exists' },
         { status: 409 }
       )
     }
 
-    // Hash password
     const passwordHash = await hashPassword(password)
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-    // Create user and client profile in a transaction
     const result = await db.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          name,
+          name: finalName,
           email,
           passwordHash,
           role: UserRole.CLIENT,
+          emailVerified: null,
+          emailVerificationToken: verificationToken,
+          emailVerificationExpiry: tokenExpiry,
         }
       })
 
-      // Generate client number (check ALL clients including deleted ones)
-      // clientNumber has @unique constraint, so we need to check ALL clients
       const existingClients = await tx.client.findMany({
         select: { clientNumber: true }
       })
       
-      // Extract all numbers and find the maximum
       let maxNumber = 0
       for (const client of existingClients) {
         const match = client.clientNumber.match(/^CT-(\d+)$/)
@@ -74,19 +89,16 @@ export async function POST(request: NextRequest) {
       }
       
       const clientNumber = `CT-${maxNumber + 1}`
-
-      // Create client profile - Client model requires name, email, and userId
-      // Normalize phone number if provided
       const normalizedPhoneValue = phone ? normalizePhone(phone) : null
       
       const clientProfile = await tx.client.create({
-          data: {
+        data: {
           clientNumber,
           name,
           email,
-          phone: normalizedPhoneValue, // Store normalized phone
+          phone: normalizedPhoneValue,
           company: companyName || null,
-            userId: user.id,
+          userId: user.id,
         },
         include: {
           user: {
@@ -98,7 +110,7 @@ export async function POST(request: NextRequest) {
           },
           group: true,
         },
-        })
+      })
 
       return { user, clientProfile }
     })
@@ -109,39 +121,30 @@ export async function POST(request: NextRequest) {
       console.error('Failed to init profile records:', profileError)
     }
 
-    // Send welcome email (non-blocking)
+    // Send verification email — required before login
     try {
-      const emailSettings = await db.emailSettings.findFirst({
-        orderBy: { createdAt: 'desc' }
-      })
-
-      // Only send if welcome emails are enabled
-      if (emailSettings?.enableWelcomeEmail) {
-        await sendWelcomeEmail(result.user.email, result.user.name || name, emailSettings)
+      const emailResult = await sendEmailVerificationEmail(
+        result.user.email,
+        result.user.name || name,
+        verificationToken
+      )
+      if (!emailResult.success) {
+        console.error('Failed to send verification email:', emailResult.error)
       }
     } catch (emailError) {
-      // Don't fail registration if email fails
-      console.error('Failed to send welcome email:', emailError)
+      console.error('Failed to send verification email:', emailError)
     }
 
-    // Return user data - NextAuth will handle the sign-in on the client side
     return NextResponse.json({
       data: {
-        user: {
-          id: result.user.id,
-          email: result.user.email,
-          name: result.user.name,
-          role: result.user.role,
-          clientProfile: result.clientProfile
-        },
-        // Token is no longer returned - client should use NextAuth signIn after registration
-        message: 'Registration successful. Please sign in.'
+        requiresEmailVerification: true,
+        email: result.user.email,
+        message: 'Registration successful. Please verify your email before signing in.',
       }
     })
   } catch (error: any) {
     console.error('Registration error:', error)
     
-    // Handle validation errors
     if (error instanceof z.ZodError) {
       const firstError = error.issues[0]
       return NextResponse.json(
@@ -154,7 +157,6 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Handle Prisma unique constraint errors
     if (error?.code === 'P2002') {
       const field = error.meta?.target?.[0] || 'email'
       return NextResponse.json(
@@ -166,7 +168,6 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Handle Prisma foreign key errors
     if (error?.code === 'P2003') {
       return NextResponse.json(
         { error: 'Invalid reference: related record not found' },
@@ -174,7 +175,6 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Generic error with more details in development
     const errorMessage = process.env.NODE_ENV === 'production'
       ? 'Failed to create account. Please try again.'
       : error?.message || 'Internal server error'

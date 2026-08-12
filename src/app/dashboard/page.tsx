@@ -249,7 +249,13 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <Link href="/client/applications">
+                  <Button className="bg-emerald-700 hover:bg-emerald-800 text-white">
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    {t('client.dashboard.applyForApplication') || 'Apply for Application'}
+                  </Button>
+                </Link>
                 <NotificationDropdown />
                 <ProfileDropdown />
               </div>
@@ -315,7 +321,15 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 {applications.length === 0 ? (
-                  <p className="text-center py-8 text-gray-500">{t('client.applications.noApplications')}</p>
+                  <div className="flex flex-col items-center gap-3 py-8">
+                    <p className="text-center text-gray-500">{t('client.applications.noApplications')}</p>
+                    <Link href="/client/applications">
+                      <Button className="bg-emerald-700 hover:bg-emerald-800">
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        {t('client.dashboard.applyForApplication') || 'Apply for Application'}
+                      </Button>
+                    </Link>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {applications.slice(0, 5).map((app: any) => (
@@ -415,7 +429,7 @@ export default function Dashboard() {
                   <Link href="/client/applications">
                     <Button variant="outline" className="w-full justify-start bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700">
                       <Plus className="h-4 w-4 mr-2" />
-                      {t('client.dashboard.addApplication') || 'Add Application'}
+                      {t('client.dashboard.applyForApplication') || 'Apply for Application'}
                     </Button>
                   </Link>
                   <Link href="/client/documents/upload">

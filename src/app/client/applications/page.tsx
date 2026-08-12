@@ -1,665 +1,726 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { ClientSidebar } from '@/components/client-sidebar'
-import { ProfileDropdown } from '@/components/ProfileDropdown'
-import { NotificationDropdown } from '@/components/NotificationDropdown'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getErrorMessage } from '@/lib/error-utils'
-import { 
-  ClipboardList, 
-  Menu, 
-  Eye, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  FileText,
-  Calendar,
-  User,
-  Plus
-} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
-import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  AREA_OF_INTEREST_OPTIONS,
+  AreaOfInterestKey,
+  areaOfInterestDisplayLabel,
+} from '@/components/admin/forms/types'
+import {
+  ClipboardList,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  Loader2,
+  ArrowRight,
+  Plus,
+  ListChecks,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Users,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useMobileSidebar } from '@/hooks/use-mobile-sidebar'
+import { MobileLayout } from '@/lib/mobile-layout-utils'
+import { cn } from '@/lib/utils'
+import { wizardStatusClasses } from '@/lib/wizards/wizard-status'
+import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchOverlay'
+import { writeApplicationLaunchLoadingDocument } from '@/lib/client/write-application-launch-loading'
 import { useLocale } from '@/contexts/LocaleContext'
+import { getLocalizedText } from '@/lib/multilingual-text'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+
+type ApplicationItem = {
+  id: string
+  applicationNumber: string
+  status: string
+  areaOfInterest: string
+  submittedAt: string | null
+  updatedAt: string
+  adminNotes?: string | null
+  wizard: { id: string; name: string; areaOfInterest: string }
+  progress: { totalSteps: number; completedSteps: number; currentStepIndex: number }
+}
+
+const LAUNCH_MIN_MS = 1400
+const PAGE_SIZE = 10
+
+function StatusBadge({ status, label, isRTL }: { status: string; label: string; isRTL: boolean }) {
+  return (
+    <Badge
+      className={cn(
+        'border hover:opacity-100 px-2 py-0.5 font-medium rounded-md inline-flex items-center',
+        wizardStatusClasses(status),
+        isRTL ? 'flex-row-reverse' : 'flex-row'
+      )}
+    >
+      {status === 'PENDING' && <Clock className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {(status === 'APPROVED' || status === 'COMPLETED') && (
+        <CheckCircle className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />
+      )}
+      {status === 'REJECTED' && <AlertCircle className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {status === 'DRAFT' && <FileText className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {status === 'HARD_COPY_REQUIRED' && <FileText className={cn('h-3 w-3 shrink-0', isRTL ? 'ml-1' : 'mr-1')} />}
+      {label}
+    </Badge>
+  )
+}
 
 export default function ClientApplicationsPage() {
-  const { user, token, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
-  const { t } = useLocale()
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [applications, setApplications] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedApplication, setSelectedApplication] = useState<any>(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    type: '',
-    companyName: '',
-    licenseType: '',
-    visaType: '',
-    bankName: '',
-    serviceDetails: '',
-    description: '',
-    notes: '',
-  })
+  const { t, locale } = useLocale()
+  const isRTL = locale === 'ar'
+  const {
+    isSidebarCollapsed,
+    isMobileSidebarOpen,
+    toggleMobileSidebar,
+    toggleDesktopSidebar,
+    closeMobileSidebar,
+  } = useMobileSidebar()
+  const [activeTab, setActiveTab] = useState<'new' | 'applied'>('new')
+  const [applications, setApplications] = useState<ApplicationItem[]>([])
+  const [loadingApps, setLoadingApps] = useState(true)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [launch, setLaunch] = useState<{
+    area: AreaOfInterestKey
+    label: string
+    continuing: boolean
+  } | null>(null)
+  /** Sync lock so double-clicks cannot start two creates before React state updates. */
+  const launchLockRef = useRef(false)
+  const [actingFor, setActingFor] = useState<{ name: string; company: string | null } | null>(null)
+
+  const fetchApplications = useCallback(async (silent = false) => {
+    if (!silent) setLoadingApps(true)
+    try {
+      const res = await axios.get('/api/client/wizard-applications')
+      setApplications(res.data?.data?.applications ?? [])
+    } catch (error: any) {
+      if (!silent) {
+        setApplications([])
+        const message =
+          error.response?.data?.error?.message ||
+          error.response?.data?.error ||
+          'Failed to load applications'
+        toast({
+          title: t('client.applications.toast.couldNotLoadTitle'),
+          description: typeof message === 'string' ? message : t('client.applications.toast.couldNotLoadDesc'),
+          variant: 'destructive',
+        })
+      }
+    } finally {
+      if (!silent) setLoadingApps(false)
+    }
+  }, [t, toast])
 
   useEffect(() => {
-    if (token) {
-      fetchApplications()
+    if (authLoading || !user) return
+    if (user.role !== 'COLLABORATOR') return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await axios.get('/api/client/collaboration/context')
+        const client = res.data?.data?.actingOnBehalfOf
+        if (!cancelled && client) {
+          setActingFor({ name: client.name, company: client.company ?? null })
+        }
+      } catch {
+        // ignore — applications fetch will surface auth errors
+      }
+    })()
+    return () => {
+      cancelled = true
     }
-  }, [token])
+  }, [authLoading, user])
 
-  const fetchApplications = async () => {
-    try {
-      setLoading(true)
-      const response = await axios.get('/api/applications', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      // Handle structured response format
-      const applications = response.data.data?.applications || response.data.applications || []
-      setApplications(applications)
-    } catch (error: any) {
-      console.error('Error fetching applications:', error)
-      setError(t('client.applications.loadFailed') || 'Failed to load applications')
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (!authLoading && user) void fetchApplications()
+  }, [authLoading, user, fetchApplications])
+
+  useEffect(() => {
+    if (authLoading || !user) return
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void fetchApplications(true)
     }
-  }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [authLoading, user, fetchApplications])
 
-  const getStatusBadge = (status: string) => {
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  const filteredApplications = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return applications
+    return applications.filter((app) => {
+      const areaLabel = areaOfInterestDisplayLabel(app.areaOfInterest).toLowerCase()
+      return (
+        app.wizard.name.toLowerCase().includes(q) ||
+        app.applicationNumber.toLowerCase().includes(q) ||
+        app.areaOfInterest.toLowerCase().includes(q) ||
+        areaLabel.includes(q) ||
+        app.status.toLowerCase().includes(q) ||
+        (app.adminNotes?.toLowerCase().includes(q) ?? false)
+      )
+    })
+  }, [applications, search])
+
+  const totalPages = Math.max(1, Math.ceil(filteredApplications.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedApplications = filteredApplications.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  )
+
+  const draftForArea = (area: AreaOfInterestKey) =>
+    applications.find((a) => a.areaOfInterest === area && a.status === 'DRAFT')
+
+  const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'DRAFT':
+        return t('client.applications.status.draft')
       case 'PENDING':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><Clock className="h-3 w-3 mr-1" />{t('admin.applications.pending')}</Badge>
+        return t('client.applications.status.pending')
+      case 'IN_PROGRESS':
+        return t('client.applications.status.inProgress')
+      case 'HARD_COPY_REQUIRED':
+        return t('client.applications.status.hardCopyRequired')
       case 'APPROVED':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200"><CheckCircle className="h-3 w-3 mr-1" />{t('admin.applications.approved')}</Badge>
+        return t('client.applications.status.approved')
       case 'REJECTED':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200"><AlertCircle className="h-3 w-3 mr-1" />{t('admin.applications.rejected')}</Badge>
+        return t('client.applications.status.rejected')
+      case 'COMPLETED':
+        return t('client.applications.status.completed')
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return status
     }
   }
 
-  const getApplicationType = (type: string) => {
-    switch (type) {
-      case 'COMPANY_REGISTRATION':
-        return 'Company Registration'
-      case 'TRADE_LICENSE':
-        return 'Trade License'
-      case 'VISA_PROCESSING':
-        return 'Visa Processing'
-      case 'BANK_ACCOUNT':
-        return 'Bank Account'
-      case 'PRO_SERVICES':
-        return 'PRO Services'
-      case 'OTHER':
-        return 'Other'
+  const getAreaLabel = (area: AreaOfInterestKey) => {
+    switch (area) {
+      case 'CR':
+        return t('client.applications.area.cr.label')
+      case 'PR':
+        return t('client.applications.area.pr.label')
       default:
-        return type
+        return area
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.type) {
-      toast({
-        title: t('common.error'),
-        description: t('client.applications.selectType') || 'Please select an application type',
-        variant: 'destructive',
-      })
-      return
+  const getAreaDescription = (area: AreaOfInterestKey) => {
+    switch (area) {
+      case 'CR':
+        return t('client.applications.area.cr.description')
+      case 'PR':
+        return t('client.applications.area.pr.description')
+      default:
+        return ''
     }
+  }
+
+  const beginApplication = async (area: AreaOfInterestKey, label: string) => {
+    if (launchLockRef.current || launch) return
+    launchLockRef.current = true
+
+    const draft = draftForArea(area)
+    setLaunch({ area, label, continuing: Boolean(draft) })
+
+    // Open tab synchronously on user click — async window.open is blocked by browsers.
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      try {
+        const continuing = Boolean(draft)
+        const areaStr = label || (isRTL ? 'الطلب' : 'application')
+        writeApplicationLaunchLoadingDocument(popup, {
+          documentTitle: t('client.applications.pageTitle'),
+          dir: isRTL ? 'rtl' : 'ltr',
+          title: continuing
+            ? t('client.fill.continuingApp')
+            : t('client.fill.startingApp'),
+          subtitle: continuing
+            ? t('client.fill.loadingDraft').replace('{area}', areaStr)
+            : t('client.fill.preparingForms').replace('{area}', areaStr),
+        })
+      } catch {
+        // Cross-origin / restricted about:blank — still usable via location.href
+      }
+    }
+
+    const minWait = new Promise((resolve) => setTimeout(resolve, LAUNCH_MIN_MS))
 
     try {
-      setIsSubmitting(true)
-      await axios.post('/api/applications', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      let appId: string
+      let resumed = Boolean(draft)
 
-      toast({
-        title: t('common.success'),
-        description: t('client.applications.submitted') || 'Application submitted successfully!',
-      })
+      if (draft) {
+        appId = draft.id
+      } else {
+        const check = await axios.get(`/api/client/wizards?areaOfInterest=${area}`)
+        const flow = check.data?.data?.merged
+        if (!flow?.totalSteps) {
+          popup?.close()
+          toast({
+            title: t('client.applications.toast.noAppTitle'),
+            description: t('client.applications.toast.noAppDesc').replace('{label}', label),
+            variant: 'destructive',
+          })
+          return
+        }
 
-      setIsDialogOpen(false)
-      setFormData({
-        type: '',
-        companyName: '',
-        licenseType: '',
-        visaType: '',
-        bankName: '',
-        serviceDetails: '',
-        description: '',
-        notes: '',
-      })
-      fetchApplications()
+        // Always go through API — it resumes an existing DRAFT for this area (no duplicate).
+        const res = await axios.post('/api/client/wizard-applications', { areaOfInterest: area })
+        const app = res.data?.data?.application
+        if (!app?.id) {
+          throw new Error('Could not start application')
+        }
+        appId = app.id
+        resumed = Boolean(res.data?.data?.resumed)
+
+        // Optimistically mark draft in local list so the behind-tab UI shows Continue immediately.
+        setApplications((prev) => {
+          if (prev.some((a) => a.id === app.id)) return prev
+          return [
+            {
+              id: app.id,
+              applicationNumber: app.applicationNumber ?? '',
+              status: app.status ?? 'DRAFT',
+              areaOfInterest: app.areaOfInterest ?? area,
+              submittedAt: app.submittedAt ?? null,
+              updatedAt: app.updatedAt ?? new Date().toISOString(),
+              adminNotes: app.adminNotes ?? null,
+              wizard: app.wizard ?? {
+                id: app.wizardId ?? '',
+                name: label,
+                areaOfInterest: area,
+              },
+              progress: app.progress ?? {
+                totalSteps: flow.totalSteps,
+                completedSteps: 0,
+                currentStepIndex: 0,
+              },
+            },
+            ...prev,
+          ]
+        })
+      }
+
+      await minWait
+      const appUrl = `/client/applications/${appId}`
+
+      if (popup && !popup.closed) {
+        popup.location.href = appUrl
+      } else {
+        // Popup blocked — open in this tab so the user is not stuck on draft-only.
+        window.location.href = appUrl
+        return
+      }
+
+      if (resumed && !draft) {
+        toast({
+          title: t('client.applications.toast.openingDraftTitle'),
+          description: t('client.applications.toast.openingDraftDesc').replace('{label}', label),
+        })
+      }
+
+      // Sync list so the original tab shows Continue / draft badge without waiting for focus.
+      void fetchApplications(true)
     } catch (error: any) {
-      console.error('Error submitting application:', error)
+      popup?.close()
       toast({
-        title: t('common.error'),
-        description: getErrorMessage(error),
+        title: t('client.applications.toast.couldNotOpenTitle'),
+        description: error.response?.data?.error?.message || error.message,
         variant: 'destructive',
       })
     } finally {
-      setIsSubmitting(false)
+      launchLockRef.current = false
+      setLaunch(null)
     }
-  }
-
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('common.loading')}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Alert variant="destructive" className="max-w-md">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{t('client.applications.loginRequired') || 'Please log in to view your applications.'}</AlertDescription>
-        </Alert>
-      </div>
-    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex relative">
-      {/* Mobile backdrop */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
+    <MobileLayout
+      isSidebarCollapsed={isSidebarCollapsed}
+      isMobileSidebarOpen={isMobileSidebarOpen}
+      onToggleMobile={toggleMobileSidebar}
+      onToggleDesktop={toggleDesktopSidebar}
+      onCloseMobile={closeMobileSidebar}
+      title={t('client.applications.pageTitle')}
+      description={t('client.applications.pageDescription')}
+      icon={<ClipboardList className="h-5 w-5 text-emerald-600" />}
+    >
+      <ApplicationLaunchOverlay
+        open={Boolean(launch)}
+        areaLabel={launch?.label}
+        mode={launch?.continuing ? 'continue' : 'start'}
+      />
+
+      {actingFor && (
+        <Alert className="mb-4 border-emerald-200 bg-emerald-50 text-emerald-950 max-w-6xl mx-auto">
+          <Users className="h-4 w-4 text-emerald-700" />
+          <AlertDescription>
+            {t('client.collaboration.actingBanner').replace(
+              '{name}',
+              actingFor.company || actingFor.name
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
-      {/* Sidebar - Hidden on mobile, overlay when open */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        ${isSidebarCollapsed ? 'w-16' : 'w-64'} 
-        transition-all duration-300 flex-shrink-0
-        ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <ClientSidebar 
-          isCollapsed={isSidebarCollapsed} 
-          onToggle={() => {
-            setIsSidebarCollapsed(!isSidebarCollapsed)
-            setIsMobileSidebarOpen(false)
-          }} 
-        />
-      </aside>
-
-      <div className="flex-1 flex flex-col w-full lg:w-auto">
-        <header className="bg-white border-b">
-          <div className="px-4 sm:px-6 py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => {
-                    setIsMobileSidebarOpen(!isMobileSidebarOpen)
-                    setIsSidebarCollapsed(false)
-                  }}
-                  className="lg:hidden"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="hidden lg:flex"
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
-                <div className="min-w-0">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 truncate">
-                    <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0" />
-                    <span className="truncate">{t('client.sidebar.applicationManagement')}</span>
-                  </h1>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">{t('client.applications.description') || 'Track and manage your applications'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-xs sm:text-sm">
-                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">{t('client.applications.newApplication') || 'New Application'}</span>
-                      <span className="sm:hidden">{t('common.add')}</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{t('client.applications.submitNew') || 'Submit New Application'}</DialogTitle>
-                      <DialogDescription>
-                        {t('client.applications.submitDescription') || 'Fill in the details below to submit a new application'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="type">{t('client.applications.applicationType') || 'Application Type'} *</Label>
-                        <Select
-                          value={formData.type}
-                          onValueChange={(value) => setFormData({ ...formData, type: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('client.applications.selectApplicationType') || 'Select application type'} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="COMPANY_REGISTRATION">{t('client.applications.companyRegistration') || 'Company Registration'}</SelectItem>
-                            <SelectItem value="TRADE_LICENSE">{t('client.applications.tradeLicense') || 'Trade License'}</SelectItem>
-                            <SelectItem value="VISA_PROCESSING">{t('client.applications.visaProcessing') || 'Visa Processing'}</SelectItem>
-                            <SelectItem value="BANK_ACCOUNT">{t('client.applications.bankAccount') || 'Bank Account'}</SelectItem>
-                            <SelectItem value="PRO_SERVICES">{t('client.applications.proServices') || 'PRO Services'}</SelectItem>
-                            <SelectItem value="OTHER">{t('common.other') || 'Other'}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {formData.type === 'COMPANY_REGISTRATION' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="companyName">{t('auth.companyName')}</Label>
-                          <Input
-                            id="companyName"
-                            value={formData.companyName}
-                            onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                            placeholder="Enter company name"
-                          />
-                        </div>
-                      )}
-
-                      {formData.type === 'TRADE_LICENSE' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="licenseType">{t('client.applications.licenseType') || 'License Type'}</Label>
-                          <Input
-                            id="licenseType"
-                            value={formData.licenseType}
-                            onChange={(e) => setFormData({ ...formData, licenseType: e.target.value })}
-                            placeholder={t('client.applications.enterLicenseType') || 'Enter license type'}
-                          />
-                        </div>
-                      )}
-
-                      {formData.type === 'VISA_PROCESSING' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="visaType">{t('client.applications.visaType') || 'Visa Type'}</Label>
-                          <Input
-                            id="visaType"
-                            value={formData.visaType}
-                            onChange={(e) => setFormData({ ...formData, visaType: e.target.value })}
-                            placeholder={t('client.applications.enterVisaType') || 'Enter visa type'}
-                          />
-                        </div>
-                      )}
-
-                      {formData.type === 'BANK_ACCOUNT' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="bankName">{t('client.applications.bankName') || 'Bank Name'}</Label>
-                          <Input
-                            id="bankName"
-                            value={formData.bankName}
-                            onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                            placeholder={t('client.applications.enterBankName') || 'Enter bank name'}
-                          />
-                        </div>
-                      )}
-
-                      {(formData.type === 'PRO_SERVICES' || formData.type === 'OTHER') && (
-                        <div className="space-y-2">
-                          <Label htmlFor="serviceDetails">{t('client.applications.serviceDetails') || 'Service Details'}</Label>
-                          <Input
-                            id="serviceDetails"
-                            value={formData.serviceDetails}
-                            onChange={(e) => setFormData({ ...formData, serviceDetails: e.target.value })}
-                            placeholder={t('client.applications.enterServiceDetails') || 'Enter service details'}
-                          />
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <Label htmlFor="description">{t('common.description')}</Label>
-                        <Textarea
-                          id="description"
-                          value={formData.description}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          placeholder={t('client.applications.enterDescription') || 'Enter application description'}
-                          rows={3}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="notes">{t('client.applications.additionalNotes') || 'Additional Notes'}</Label>
-                        <Textarea
-                          id="notes"
-                          value={formData.notes}
-                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                          placeholder={t('client.applications.enterNotes') || 'Any additional notes or requirements'}
-                          rows={2}
-                        />
-                      </div>
-
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsDialogOpen(false)}
-                          disabled={isSubmitting}
-                        >
-                          {t('common.cancel')}
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                          {isSubmitting ? t('client.applications.submitting') || 'Submitting...' : t('client.applications.submitApplication') || 'Submit Application'}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-                <NotificationDropdown />
-                <ProfileDropdown />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('client.applications.totalApplications')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{applications.length}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.pending')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {applications.filter(app => app.status === 'PENDING').length}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.approved')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {applications.filter(app => app.status === 'APPROVED').length}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600">{t('admin.applications.rejected')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
-                    {applications.filter(app => app.status === 'REJECTED').length}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Applications Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('client.sidebar.allApplications')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                  </div>
-                ) : error ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                ) : applications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('client.applications.noApplicationsYet') || 'No Applications Yet'}</h3>
-                    <p className="text-gray-600 mb-4">{t('client.applications.noApplicationsMessage') || "You haven't submitted any applications yet."}</p>
-                    <Button>
-                      <FileText className="h-4 w-4 mr-2" />
-                      {t('client.applications.submitNew')}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto -mx-4 sm:mx-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[120px]">{t('client.applications.applicationId') || 'Application ID'}</TableHead>
-                          <TableHead className="min-w-[140px]">{t('admin.applications.type')}</TableHead>
-                          <TableHead className="min-w-[100px]">{t('admin.applications.status')}</TableHead>
-                          <TableHead className="min-w-[120px]">{t('admin.applications.submittedDate')}</TableHead>
-                          <TableHead className="min-w-[120px]">{t('admin.applications.assignedTo')}</TableHead>
-                          <TableHead className="min-w-[100px]">{t('admin.applications.actions')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {applications.map((application) => (
-                        <TableRow key={application.id}>
-                          <TableCell className="font-medium">
-                            {application.applicationNumber || `APP-${application.id.slice(-8).toUpperCase()}`}
-                          </TableCell>
-                          <TableCell>{getApplicationType(application.type)}</TableCell>
-                          <TableCell>{getStatusBadge(application.status)}</TableCell>
-                          <TableCell>
-                            {format(new Date(application.createdAt), 'MMM dd, yyyy')}
-                          </TableCell>
-                          <TableCell className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            {application.assignedTo?.name || t('admin.applications.unassigned')}
-                          </TableCell>
-                          <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedApplication(application)
-                                setIsViewDialogOpen(true)
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              {t('client.applications.viewDetails') || 'View Details'}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+      {authLoading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        </div>
+      ) : (
+        <div className="max-w-6xl mx-auto">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as 'new' | 'applied')}
+            className="space-y-4"
+          >
+            <TabsList className={cn('gap-3 flex h-auto bg-transparent p-0 rounded-none shadow-none', isRTL ? 'mr-auto flex-row-reverse' : 'ml-auto')}>
+              <TabsTrigger
+                value="new"
+                className={cn(
+                  'gap-2 px-4 py-2.5 rounded-md text-sm font-medium w-auto flex-none border shadow-none',
+                  'transition-[color,background-color,border-color] duration-200 ease-out cursor-pointer',
+                  'data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-800',
+                  'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
+                  'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
+                  'data-[state=inactive]:border-gray-300',
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border',
+                  isRTL ? 'flex-row-reverse' : 'flex-row'
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
-
-      {/* View Application Details Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-emerald-600" />
-              Application Details
-            </DialogTitle>
-            <DialogDescription>
-              View complete information about this application
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedApplication && (
-            <div className="space-y-6">
-              {/* Application Header */}
-              <div className="flex items-start justify-between pb-4 border-b">
-                <div>
-                  <p className="text-sm text-gray-500">Application ID</p>
-                  <p className="text-lg font-semibold">
-                    {selectedApplication.applicationNumber || `APP-${selectedApplication.id.slice(-8).toUpperCase()}`}
-                  </p>
-                </div>
-                <div className="text-right">
-                  {getStatusBadge(selectedApplication.status)}
-                </div>
-              </div>
-
-              {/* Application Info Grid */}
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Application Type</p>
-                  <p className="text-base">{getApplicationType(selectedApplication.type)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Submitted Date</p>
-                  <p className="text-base flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    {format(new Date(selectedApplication.createdAt), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Assigned To</p>
-                  <p className="text-base flex items-center gap-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    {selectedApplication.assignedTo?.name || 'Unassigned'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Last Updated</p>
-                  <p className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-400" />
-                    {format(new Date(selectedApplication.updatedAt), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-              </div>
-
-              {/* Type-Specific Details */}
-              {selectedApplication.companyName && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Company Name</p>
-                  <p className="text-base">{selectedApplication.companyName}</p>
-                </div>
-              )}
-              {selectedApplication.licenseType && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">License Type</p>
-                  <p className="text-base">{selectedApplication.licenseType}</p>
-                </div>
-              )}
-              {selectedApplication.visaType && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Visa Type</p>
-                  <p className="text-base">{selectedApplication.visaType}</p>
-                </div>
-              )}
-              {selectedApplication.bankName && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Bank Name</p>
-                  <p className="text-base">{selectedApplication.bankName}</p>
-                </div>
-              )}
-              {selectedApplication.serviceDetails && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Service Details</p>
-                  <p className="text-base">{selectedApplication.serviceDetails}</p>
-                </div>
-              )}
-
-              {/* Description */}
-              {selectedApplication.description && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Description</p>
-                  <p className="text-base text-gray-700">{selectedApplication.description}</p>
-                </div>
-              )}
-
-              {/* Notes */}
-              {selectedApplication.notes && (
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Additional Notes</p>
-                  <p className="text-base text-gray-700">{selectedApplication.notes}</p>
-                </div>
-              )}
-
-              {/* Rejection Reason */}
-              {selectedApplication.status === 'REJECTED' && selectedApplication.rejectionReason && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <p className="font-semibold mb-1">Rejection Reason:</p>
-                    <p>{selectedApplication.rejectionReason}</p>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Approval Details */}
-              {selectedApplication.status === 'APPROVED' && (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-800">
-                    <p className="font-semibold mb-1">Application Approved</p>
-                    {selectedApplication.approvedBy && (
-                      <p className="text-sm">
-                        Approved by: {selectedApplication.approvedBy.name}
-                      </p>
+              >
+                <FileText className="h-4 w-4" />
+                {t('client.applications.newTab')}
+              </TabsTrigger>
+              <TabsTrigger
+                value="applied"
+                className={cn(
+                  'gap-2 px-4 py-2.5 rounded-md text-sm font-medium w-auto flex-none border shadow-none',
+                  'transition-[color,background-color,border-color] duration-200 ease-out cursor-pointer',
+                  'data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-800',
+                  'data-[state=active]:border-emerald-700 data-[state=active]:shadow-none',
+                  'data-[state=inactive]:bg-white data-[state=inactive]:text-foreground',
+                  'data-[state=inactive]:border-gray-300',
+                  'dark:data-[state=inactive]:bg-card dark:data-[state=inactive]:border-border',
+                  isRTL ? 'flex-row-reverse' : 'flex-row'
+                )}
+              >
+                <ListChecks className="h-4 w-4" />
+                {t('client.applications.appliedTab')}
+                {applications.length > 0 && (
+                  <Badge
+                    className={cn(
+                      'text-[11px] h-5 min-w-5 px-1.5 justify-center border transition-colors duration-200 ease-out',
+                      activeTab === 'applied'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-500'
+                        : 'bg-gray-100 border-gray-300 text-gray-700'
                     )}
-                    {selectedApplication.approvedAt && (
-                      <p className="text-sm">
-                        on {format(new Date(selectedApplication.approvedAt), 'MMM dd, yyyy')}
-                      </p>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          )}
+                  >
+                    {applications.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsViewDialogOpen(false)}
+            <TabsContent
+              value="new"
+              forceMount
+              className={cn(
+                'mt-0 outline-none transition-opacity duration-200 ease-out',
+                'data-[state=inactive]:hidden data-[state=active]:animate-in data-[state=active]:fade-in-0'
+              )}
             >
-              Close
-            </Button>
-            {selectedApplication?.status === 'APPROVED' && (
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                <FileText className="h-4 w-4 mr-2" />
-                Download Documents
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <Card>
+                <CardHeader>
+                  <CardTitle className={cn('text-lg font-semibold', isRTL ? 'text-right' : 'text-left')}>
+                    {t('client.applications.newCardTitle')}
+                  </CardTitle>
+                  <CardDescription className={cn('text-muted-foreground text-sm', isRTL ? 'text-right' : 'text-left')}>
+                    {t('client.applications.newCardDescription')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {AREA_OF_INTEREST_OPTIONS.map((option) => {
+                      const draft = draftForArea(option.key)
+                      const isLaunching = launch?.area === option.key
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          disabled={Boolean(launch)}
+                          onClick={() => void beginApplication(option.key, getAreaLabel(option.key))}
+                          className={cn(
+                            'group relative flex justify-start flex-col rounded-xl border bg-white dark:bg-card p-4 transition-all cursor-pointer hover:border-primary/30 hover:bg-primary/10',
+                            'hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/10',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+                            isLaunching && 'border-emerald-500 ring-2 ring-emerald-500/30',
+                            launch && !isLaunching && 'opacity-60 pointer-events-none',
+                            isRTL ? 'text-right' : 'text-left'
+                          )}
+                        >
+                          <div className={cn('flex items-center gap-2 mb-2', isRTL ? 'justify-between flex-row-reverse' : 'justify-between flex-row')}>
+                            <span className="font-semibold text-base flex-1">{getAreaLabel(option.key)}</span>
 
-    </div>
+                            <div className={cn('flex items-center gap-2 shrink-0', isRTL ? 'flex-row-reverse' : 'flex-row')}>
+                              {draft && (
+                                <Badge className="text-[12px] bg-amber-100 text-amber-900 border-amber-200 w-fit">
+                                  {t('client.applications.draftBadge')}
+                                </Badge>
+                              )}
+                              <Badge variant="secondary" className="text-[12px] bg-gray-100 border-gray-300">
+                                {option.key}
+                              </Badge>
+                            </div>
+
+                          </div>
+                          <p className={cn('text-sm text-muted-foreground leading-relaxed', isRTL ? 'text-right' : 'text-left')}>
+                            {getAreaDescription(option.key)}
+                          </p>
+                          <p className={cn('mt-3 text-sm font-medium text-emerald-700 group-hover:text-emerald-800', isRTL ? 'text-right' : 'text-left')}>
+                            {draft ? `${t('client.applications.continueDraft')} ${isRTL ? '←' : '→'}` : `${t('client.applications.startApplication')} ${isRTL ? '←' : '→'}`}
+                          </p>
+                          
+                        </button>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent
+              value="applied"
+              forceMount
+              className={cn(
+                'mt-0 outline-none transition-opacity duration-200 ease-out',
+                'data-[state=inactive]:hidden data-[state=active]:animate-in data-[state=active]:fade-in-0'
+              )}
+            >
+              <Card>
+                <CardHeader>
+                  <div className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3', isRTL ? 'sm:flex-row-reverse' : 'sm:flex-row')}>
+                    <div className={cn(isRTL ? 'text-right' : 'text-left')}>
+                      <CardTitle>{t('client.applications.appliedTab')}</CardTitle>
+                      <CardDescription className={cn('mt-0.5', isRTL ? 'text-right' : 'text-left')}>
+                        {loadingApps
+                          ? t('client.applications.loading')
+                          : filteredApplications.length === 0
+                            ? search
+                              ? t('client.applications.noResults')
+                              : t('client.applications.noApplicationsYet')
+                            : `${filteredApplications.length} ${filteredApplications.length === 1 ? t('client.applications.applicationCountSingular') : t('client.applications.applicationCountPlural')}${search ? ` ${t('client.applications.foundSuffix')}` : ''}. ${t('client.applications.trackStatus')}`}
+                      </CardDescription>
+                    </div>
+                    <div className="relative sm:w-64">
+                      <Search className={cn('absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none', isRTL ? 'right-2.5' : 'left-2.5')} />
+                      <Input
+                        placeholder={t('client.applications.searchPlaceholder')}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className={cn('h-9 text-sm', isRTL ? 'pr-8 text-right' : 'pl-8 text-left')}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {loadingApps ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                    </div>
+                  ) : applications.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-10 text-center space-y-3">
+                      <p className={cn('text-sm text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                        {t('client.applications.emptyStateMessage')}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setActiveTab('new')}
+                      >
+                        <Plus className={cn('h-4 w-4', isRTL ? 'ml-1.5' : 'mr-1.5')} />
+                        {t('client.applications.startNewApplication')}
+                      </Button>
+                    </div>
+                  ) : filteredApplications.length === 0 ? (
+                    <div className={cn('rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                      {t('client.applications.noSearchResults')}
+                    </div>
+                  ) : (
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t('client.applications.table.application')}</TableHead>
+                            <TableHead>{t('client.applications.table.area')}</TableHead>
+                            <TableHead>{t('client.applications.table.progress')}</TableHead>
+                            <TableHead>{t('client.applications.table.status')}</TableHead>
+                            <TableHead>{t('client.applications.table.adminUpdate')}</TableHead>
+                            <TableHead className="w-28">{t('client.applications.table.updated')}</TableHead>
+                            <TableHead className={cn('w-28', isRTL ? 'text-left' : 'text-right')}>{t('client.applications.table.actions')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedApplications.map((app) => {
+                            const isDraft = app.status === 'DRAFT'
+                            return (
+                              <TableRow key={app.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium max-w-52">
+                                  <div className="flex flex-col gap-1 min-w-0">
+                                    <span className="truncate block">{getLocalizedText(app.wizard.name, locale)}</span>
+                                    <span className="text-xs text-muted-foreground font-normal">
+                                      {app.applicationNumber}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-normal">
+                                    {app.areaOfInterest} ·{' '}
+                                    {areaOfInterestDisplayLabel(app.areaOfInterest)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                    {app.progress.completedSteps}/{app.progress.totalSteps}{' '}
+                                    {app.progress.totalSteps === 1 ? t('client.applications.table.stepSingular') : t('client.applications.table.stepPlural')}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <StatusBadge status={app.status} label={getStatusLabel(app.status)} isRTL={isRTL} />
+                                </TableCell>
+                                <TableCell className="max-w-55">
+                                  {app.adminNotes ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="rounded-md bg-amber-100 border border-amber-200/80 px-2 py-1.5 shadow-sm text-xs text-amber-950 truncate cursor-default max-w-50">
+                                          {app.adminNotes}
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="top"
+                                        className="max-w-xs whitespace-pre-wrap wrap-break-word bg-amber-50 text-amber-950 border border-amber-200"
+                                      >
+                                        {app.adminNotes}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(app.updatedAt), 'dd/MM/yyyy')}
+                                </TableCell>
+                                <TableCell className={cn(isRTL ? 'text-left' : 'text-right')}>
+                                  <div className={cn('flex items-center gap-1', isRTL ? 'justify-start' : 'justify-end')}>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 border rounded-md text-sm font-medium cursor-pointer"
+                                      onClick={() =>
+                                        window.open(
+                                          `/client/applications/${app.id}`,
+                                          '_blank',
+                                          'noopener,noreferrer'
+                                        )
+                                      }
+                                      aria-label={isDraft ? t('client.applications.continueApplication') : t('client.applications.viewApplication')}
+                                    >
+                                      {isDraft ? (
+                                        <ArrowRight className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+
+                      {filteredApplications.length > PAGE_SIZE && (
+                        <div className={cn("flex items-center justify-between border-t pt-4 mt-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                          <p className={cn('text-xs text-muted-foreground', isRTL ? 'text-right' : 'text-left')}>
+                            {t('client.applications.table.pageOf').replace('{page}', String(safePage)).replace('{totalPages}', String(totalPages))}{' '}
+                            &mdash;{' '}
+                            {filteredApplications.length}{' '}
+                            {filteredApplications.length === 1 ? t('client.applications.table.record') : t('client.applications.table.records')}
+                          </p>
+                          <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 cursor-pointer"
+                              onClick={() => setPage((p) => Math.max(1, p - 1))}
+                              disabled={safePage === 1}
+                              aria-label={t('client.applications.previousPage')}
+                            >
+                              {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                            </Button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                              <Button
+                                key={p}
+                                type="button"
+                                variant={p === safePage ? 'default' : 'outline'}
+                                size="icon"
+                                className={`h-8 w-8 text-xs cursor-pointer ${
+                                  p === safePage
+                                    ? 'bg-emerald-700 hover:bg-emerald-800 border-emerald-700'
+                                    : ''
+                                }`}
+                                onClick={() => setPage(p)}
+                                aria-label={t('client.applications.pageLabel').replace('{page}', String(p))}
+                              >
+                                {p}
+                              </Button>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 cursor-pointer"
+                              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={safePage === totalPages}
+                              aria-label={t('client.applications.nextPage')}
+                            >
+                              {isRTL ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+    </MobileLayout>
   )
 }

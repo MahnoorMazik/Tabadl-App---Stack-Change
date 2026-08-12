@@ -6,6 +6,8 @@
 # On server: unzip tk-deployment.zip && ./deploy.sh
 
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = if ($env:PROJECT_ROOT) { $env:PROJECT_ROOT } else { $ScriptDir }
@@ -13,6 +15,9 @@ $ZipPath = Join-Path $ProjectRoot "tk-deployment.zip"
 $TempDir = Join-Path $env:TEMP "ta-deployment-$PID"
 $DeployRoot = $TempDir
 $DeploymentFolder = Join-Path $DeployRoot "deployment"
+Write-Host "DeployRoot: $DeployRoot"
+Write-Host "TempDir: $TempDir"
+Write-Host "DeploymentFolder: $DeploymentFolder"
 
 $ExcludeRegex = '/node_modules/|/\.next/|/\.git/|\.(db|log|sqlite)$|/__pycache__/|\.pyc$|/uploads/'
 
@@ -58,7 +63,9 @@ Write-Host "All required files found" -ForegroundColor Green
 # Type check (skip with $env:SKIP_TYPE_CHECK = "1")
 if ($env:SKIP_TYPE_CHECK -ne "1") {
     Write-Host "Running TypeScript type check..."
-    & pnpm run type-check 2>&1 | Out-Host
+	Write-Host "Mutahar"
+    & pnpm run type-check
+	Write-Host "LASTEXITCODE: $LASTEXITCODE"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Type check failed. Set SKIP_TYPE_CHECK=1 to skip." -ForegroundColor Red
         exit 1
@@ -68,7 +75,7 @@ if ($env:SKIP_TYPE_CHECK -ne "1") {
 
 # Prisma validate
 Write-Host "Validating Prisma schema..."
-& pnpm exec prisma validate 2>&1 | Out-Host
+& pnpm exec prisma validate
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Prisma schema invalid" -ForegroundColor Red
     exit 1
@@ -78,10 +85,13 @@ Write-Host "  Prisma schema valid" -ForegroundColor Green
 # Optional build (skip with $env:SKIP_BUILD = "1")
 if ($env:SKIP_BUILD -ne "1") {
     Write-Host "Running production build (verification only)..."
+	Write-Host "ProjectRoot: $ProjectRoot"
     if (Test-Path (Join-Path $ProjectRoot ".next")) {
+		
         Remove-Item (Join-Path $ProjectRoot ".next") -Recurse -Force -ErrorAction SilentlyContinue
     }
-    & pnpm run build 2>&1 | Out-Host
+    & pnpm run build
+	Write-Host "LASTEXITCODE: $LASTEXITCODE"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Build failed. Set SKIP_BUILD=1 to skip." -ForegroundColor Red
         exit 1
@@ -130,6 +140,7 @@ try {
     Get-ChildItem -Path $DeploymentFolder -Recurse -File | ForEach-Object {
         $rel = $_.FullName.Substring($DeploymentFolder.Length + 1).Replace('\', '/')
         $entryName = "deployment/" + $rel
+		Write-Host "entryName: $entryName"
         [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName) | Out-Null
     }
 } finally { $zip.Dispose() }

@@ -26,7 +26,7 @@ interface AuthContextType {
   user: User | null
   token: string | null
   login: (email: string, password: string, userType?: 'client' | 'staff') => Promise<void>
-  register: (data: RegisterData, userType?: 'client' | 'staff') => Promise<void>
+  register: (data: RegisterData, userType?: 'client' | 'staff') => Promise<{ requiresEmailVerification: boolean; email: string }>
   logout: (callbackUrl?: string) => Promise<void>
   loading: boolean
   permissionsLoading: boolean
@@ -35,6 +35,7 @@ interface AuthContextType {
 
 interface RegisterData {
   name: string
+  nameAr?: string
   email: string
   password: string
   companyName?: string
@@ -143,6 +144,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     if (result?.error) {
+      const code = String((result as { code?: string }).code || result.error || '')
+      if (
+        code === 'EMAIL_NOT_VERIFIED' ||
+        code.includes('EMAIL_NOT_VERIFIED')
+      ) {
+        throw new Error('EMAIL_NOT_VERIFIED')
+      }
       throw new Error(result.error === 'CredentialsSignin' ? 'Invalid credentials' : result.error)
     }
 
@@ -152,20 +160,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const register = async (data: RegisterData, userType: 'client' | 'staff' = 'client') => {
-    // Call the register API endpoint
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, userType }),
     })
 
+    const payload = await response.json()
+
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Registration failed')
+      throw new Error(payload.error || 'Registration failed')
     }
 
-    // Auto-login after registration
-    await login(data.email, data.password, userType)
+    return {
+      requiresEmailVerification: Boolean(payload.data?.requiresEmailVerification),
+      email: payload.data?.email || data.email,
+    }
   }
 
   const logout = async (callbackUrl = '/') => {

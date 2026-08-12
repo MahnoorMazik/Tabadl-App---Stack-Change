@@ -11,8 +11,7 @@ import {
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard,
   ChevronDown, ChevronRight, Menu, X, Globe, Tag, History, Activity, Bell, CreditCard, Bot,
-  Briefcase, Package, PlusCircle,
-  Folder
+  Briefcase, Package, PlusCircle, Layers, Folder
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -86,24 +85,24 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     ]
   },
   {
-    title: 'Services',
+    title: t('admin.sidebar.services'),
     icon: Briefcase,
     permission: `${Module.SERVICES}.${Action.VIEW}`,
     children: [
       {
-        title: 'Services Catalog',
+        title: t('admin.sidebar.servicesCatalog'),
         icon: Briefcase,
         href: '/admin/services',
         permission: `${Module.SERVICES}.${Action.VIEW}`
       },
       {
-        title: 'Packages',
+        title: t('admin.sidebar.packages'),
         icon: Package,
         href: '/admin/services/packages',
         permission: `${Module.SERVICES}.${Action.VIEW}`
       },
       {
-        title: 'Add-on Services',
+        title: t('admin.sidebar.addOnServices'),
         icon: PlusCircle,
         href: '/admin/services/add-ons',
         permission: `${Module.SERVICES}.${Action.VIEW}`
@@ -116,16 +115,16 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     permission: `${Module.APPLICATIONS}.${Action.VIEW}`,
     children: [
       {
+        title: t('admin.sidebar.createApplication'),
+        icon: Layers,
+        href: '/admin/services/wizards',
+        permission: `${Module.SERVICES}.${Action.VIEW}`
+      },
+      {
         title: t('admin.sidebar.allApplications'),
         icon: FileText,
         href: '/admin/applications',
         permission: `${Module.APPLICATIONS}.${Action.VIEW}`
-      },
-      {
-        title: t('admin.sidebar.tasks'),
-        icon: CheckCircle,
-        href: '/admin/applications/tasks',
-        permission: `${Module.TASKS}.${Action.VIEW}`
       }
     ]
   },
@@ -166,7 +165,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     permission: `${Module.TEAM}.${Action.VIEW}`,
     children: [
       {
-        title: 'Users',
+        title: t('admin.sidebar.users'),
         icon: Users,
         href: '/admin/users',
         permission: `${Module.USER_MANAGEMENT}.${Action.VIEW}`
@@ -308,19 +307,19 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         permission: `${Module.SETTINGS}.${Action.VIEW}`
       },
       {
-        title: 'Payment Gateway',
+        title: t('admin.sidebar.paymentGateway'),
         icon: CreditCard,
         href: '/admin/settings/payment-gateway',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
       },
       {
-        title: 'AI Chatbot',
+        title: t('admin.sidebar.aiChatbot'),
         icon: Bot,
         href: '/admin/settings/chatbot',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
       },
       {
-        title: 'Notification Events',
+        title: t('admin.sidebar.notificationEvents'),
         icon: Bell,
         href: '/admin/notifications/events',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
@@ -334,18 +333,18 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
     ]
   },
   {
-    title: 'Audit',
+    title: t('admin.sidebar.audit'),
     icon: History,
     permission: `${Module.AUDIT}.${Action.VIEW}`,
     children: [
       {
-        title: 'Audit Logs',
+        title: t('admin.sidebar.auditLogs'),
         icon: History,
         href: '/admin/audit-logs',
         permission: `${Module.AUDIT}.${Action.VIEW}`
       },
       {
-        title: 'User Activity',
+        title: t('admin.sidebar.userActivity'),
         icon: Activity,
         href: '/admin/audit-logs/activity',
         permission: `${Module.AUDIT}.${Action.VIEW}`
@@ -466,7 +465,6 @@ export function PermissionAwareSidebar({ className, isCollapsed = false, onToggl
 
     // Hide applications, financials, reports, and documents sections
     const hiddenModuleTitles = [
-      t('admin.sidebar.applications'),
       t('admin.sidebar.financial'),
       t('admin.sidebar.reports'),
       t('admin.sidebar.documents')

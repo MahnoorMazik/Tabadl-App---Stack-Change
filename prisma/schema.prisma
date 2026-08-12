@@ -219,13 +219,13 @@ model User {
   accounts                Account[]
   sessions                Session[]
   supportTickets          SupportTicket[]
+  collaborations             ClientCollaborator[]          @relation("CollaboratorUser")
 
   @@index([email, isDeleted])
   @@index([isDeleted])
   @@map("users")
 }
 
-// NextAuth.js required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -313,12 +313,12 @@ model Application {
   deletedAt         DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  approvedBy        User?             @relation("ApplicationApprovedBy", fields: [approvedById], references: [id])
-  assignedTo        User?             @relation("ApplicationAssignedTo", fields: [assignedToId], references: [id])
   client            Client            @relation(fields: [clientId], references: [id])
+  assignedTo        User?             @relation("ApplicationAssignedTo", fields: [assignedToId], references: [id])
+  approvedBy        User?             @relation("ApplicationApprovedBy", fields: [approvedById], references: [id])
   documents         Document[]
-  tasks             Task[]
   messages          Message[]
+  tasks             Task[]
 
   @@index([isDeleted])
   @@index([clientId, isDeleted])
@@ -360,11 +360,46 @@ model Client {
 
   profileCompletionStatus ProfileCompletionStatus @default(INCOMPLETE)
   profileCompletedAt      DateTime?
+  // applications            Application[]
+  // profileDocuments        ClientProfileDocument[]
+  // servicePackage          ServicePackage?         @relation(fields: [servicePackageId], references: [id])
+  // user                    User                    @relation(fields: [userId], references: [id])
+  // group                   ClientGroup?            @relation(fields: [groupId], references: [id])
+  // documents               Document[]
+  // invoices                Invoice[]
+  // leads                   Lead[]
+  // paymentIntents          PaymentIntent[]
+  // payments                Payment[]
+  wizardApplications      WizardApplication[]
+  collaborators           ClientCollaborator[]
 
   @@index([email, isDeleted])
   @@index([isDeleted])
   @@index([profileCompletionStatus])
   @@map("clients")
+}
+
+model ClientCollaborator {
+  id                 String                    @id @default(cuid())
+  clientId           String
+  collaboratorUserId String?
+  inviteEmail        String
+  inviteToken        String                    @unique
+  status             CollaborationInviteStatus @default(PENDING)
+  invitedAt          DateTime                  @default(now())
+  acceptedAt         DateTime?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  client             Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  collaboratorUser   User?                     @relation("CollaboratorUser", fields: [collaboratorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, inviteEmail])
+  @@index([inviteEmail, status])
+  @@index([collaboratorUserId, status])
+  @@index([status])
+  @@map("client_collaborators")
 }
 
 model Document {
@@ -446,8 +481,8 @@ model ServicePackage {
   sortOrder    Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  services     PackageService[]
   clients      Client[]
+  services     PackageService[]
 
   @@map("service_packages")
 }
@@ -456,8 +491,8 @@ model PackageService {
   id        String          @id @default(cuid())
   packageId String
   serviceId String
-  package   ServicePackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
   service   BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  package   ServicePackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@unique([packageId, serviceId])
   @@map("package_services")
@@ -480,9 +515,209 @@ model AdditionalService {
   @@map("additional_services")
 }
 
+model FormField {
+  id             String                    @id @default(cuid())
+  label          String
+  type           FormFieldType
+  options        String?
+  helpText       String?
+  placeholder    String?
+  isActive       Boolean                   @default(true)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  templateFields FormTemplateField[]
+  wizardAnswers  WizardApplicationAnswer[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("form_fields")
+}
+
+model FormTemplate {
+  id             String                  @id @default(cuid())
+  name           String
+  description    String?
+  isActive       Boolean                 @default(true)
+  isDeleted      Boolean                 @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  areaOfInterest AreaOfInterest?
+  wizardSteps    ApplicationWizardStep[]
+  fields         FormTemplateField[]
+  services       FormTemplateService[]
+  createdBy      User                    @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("form_templates")
+}
+
+model FormTemplateField {
+  id            String       @id @default(cuid())
+  templateId    String
+  fieldId       String
+  sortOrder     Int          @default(0)
+  isRequired    Boolean      @default(false)
+  labelOverride String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  field         FormField    @relation(fields: [fieldId], references: [id])
+  template      FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, fieldId])
+  @@index([templateId, sortOrder])
+  @@index([fieldId])
+  @@map("form_template_fields")
+}
+
+model FormTemplateService {
+  id         String          @id @default(cuid())
+  templateId String
+  serviceId  String          @unique
+  createdAt  DateTime        @default(now())
+  service    BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  template   FormTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, serviceId])
+  @@index([templateId])
+  @@map("form_template_services")
+}
+
+model ApplicationWizard {
+  id             String                     @id @default(cuid())
+  name           String
+  areaOfInterest AreaOfInterest
+  isActive       Boolean                    @default(true)
+  isDeleted      Boolean                    @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  services       ApplicationWizardService[]
+  steps          ApplicationWizardStep[]
+  createdBy      User                       @relation("ApplicationWizardCreatedBy", fields: [createdById], references: [id])
+  applications   WizardApplication[]
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("application_wizards")
+}
+
+model ApplicationWizardStep {
+  id              String            @id @default(cuid())
+  wizardId        String
+  formTemplateId  String
+  sortOrder       Int               @default(0)
+  paymentRequired Boolean           @default(false)
+  approvalRequired Boolean          @default(false)
+  adminUseOnly    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+  answers          WizardApplicationAnswer[]
+  stepReviews      WizardApplicationStepReview[]
+
+  @@unique([wizardId, formTemplateId])
+  @@index([wizardId, sortOrder])
+  @@index([formTemplateId])
+  @@map("application_wizard_steps")
+}
+
+model WizardApplication {
+  id                String                        @id @default(cuid())
+  applicationNumber String                        @unique
+  clientId          String
+  wizardId          String
+  areaOfInterest    AreaOfInterest
+  status            WizardApplicationStatus       @default(DRAFT)
+  currentStepIndex  Int                           @default(0)
+  adminNotes        String?
+  submittedAt       DateTime?
+  assignedToId      String?
+  isDeleted         Boolean                       @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+  answers           WizardApplicationAnswer[]
+  stepReviews       WizardApplicationStepReview[]
+  assignedTo        User?                         @relation("WizardApplicationAssignedTo", fields: [assignedToId], references: [id])
+  wizard            ApplicationWizard             @relation(fields: [wizardId], references: [id])
+  client            Client                        @relation(fields: [clientId], references: [id])
+
+  @@index([isDeleted])
+  @@index([wizardId])
+  @@index([status])
+  @@index([areaOfInterest])
+  @@index([clientId])
+  @@map("wizard_applications")
+}
+
+model WizardApplicationAnswer {
+  id            String                @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  fieldId       String
+  value         String?
+  fileUrl       String?
+  updatedById   String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  updatedBy     User                  @relation("WizardAnswerUpdatedBy", fields: [updatedById], references: [id])
+  field         FormField             @relation(fields: [fieldId], references: [id])
+  wizardStep    ApplicationWizardStep @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  application   WizardApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, wizardStepId, fieldId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@map("wizard_application_answers")
+}
+
+model WizardApplicationStepReview {
+  id            String                   @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  status        WizardStepApprovalStatus @default(PENDING)
+  rejectionNote String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  reviewedBy    User?                    @relation("WizardStepReviewedBy", fields: [reviewedById], references: [id])
+  wizardStep    ApplicationWizardStep    @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  application   WizardApplication        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, wizardStepId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@index([status])
+  @@map("wizard_application_step_reviews")
+}
+
+model ApplicationWizardService {
+  id        String            @id @default(cuid())
+  wizardId  String
+  serviceId String
+  createdAt DateTime          @default(now())
+  service   BusinessService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  wizard    ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+
+  @@unique([wizardId, serviceId])
+  @@index([wizardId])
+  @@index([serviceId])
+  @@map("application_wizard_services")
+}
+
 model PaymentPhaseTemplate {
   id          String   @id @default(cuid())
-  phaseNumber Int
+  phaseNumber Int      @unique
   name        String
   description String?
   percentage  Float
@@ -491,7 +726,6 @@ model PaymentPhaseTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([phaseNumber])
   @@map("payment_phase_templates")
 }
 
@@ -523,8 +757,8 @@ model ClientProfileDocument {
   reviewedAt    DateTime?
   createdAt     DateTime                   @default(now())
   updatedAt     DateTime                   @updatedAt
-  client        Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
   requirement   ProfileDocumentRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  client        Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, requirementId])
   @@index([clientId])
@@ -545,8 +779,8 @@ model Task {
   deletedAt     DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-  application   Application  @relation(fields: [applicationId], references: [id])
   assignedTo    User?        @relation(fields: [assignedToId], references: [id])
+  application   Application  @relation(fields: [applicationId], references: [id])
 
   @@index([isDeleted])
   @@index([applicationId, isDeleted])
@@ -565,8 +799,8 @@ model Expense {
   createdById  String
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  approvedBy   User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
   createdBy    User            @relation("ExpenseCreator", fields: [createdById], references: [id])
+  approvedBy   User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
 
   @@map("expenses")
 }
@@ -608,8 +842,8 @@ model Payment {
   paymentDate          DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
-  invoice              Invoice?      @relation(fields: [invoiceId], references: [id])
   client               Client        @relation(fields: [clientId], references: [id])
+  invoice              Invoice?      @relation(fields: [invoiceId], references: [id])
 
   @@index([edfaPayOrderId])
   @@index([edfaPayTransactionId])
@@ -627,8 +861,8 @@ model PaymentIntent {
   amount    Float
   gateway   String   @default("EdfaPay")
   createdAt DateTime @default(now())
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([invoiceId])
@@ -656,7 +890,7 @@ model Lead {
   fullName         String
   email            String
   phone            String?
-  normalizedPhone  String? // Normalized phone for efficient duplicate checking
+  normalizedPhone  String?
   companyName      String?
   companyType      String?
   natureOfBusiness String?
@@ -669,22 +903,22 @@ model Lead {
   source           String?
   notes            String?
   assignedToId     String?
-  createdById      String? // Track who created the lead
+  createdById      String?
   clientId         String?
-  duplicateGroupId String? // Groups duplicates together
+  duplicateGroupId String?
   isDuplicate      Boolean        @default(false)
   duplicateCount   Int            @default(1)
   isDeleted        Boolean        @default(false)
   deletedAt        DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  client           Client?        @relation(fields: [clientId], references: [id])
-  assignedTo       User?          @relation(fields: [assignedToId], references: [id])
-  createdBy        User?          @relation("LeadCreator", fields: [createdById], references: [id])
   documents        Document[]
-  leadNotes        LeadNote[]
   leadFollowUps    LeadFollowUp[]
+  leadNotes        LeadNote[]
   status           LeadStatus?    @relation("LeadStatusToLead", fields: [statusId], references: [id])
+  createdBy        User?          @relation("LeadCreator", fields: [createdById], references: [id])
+  assignedTo       User?          @relation(fields: [assignedToId], references: [id])
+  client           Client?        @relation(fields: [clientId], references: [id])
 
   @@index([normalizedPhone])
   @@index([isDeleted])
@@ -711,8 +945,8 @@ model LeadNote {
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  lead        Lead     @relation(fields: [leadId], references: [id])
   createdBy   User     @relation(fields: [createdById], references: [id])
+  lead        Lead     @relation(fields: [leadId], references: [id])
 
   @@map("lead_notes")
 }
@@ -724,11 +958,11 @@ model LeadFollowUp {
   scheduledAt    DateTime
   leadId         String
   createdById    String
-  reminderSentAt DateTime? // When "follow-up time near" push was sent (so we don't send twice)
+  reminderSentAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  lead           Lead      @relation(fields: [leadId], references: [id])
   createdBy      User      @relation(fields: [createdById], references: [id])
+  lead           Lead      @relation(fields: [leadId], references: [id])
 
   @@index([leadId])
   @@index([scheduledAt])
@@ -744,8 +978,8 @@ model Message {
   isRead        Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  application   Application @relation(fields: [applicationId], references: [id])
   sender        User        @relation("MessageSender", fields: [senderId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
 
   @@map("messages")
 }
@@ -757,12 +991,12 @@ model SupportMessage {
   visitorName   String?
   visitorEmail  String?
   isFromVisitor Boolean   @default(true)
-  isBot         Boolean   @default(false)
   status        String    @default("SENT")
   staffId       String?
   isDeleted     Boolean   @default(false)
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
+  isBot         Boolean   @default(false)
 
   @@index([isDeleted])
   @@index([staffId, isDeleted])
@@ -778,6 +1012,9 @@ model SupportConversation {
   visitorName   String?
   visitorEmail  String?
   handedOffAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastMessageAt DateTime  @default(now())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastMessageAt DateTime  @default(now())
@@ -825,13 +1062,13 @@ model Notification {
   title      String
   message    String
   type       String    @default("info")
-  entityType String?
-  entityId   String?
   isRead     Boolean   @default(false)
   isPinned   Boolean   @default(false)
   isDeleted  Boolean   @default(false)
   deletedAt  DateTime?
   createdAt  DateTime  @default(now())
+  entityType String?
+  entityId   String?
   updatedAt  DateTime  @default(now()) @updatedAt
   user       User      @relation(fields: [userId], references: [id])
 
@@ -925,7 +1162,7 @@ model PushSubscription {
   endpoint  String   @unique
   p256dh    String
   auth      String
-  userAgent String? // Browser/device info for debugging
+  userAgent String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -955,17 +1192,28 @@ model EmailSettings {
   welcomeEmailBody               String
   contactEmail                   String?
   contactPhone                   String?
-  businessConsultationRecipients String? // JSON array of email addresses
-  staffWhatsAppNumbers           String? // JSON array of phone numbers for staff notifications
-  enableWhatsAppNotifications    Boolean  @default(true) // Enable/disable WhatsApp notifications
-  whatsappAccessToken            String? // WhatsApp Business API access token
-  whatsappApiVersion             String? // WhatsApp API version (e.g., v21.0)
-  whatsappPhoneNumberId          String? // WhatsApp Business phone number ID
-  whatsappDocumentUrl            String? // URL of document to send in WhatsApp template (optional)
+  businessConsultationRecipients String?
+  staffWhatsAppNumbers           String?
+  enableWhatsAppNotifications    Boolean  @default(true)
+  whatsappAccessToken            String?
+  whatsappApiVersion             String?
+  whatsappPhoneNumberId          String?
+  whatsappDocumentUrl            String?
   createdAt                      DateTime @default(now())
   updatedAt                      DateTime @updatedAt
 
   @@map("email_settings")
+}
+
+/// Singleton-style system preferences (one active row).
+model GeneralSettings {
+  id                             String   @id @default(cuid())
+  clientEmailNotifications       Boolean  @default(true)
+  clientWhatsAppNotifications    Boolean  @default(true)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@map("general_settings")
 }
 
 enum ProfileCompletionStatus {
@@ -990,6 +1238,14 @@ enum UserRole {
   CLIENT
   STAFF
   ADMIN
+  COLLABORATOR
+}
+
+enum CollaborationInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
 
 enum StaffType {
@@ -1002,6 +1258,22 @@ enum StaffType {
 enum ApplicationStatus {
   PENDING
   IN_PROGRESS
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum WizardStepApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WizardApplicationStatus {
+  DRAFT
+  PENDING
+  IN_PROGRESS
+  HARD_COPY_REQUIRED
   APPROVED
   REJECTED
   COMPLETED
@@ -1060,4 +1332,24 @@ enum LeadStatusType {
   WON
   LOST
   OTHER
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  EMAIL
+  PHONE
+  DATE
+  SELECT
+  CHECKBOX
+  RADIO
+  FILE
+  INSTRUCTION
+}
+
+enum AreaOfInterest {
+  CR
+  PR
+  GR
 }
