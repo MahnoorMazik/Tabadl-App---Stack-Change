@@ -15,7 +15,7 @@ type InviteData = {
   status: string
   inviteEmail: string
   client: { id: string; name: string; email: string; company: string | null; clientNumber: string }
-  existingCollaborator: { id: string; name: string | null; email: string } | null
+  existingCollaborator: { id: string; name: string | null; email: string; phone: string | null } | null
   canAccept: boolean
 }
 
@@ -28,6 +28,7 @@ export default function AcceptCollaboratorInvitePage() {
   const [invite, setInvite] = useState<InviteData | null>(null)
   const [error, setError] = useState('')
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -43,8 +44,13 @@ export default function AcceptCollaboratorInvitePage() {
         if (!res.ok) throw new Error(data.error || 'Invite not found')
         if (!cancelled) {
           setInvite(data.data)
+          // ✅ Only set name if it exists and is not null
           if (data.data?.existingCollaborator?.name) {
             setName(data.data.existingCollaborator.name)
+          }
+          // ✅ Only set phone if it exists and is not null
+          if (data.data?.existingCollaborator?.phone) {
+            setPhone(data.data.existingCollaborator.phone)
           }
         }
       } catch (err: any) {
@@ -70,6 +76,10 @@ export default function AcceptCollaboratorInvitePage() {
         setError('Please enter your full name')
         return
       }
+      if (!phone.trim() || phone.trim().length < 10) {
+        setError('Please enter a valid phone number (minimum 10 characters)')
+        return
+      }
       if (password.length < 6) {
         setError('Password must be at least 6 characters')
         return
@@ -86,7 +96,7 @@ export default function AcceptCollaboratorInvitePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          needsSignup ? { name: name.trim(), password } : {}
+          needsSignup ? { name: name.trim(), password, phone: phone.trim() } : {}
         ),
       })
       const data = await res.json()
@@ -95,16 +105,8 @@ export default function AcceptCollaboratorInvitePage() {
       setSuccess(true)
 
       if (needsSignup) {
-        const loginResult = await signIn('credentials', {
-          email: invite.inviteEmail,
-          password,
-          userType: 'client',
-          redirect: false,
-        })
-        if (loginResult?.ok) {
-          router.push('/client/applications')
-          return
-        }
+        router.push('/collaborator/signup')
+        return
       }
 
       setTimeout(() => router.push('/login'), 2000)
@@ -149,7 +151,9 @@ export default function AcceptCollaboratorInvitePage() {
             <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800">
               <CheckCircle className="h-4 w-4 text-emerald-600" />
               <AlertDescription>
-                Invite accepted. Redirecting to login…
+                {needsSignup 
+                  ? 'Account created! Redirecting to collaborator signup page...' 
+                  : 'Invite accepted. Redirecting to login…'}
               </AlertDescription>
             </Alert>
           )}
@@ -179,11 +183,30 @@ export default function AcceptCollaboratorInvitePage() {
                     <Label htmlFor="name">Full name</Label>
                     <Input
                       id="name"
+                      type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your full name"
                       required
                       disabled={submitting}
+                      className="bg-white"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g., +971501234567"
+                      required
+                      disabled={submitting}
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter phone number with country code
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Create password</Label>
@@ -192,8 +215,10 @@ export default function AcceptCollaboratorInvitePage() {
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
                       required
                       disabled={submitting}
+                      className="bg-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -203,8 +228,10 @@ export default function AcceptCollaboratorInvitePage() {
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter your password"
                       required
                       disabled={submitting}
+                      className="bg-white"
                     />
                   </div>
                 </>
