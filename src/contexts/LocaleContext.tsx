@@ -669,7 +669,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.supportMessaging": "Support Messaging",
     "admin.sidebar.supportTickets": "Support Tickets",
     "admin.sidebar.Categories": "Categories",
-    "admin.sidebar.Assigned": "Assignes",
+    "admin.sidebar.Assigned": "Assigne",
     "admin.sidebar.templates": "Templates",
     "admin.sidebar.reports": "Reports",
     "admin.sidebar.clientReports": "Client Reports",

@@ -389,7 +389,7 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
       {
         title: t('admin.sidebar.Assigned'),
         icon: Users,
-        href: '/admin/help/assigned',
+        href: '/admin/help/assigne',
         permission: `${Module.HELP}.${Action.VIEW}`
       }
     ]

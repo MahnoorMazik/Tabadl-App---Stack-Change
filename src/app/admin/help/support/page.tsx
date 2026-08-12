@@ -1,3 +1,5 @@
+
+
 "use client";
 
 // ============================================
@@ -370,8 +372,8 @@ const getChildCategories = (categories: TicketCategory[]): TicketCategory[] => {
 // };
 // Get flat list of child categories only (for child ticket dropdown)
 const getFlatChildCategories = (categories: TicketCategory[]): any[] => {
-  // Collect ONLY true leaf nodes (have parent, no children).
-  // Parent categories used by main tickets never appear here.
+  // ONLY true leaf nodes: has parentId AND no children.
+  // Root/parent categories are NEVER included.
   const leaves: TicketCategory[] = [];
 
   const walk = (items: TicketCategory[]) => {
@@ -387,23 +389,24 @@ const getFlatChildCategories = (categories: TicketCategory[]): any[] => {
       } else if (hasParent) {
         leaves.push(item);
       }
-      // roots (no parent) are never added — they stay for parent tickets only
     });
   };
 
   walk(categories);
 
-  console.log(
-    "🔍 FINAL Leaf Categories for Child Tickets:",
-    leaves.map((c) => ({ id: c.id, name: c.name, parentId: c.parentId })),
-  );
-
-  return leaves.map((cat) => ({
-    id: cat.id,
-    name: cat.name,
-    parentId: cat.parentId,
-    level: cat.level || 0,
-  }));
+  return leaves
+    .filter(
+      (cat) =>
+        cat.parentId !== null &&
+        cat.parentId !== undefined &&
+        cat.parentId !== "",
+    )
+    .map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      parentId: cat.parentId,
+      level: cat.level || 0,
+    }));
 };
 // Get flat list of parent categories only (for parent ticket dropdown)
 const getFlatParentCategories = (categories: TicketCategory[]): any[] => {
@@ -523,6 +526,7 @@ export default function SupportTicketsPage() {
     priority: "medium",
     category: "",
     assignedToId: "",
+    parentTicketId: "",
   });
   const [childEditAttachments, setChildEditAttachments] = useState<File[]>([]);
   const [childEditExistingAttachments, setChildEditExistingAttachments] =
@@ -633,6 +637,20 @@ export default function SupportTicketsPage() {
   const [isEditingChildTicket, setIsEditingChildTicket] = useState(false);
   const [categoriesWithIndent, setCategoriesWithIndent] = useState<any[]>([]);
 
+  // Nested children (child → child) when editing a child ticket
+  const [subChildTicketsList, setSubChildTicketsList] = useState<
+    SupportTicket[]
+  >([]);
+  const [loadingSubChildTickets, setLoadingSubChildTickets] = useState(false);
+
+  // Which ticket will be the parent when creating a new child
+  const [creatingChildUnderId, setCreatingChildUnderId] = useState<
+    string | null
+  >(null);
+
+  // Stack for unlimited nested child edit navigation (Back button)
+  const [childEditStack, setChildEditStack] = useState<SupportTicket[]>([]);
+
   // ============================================
   // CONSTANTS
   // ============================================
@@ -654,36 +672,18 @@ export default function SupportTicketsPage() {
   // API CALLS - Fetch Data
   // ============================================
 
-  // const fetchChildTickets = useCallback(
-  //   async (parentId: string) => {
-  //     if (!parentId) return;
 
-  //     setLoadingChildTickets(true);
-  //     try {
-  //       const response = await axios.get(`/api/support-tickets/children`, {
-  //         params: {
-  //           parentId: parentId,
-  //           excludeTicketId: parentId,
-  //         },
-  //         headers: token ? { Authorization: `Bearer ${token}` } : {},
-  //       });
-
-  //       const children = response.data?.data?.tickets || [];
-  //       setChildTicketsList(children);
-  //     } catch (error) {
-  //       console.error("Error fetching child tickets:", error);
-  //       setChildTicketsList([]);
-  //     } finally {
-  //       setLoadingChildTickets(false);
-  //     }
-  //   },
-  //   [token],
-  // );
   const fetchChildTickets = useCallback(
-    async (parentId: string) => {
+    async (parentId: string, options?: { forSubLevel?: boolean }) => {
       if (!parentId) return;
 
-      setLoadingChildTickets(true);
+      const forSubLevel = options?.forSubLevel === true;
+      if (forSubLevel) {
+        setLoadingSubChildTickets(true);
+      } else {
+        setLoadingChildTickets(true);
+      }
+
       try {
         const response = await axios.get(`/api/support-tickets/children`, {
           params: {
@@ -693,22 +693,59 @@ export default function SupportTicketsPage() {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
-        const children = response.data?.data?.tickets || [];
+        const rawChildren: SupportTicket[] =
+          response.data?.data?.tickets || [];
 
-        // Dialog list
-        setChildTicketsList(children);
+        // Detect nested hasChildren so chevron shows on child-of-child levels
+        const children: SupportTicket[] = await Promise.all(
+          rawChildren.map(async (c) => {
+            let hasKids =
+              c.hasChildren === true ||
+              (c.childTickets?.length ?? 0) > 0 ||
+              !!(c as any)._count?.childTickets ||
+              !!(c as any)._count?.children;
 
-        // Main table cache bhi update
-        const uniqueMap = new Map<string, SupportTicket>();
-        children.forEach((c: SupportTicket) => {
-          if (!uniqueMap.has(c.id)) {
-            uniqueMap.set(c.id, {
+            if (!hasKids && c.hasChildren !== false) {
+              try {
+                const probe = await axios.get(
+                  "/api/support-tickets/children",
+                  {
+                    params: {
+                      parentId: c.id,
+                      excludeTicketId: c.id,
+                      limit: 1,
+                    },
+                    headers: token
+                      ? { Authorization: `Bearer ${token}` }
+                      : {},
+                  },
+                );
+                const kids = probe.data?.data?.tickets || [];
+                hasKids = kids.length > 0;
+              } catch {
+                hasKids = false;
+              }
+            }
+
+            return {
               ...c,
+              hasChildren: hasKids,
               _isChild: true,
               _parentId: parentId,
               _depth: 1,
-            });
-          }
+            };
+          }),
+        );
+
+        if (forSubLevel) {
+          setSubChildTicketsList(children);
+        } else {
+          setChildTicketsList(children);
+        }
+
+        const uniqueMap = new Map<string, SupportTicket>();
+        children.forEach((c) => {
+          if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c);
         });
 
         setTicketChildrenCache((prev) => ({
@@ -717,9 +754,17 @@ export default function SupportTicketsPage() {
         }));
       } catch (error) {
         console.error("Error fetching child tickets:", error);
-        setChildTicketsList([]);
+        if (forSubLevel) {
+          setSubChildTicketsList([]);
+        } else {
+          setChildTicketsList([]);
+        }
       } finally {
-        setLoadingChildTickets(false);
+        if (forSubLevel) {
+          setLoadingSubChildTickets(false);
+        } else {
+          setLoadingChildTickets(false);
+        }
       }
     },
     [token],
@@ -1031,9 +1076,52 @@ export default function SupportTicketsPage() {
       setEditCommentAttachments([]);
 
       toast({ title: "Success", description: "Ticket updated successfully" });
+
+      // Parents that may need a fresh children list after this update
+      const oldParentId =
+        editingTicket.parentId ||
+        editingTicket.parentTicket?.id ||
+        editingTicket._parentId ||
+        "";
+      const newParentId =
+        formData.parentTicketId === "none" || !formData.parentTicketId
+          ? ""
+          : formData.parentTicketId;
+      const ticketId = editingTicket.id;
+
       setShowEditDialog(false);
       resetEditForm();
+
+      // Drop cached children so hierarchy rebuilds with new parent links
+      setTicketChildrenCache((prev) => {
+        const next = { ...prev };
+        delete next[ticketId];
+        if (oldParentId) delete next[oldParentId];
+        if (newParentId) delete next[newParentId];
+        return next;
+      });
+      setExpandedTickets((prev) => {
+        const next = { ...prev };
+        delete next[ticketId];
+        if (oldParentId) delete next[oldParentId];
+        if (newParentId) delete next[newParentId];
+        return next;
+      });
+
+      // Auto-refresh main table (no manual page reload)
       await fetchTickets();
+
+      // Refresh child lists for old/new parents so tree updates immediately
+      const parentsToRefresh = Array.from(
+        new Set([oldParentId, newParentId].filter(Boolean)),
+      );
+      for (const pid of parentsToRefresh) {
+        try {
+          await fetchChildTickets(pid);
+        } catch {
+          /* ignore */
+        }
+      }
     } catch (error: any) {
       console.error("Update Error:", error);
       toast({
@@ -1048,11 +1136,30 @@ export default function SupportTicketsPage() {
 
   const handleDelete = async () => {
     if (!deletingTicket) return;
+    const deletedId = deletingTicket.id;
     setDeleting(true);
 
     try {
-      await axios.delete(`/api/support-tickets/${deletingTicket.id}`, {
+      await axios.delete(`/api/support-tickets/${deletedId}`, {
         headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Remove from all UI lists immediately
+      setTickets((prev) => prev.filter((t) => t.id !== deletedId));
+      setChildTicketsList((prev) => prev.filter((t) => t.id !== deletedId));
+      setSubChildTicketsList((prev) => prev.filter((t) => t.id !== deletedId));
+      setTicketChildrenCache((prev) => {
+        const next: Record<string, SupportTicket[]> = {};
+        Object.keys(prev).forEach((pid) => {
+          if (pid === deletedId) return;
+          next[pid] = prev[pid].filter((t) => t.id !== deletedId);
+        });
+        return next;
+      });
+      setExpandedTickets((prev) => {
+        const next = { ...prev };
+        delete next[deletedId];
+        return next;
       });
 
       toast({ title: "Success", description: "Ticket deleted successfully" });
@@ -1138,6 +1245,18 @@ export default function SupportTicketsPage() {
       return next;
     });
 
+    // 3. Optimistic update in dialog child lists
+    setChildTicketsList((prev) =>
+      prev.map((c) =>
+        c.id === ticketId ? { ...c, status: newStatus as any } : c,
+      ),
+    );
+    setSubChildTicketsList((prev) =>
+      prev.map((c) =>
+        c.id === ticketId ? { ...c, status: newStatus as any } : c,
+      ),
+    );
+
     try {
       await axios.put(
         `/api/support-tickets/${ticketId}`,
@@ -1145,10 +1264,9 @@ export default function SupportTicketsPage() {
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
 
-      await fetchTickets(); // parents refresh
+      await fetchTickets();
       toast({ title: "Success", description: "Ticket updated" });
     } catch (error: any) {
-      // Revert
       if (ticket) {
         setTickets((prev) =>
           prev.map((t) =>
@@ -1157,7 +1275,6 @@ export default function SupportTicketsPage() {
         );
       }
 
-      // Revert cache bhi
       setTicketChildrenCache((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((parentId) => {
@@ -1180,16 +1297,86 @@ export default function SupportTicketsPage() {
     }
   };
 
+  // const handleQuickAssigneeUpdate = async (
+  //   ticketId: string,
+  //   assigneeId: string | null,
+  // ) => {
+  //   setAssigneeUpdating(ticketId);
+  //   const ticket = tickets.find((t) => t.id === ticketId);
+  //   const selectedAssignee = assigneeId
+  //     ? assignees.find((a) => a.id === assigneeId)
+  //     : null;
+
+  //   setTickets((prev) =>
+  //     prev.map((t) => {
+  //       if (t.id === ticketId) {
+  //         if (assigneeId === "unassigned" || assigneeId === null) {
+  //           const { assignedTo, ...rest } = t;
+  //           return { ...rest, assignedTo: undefined };
+  //         } else if (selectedAssignee) {
+  //           return {
+  //             ...t,
+  //             assignedTo: {
+  //               id: selectedAssignee.id,
+  //               name: selectedAssignee.name,
+  //               email: selectedAssignee.email || "",
+  //               avatar: selectedAssignee.avatar,
+  //               role: selectedAssignee.role,
+  //             },
+  //           };
+  //         }
+  //       }
+  //       return t;
+  //     }),
+  //   );
+
+  //   try {
+  //     await axios.put(
+  //       `/api/support-tickets/${ticketId}`,
+  //       { assignedToId: assigneeId === "unassigned" ? null : assigneeId },
+  //       { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  //     );
+  //     await fetchTickets();
+  //     toast({ title: "Success", description: "Ticket updated" });
+  //   } catch (error: any) {
+  //     if (ticket) {
+  //       setTickets((prev) =>
+  //         prev.map((t) =>
+  //           t.id === ticketId ? { ...t, assignedTo: ticket.assignedTo } : t,
+  //         ),
+  //       );
+  //     }
+  //     toast({
+  //       title: "Error",
+  //       description: error.response?.data?.error || "Update failed",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setAssigneeUpdating(null);
+  //   }
+  // };
+
+  // ============================================
+  // HANDLERS - File/Attachment
+  // ============================================
+
   const handleQuickAssigneeUpdate = async (
     ticketId: string,
     assigneeId: string | null,
   ) => {
     setAssigneeUpdating(ticketId);
-    const ticket = tickets.find((t) => t.id === ticketId);
+
+    const ticket =
+      tickets.find((t) => t.id === ticketId) ||
+      Object.values(ticketChildrenCache)
+        .flat()
+        .find((t) => t.id === ticketId);
+
     const selectedAssignee = assigneeId
       ? assignees.find((a) => a.id === assigneeId)
       : null;
 
+    // 1. Optimistic update - main tickets (parents)
     setTickets((prev) =>
       prev.map((t) => {
         if (t.id === ticketId) {
@@ -1213,12 +1400,65 @@ export default function SupportTicketsPage() {
       }),
     );
 
+    // 2. Optimistic update - children cache (important for expanded rows)
+    setTicketChildrenCache((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((parentId) => {
+        next[parentId] = next[parentId].map((child) => {
+          if (child.id === ticketId) {
+            if (assigneeId === "unassigned" || assigneeId === null) {
+              const { assignedTo, ...rest } = child;
+              return { ...rest, assignedTo: undefined };
+            } else if (selectedAssignee) {
+              return {
+                ...child,
+                assignedTo: {
+                  id: selectedAssignee.id,
+                  name: selectedAssignee.name,
+                  email: selectedAssignee.email || "",
+                  avatar: selectedAssignee.avatar,
+                  role: selectedAssignee.role,
+                },
+              };
+            }
+          }
+          return child;
+        });
+      });
+      return next;
+    });
+
+    // 3. Optimistic update in dialog child lists
+    const applyAssignee = (c: SupportTicket) => {
+      if (c.id !== ticketId) return c;
+      if (assigneeId === "unassigned" || assigneeId === null) {
+        const { assignedTo, ...rest } = c;
+        return { ...rest, assignedTo: undefined };
+      }
+      if (selectedAssignee) {
+        return {
+          ...c,
+          assignedTo: {
+            id: selectedAssignee.id,
+            name: selectedAssignee.name,
+            email: selectedAssignee.email || "",
+            avatar: selectedAssignee.avatar,
+            role: selectedAssignee.role,
+          },
+        };
+      }
+      return c;
+    };
+    setChildTicketsList((prev) => prev.map(applyAssignee));
+    setSubChildTicketsList((prev) => prev.map(applyAssignee));
+
     try {
       await axios.put(
         `/api/support-tickets/${ticketId}`,
         { assignedToId: assigneeId === "unassigned" ? null : assigneeId },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
+
       await fetchTickets();
       toast({ title: "Success", description: "Ticket updated" });
     } catch (error: any) {
@@ -1229,6 +1469,19 @@ export default function SupportTicketsPage() {
           ),
         );
       }
+
+      setTicketChildrenCache((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((parentId) => {
+          next[parentId] = next[parentId].map((child) =>
+            child.id === ticketId && ticket
+              ? { ...child, assignedTo: ticket.assignedTo }
+              : child,
+          );
+        });
+        return next;
+      });
+
       toast({
         title: "Error",
         description: error.response?.data?.error || "Update failed",
@@ -1238,10 +1491,6 @@ export default function SupportTicketsPage() {
       setAssigneeUpdating(null);
     }
   };
-
-  // ============================================
-  // HANDLERS - File/Attachment
-  // ============================================
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -1514,7 +1763,7 @@ export default function SupportTicketsPage() {
       setEditCommentAttachments([]);
       toast({
         title: "Comment saved",
-        description: "New comment added to child ticket",
+        description: "New comment added to ticket",
       });
     } catch (error) {
       toast({
@@ -1845,29 +2094,65 @@ export default function SupportTicketsPage() {
   };
 
   const openEditDialog = async (ticket: SupportTicket) => {
+    // Open immediately with row data so fields aren't empty / late
+    const isChildQuick = !!(
+      ticket.parentId ||
+      ticket.parentTicket?.id ||
+      ticket._parentId ||
+      ticket._isChild
+    );
+    const quickCategory =
+      typeof ticket.category === "object" && ticket.category
+        ? (ticket.category as any).id || ""
+        : (ticket.category as string) || "";
+
+    setEditingTicket(ticket);
+    setIsEditingChildTicket(isChildQuick);
+    setEditExistingAttachments(ticket.attachments || []);
+    setEditAttachments([]);
+    setEditAttachmentsToDelete([]);
+    setEditSavedComments([]);
+    setEditCommentAttachments([]);
+    setEditCommentText("");
+    setEditingCommentId(null);
+    setEditingCommentText("");
+    setFormData({
+      title: ticket.title || "",
+      description: ticket.description || "",
+      status: ticket.status || "new",
+      priority: ticket.priority || "medium",
+      category: quickCategory,
+      comment: ticket.comment || "",
+      assignedToId: ticket.assignedTo?.id || "",
+      parentTicketId:
+        ticket.parentId ||
+        ticket.parentTicket?.id ||
+        ticket._parentId ||
+        "",
+    });
+    setShowEditDialog(true);
+
+    // Background refresh: details + children (don't block UI)
+    setViewDialogLoading(true);
     try {
-      setViewDialogLoading(true);
-      const response = await axios.get(`/api/support-tickets/${ticket.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [response] = await Promise.all([
+        axios.get(`/api/support-tickets/${ticket.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+        assignees.length === 0 ? fetchAssignees() : Promise.resolve(),
+        flatCategories.length === 0 ? fetchCategories() : Promise.resolve(),
+        fetchChildTickets(ticket.id),
+      ]);
+
       const fullTicket = response.data?.data || response.data;
-
-      await fetchAssignees();
-      await fetchCategories();
-
-      // ✅ CHECK: Is this a child ticket?
       const isChildTicket = !!(
         fullTicket.parentId ||
         fullTicket.parentTicket?.id ||
         fullTicket._parentId ||
         fullTicket._isChild ||
-        ticket.parentId ||
-        ticket.parentTicket?.id ||
-        ticket._parentId ||
-        ticket._isChild
+        isChildQuick
       );
 
-      // Load existing comments into edit saved comments
       const existingComments = (fullTicket.commentBoxes || []).map(
         (box: any) => ({
           id: `existing-${box.id}`,
@@ -1878,43 +2163,57 @@ export default function SupportTicketsPage() {
           originalId: box.id,
         }),
       );
-      const childCommentBoxes =
-        fullTicket.childTickets?.map((ct: any) => ({
-          id: `existing-${ct.id}`,
-          text: ct.comment || "",
-          attachments: ct.attachments || [],
-          createdAt: ct.createdAt || new Date().toISOString(),
-          isExisting: true,
-          originalId: ct.id,
-        })) || [];
 
-      setEditingChildSavedComments(
-        childTicketsList.map((ct: any) => ({
-          id: `existing-${ct.id}`,
-          text: ct.comment || "",
-          attachments: ct.attachments || [],
-          createdAt: ct.createdAt || new Date().toISOString(),
-          isExisting: true,
-          originalId: ct.id,
-        })),
-      );
+      const resolvedParentId =
+        fullTicket.parentId ||
+        fullTicket.parentTicket?.id ||
+        fullTicket._parentId ||
+        ticket.parentId ||
+        ticket.parentTicket?.id ||
+        ticket._parentId ||
+        "";
 
-      setEditingTicket(fullTicket);
+      // Attach parentTicket meta so the dropdown label works even when parent
+      // is a nested ticket not present in the main `tickets` page list.
+      let enriched = fullTicket as SupportTicket;
+      if (resolvedParentId && !fullTicket.parentTicket) {
+        const known =
+          tickets.find((t) => t.id === resolvedParentId) ||
+          Object.values(ticketChildrenCache)
+            .flat()
+            .find((t) => t.id === resolvedParentId) ||
+          ticket.parentTicket ||
+          null;
+        if (known) {
+          enriched = {
+            ...fullTicket,
+            parentId: resolvedParentId,
+            parentTicket: {
+              id: (known as any).id,
+              title: (known as any).title || "",
+              ticketNumber: (known as any).ticketNumber || "",
+            },
+          };
+        } else {
+          enriched = {
+            ...fullTicket,
+            parentId: resolvedParentId,
+            parentTicket: {
+              id: resolvedParentId,
+              title: "",
+              ticketNumber: "",
+            },
+          };
+        }
+      }
+
+      setEditingTicket(enriched);
       setEditExistingAttachments(fullTicket.attachments || []);
-      setEditAttachments([]);
-      setEditAttachmentsToDelete([]);
       setEditSavedComments(existingComments);
-      setEditCommentAttachments([]);
-      setEditCommentText("");
-      setEditingCommentId(null);
-      setEditingCommentText("");
-
-      // ✅ SET: Is child ticket state
       setIsEditingChildTicket(isChildTicket);
-
       setFormData({
         title: fullTicket.title,
-        description: fullTicket.description,
+        description: fullTicket.description || "",
         status: fullTicket.status,
         priority: fullTicket.priority,
         category:
@@ -1923,52 +2222,12 @@ export default function SupportTicketsPage() {
             : fullTicket.category || "",
         comment: fullTicket.comment || "",
         assignedToId: fullTicket.assignedTo?.id || "",
-        parentTicketId:
-          fullTicket.parentId ||
-          fullTicket.parentTicket?.id ||
-          fullTicket._parentId ||
-          "",
+        parentTicketId: resolvedParentId,
       });
-      setShowEditDialog(true);
-      await fetchChildTickets(ticket.id);
     } catch (error) {
       console.error("Error fetching ticket details for edit:", error);
-      await fetchAssignees();
-      await fetchCategories();
-
-      // ✅ CHECK: Is this a child ticket (from error fallback)
-      const isChildTicket = !!(
-        ticket.parentId ||
-        ticket.parentTicket?.id ||
-        ticket._parentId ||
-        ticket._isChild
-      );
-
-      setEditingTicket(ticket);
-      setEditExistingAttachments(ticket.attachments || []);
-      setEditAttachments([]);
-      setEditAttachmentsToDelete([]);
-      setEditSavedComments([]);
-      setEditCommentAttachments([]);
-      setEditCommentText("");
-      setEditingCommentId(null);
-      setEditingCommentText("");
-
-      // ✅ SET: Is child ticket state
-      setIsEditingChildTicket(isChildTicket);
-
-      setFormData({
-        title: ticket.title,
-        description: ticket.description,
-        status: ticket.status,
-        priority: ticket.priority,
-        category: ticket.category || "",
-        comment: ticket.comment || "",
-        assignedToId: ticket.assignedTo?.id || "",
-        parentTicketId:
-          ticket.parentId || ticket.parentTicket?.id || ticket._parentId || "",
-      });
-      setShowEditDialog(true);
+      if (assignees.length === 0) await fetchAssignees();
+      if (flatCategories.length === 0) await fetchCategories();
       await fetchChildTickets(ticket.id);
     } finally {
       setViewDialogLoading(false);
@@ -1990,35 +2249,45 @@ export default function SupportTicketsPage() {
     resetEditForm();
   };
 
-  const getVisibleRows = useCallback((): SupportTicket[] => {
-    const result: SupportTicket[] = [];
+  // Flatten a root list with unlimited nested expand (shared by main + edit tables)
+  const walkVisibleFromList = useCallback(
+    (rootList: SupportTicket[], startDepth = 0): SupportTicket[] => {
+      const result: SupportTicket[] = [];
+      const walk = (list: SupportTicket[], depth: number) => {
+        const seen = new Set<string>();
+        for (const ticket of list) {
+          if (seen.has(ticket.id)) continue;
+          seen.add(ticket.id);
+          result.push({ ...ticket, _depth: depth });
+          if (expandedTickets[ticket.id] && ticketChildrenCache[ticket.id]) {
+            walk(ticketChildrenCache[ticket.id], depth + 1);
+          }
+        }
+      };
+      walk(rootList, startDepth);
+      return result;
+    },
+    [expandedTickets, ticketChildrenCache],
+  );
 
+  const getVisibleRows = useCallback((): SupportTicket[] => {
     // Sirf pure top-level tickets (jin ka koi parent nahi)
     const mainListTickets = tickets.filter((t) => {
       const hasParent =
         !!t.parentId || !!t.parentTicket?.id || !!t._parentId || !!t._isChild;
       return !hasParent;
     });
+    return walkVisibleFromList(mainListTickets, 0);
+  }, [tickets, walkVisibleFromList]);
 
-    const walk = (list: SupportTicket[], depth: number) => {
-      const seen = new Set<string>();
+  // Hierarchy rows for edit-dialog child tables
+  const getVisibleChildTableRows = useCallback((): SupportTicket[] => {
+    return walkVisibleFromList(childTicketsList, 0);
+  }, [childTicketsList, walkVisibleFromList]);
 
-      for (const ticket of list) {
-        if (seen.has(ticket.id)) continue;
-        seen.add(ticket.id);
-
-        result.push({ ...ticket, _depth: depth });
-
-        // Expand hai to children neeche dikhao
-        if (expandedTickets[ticket.id] && ticketChildrenCache[ticket.id]) {
-          walk(ticketChildrenCache[ticket.id], depth + 1);
-        }
-      }
-    };
-
-    walk(mainListTickets, 0);
-    return result;
-  }, [tickets, expandedTickets, ticketChildrenCache]);
+  const getVisibleSubChildTableRows = useCallback((): SupportTicket[] => {
+    return walkVisibleFromList(subChildTicketsList, 0);
+  }, [subChildTicketsList, walkVisibleFromList]);
 
   const collapseTicketAndChildren = (ticketId: string) => {
     setExpandedTickets((prev) => {
@@ -2071,21 +2340,69 @@ export default function SupportTicketsPage() {
 
       const rawChildren: SupportTicket[] = res.data?.data?.tickets || [];
 
-      const uniqueMap = new Map<string, SupportTicket>();
-      rawChildren.forEach((c) => {
-        if (!uniqueMap.has(c.id)) {
-          uniqueMap.set(c.id, {
+      // For each child, detect if IT also has children (so chevron shows on nested levels)
+      const children: SupportTicket[] = await Promise.all(
+        rawChildren.map(async (c) => {
+          let hasKids =
+            c.hasChildren === true ||
+            (c.childTickets?.length ?? 0) > 0 ||
+            !!(c as any)._count?.childTickets ||
+            !!(c as any)._count?.children;
+
+          // API often omits hasChildren on nested tickets — probe once
+          if (!hasKids && c.hasChildren !== false) {
+            try {
+              const probe = await axios.get("/api/support-tickets/children", {
+                params: {
+                  parentId: c.id,
+                  excludeTicketId: c.id,
+                  limit: 1,
+                },
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+              });
+              const kids = probe.data?.data?.tickets || [];
+              hasKids = kids.length > 0;
+            } catch {
+              hasKids = false;
+            }
+          }
+
+          return {
             ...c,
+            hasChildren: hasKids,
             _isChild: true,
             _parentId: ticketId,
             _depth: (ticket._depth || 0) + 1,
-          });
-        }
+          };
+        }),
+      );
+
+      // Dedupe
+      const uniqueMap = new Map<string, SupportTicket>();
+      children.forEach((c) => {
+        if (!uniqueMap.has(c.id)) uniqueMap.set(c.id, c);
       });
+      const uniqueChildren = Array.from(uniqueMap.values());
 
-      const children = Array.from(uniqueMap.values());
+      setTicketChildrenCache((prev) => ({
+        ...prev,
+        [ticketId]: uniqueChildren,
+      }));
 
-      setTicketChildrenCache((prev) => ({ ...prev, [ticketId]: children }));
+      if (uniqueChildren.length === 0) {
+        const markNoKids = (t: SupportTicket) =>
+          t.id === ticketId ? { ...t, hasChildren: false } : t;
+        setTickets((prev) => prev.map(markNoKids));
+        setChildTicketsList((prev) => prev.map(markNoKids));
+        setSubChildTicketsList((prev) => prev.map(markNoKids));
+        setTicketChildrenCache((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((pid) => {
+            next[pid] = next[pid].map(markNoKids);
+          });
+          return next;
+        });
+      }
       setExpandedTickets((prev) => ({ ...prev, [ticketId]: true }));
     } catch (err) {
       console.error("Failed to load child tickets", err);
@@ -2258,7 +2575,20 @@ export default function SupportTicketsPage() {
   };
 
   const handleCreateChildTicket = async () => {
-    if (!editingTicket) return;
+    const parentId =
+      creatingChildUnderId ||
+      editingChildTicket?.id ||
+      editingTicket?.id ||
+      null;
+
+    if (!parentId) {
+      toast({
+        title: "Error",
+        description: "Parent ticket not found",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!childFormData.title.trim() || !childFormData.category) {
       toast({
@@ -2279,11 +2609,8 @@ export default function SupportTicketsPage() {
       formDataToSend.append("status", childFormData.status);
       formDataToSend.append("priority", childFormData.priority);
       formDataToSend.append("category", childFormData.category);
-      formDataToSend.append("parentId", editingTicket.id);
+      formDataToSend.append("parentId", parentId);
 
-      // if (formData.assignedToId && formData.assignedToId !== "unassigned") {
-      //   formDataToSend.append("assignedToId", formData.assignedToId);
-      // }
       if (
         childFormData.assignedToId &&
         childFormData.assignedToId !== "unassigned"
@@ -2316,10 +2643,11 @@ export default function SupportTicketsPage() {
 
       toast({
         title: "Success",
-        description: "Child ticket created successfully",
+        description: "Ticket created successfully",
       });
 
       setShowChildDialog(false);
+      setCreatingChildUnderId(null);
       setChildFormData({
         title: "",
         description: "",
@@ -2336,15 +2664,21 @@ export default function SupportTicketsPage() {
 
       await fetchTickets();
 
-      if (editingTicket) {
+      const isNested =
+        !!editingChildTicket && parentId === editingChildTicket.id;
+      if (isNested) {
+        await fetchChildTickets(parentId, { forSubLevel: true });
+      } else if (editingTicket) {
         await fetchChildTickets(editingTicket.id);
+      } else {
+        await fetchChildTickets(parentId);
       }
     } catch (error: any) {
       console.error("Create Child Ticket Error:", error);
       toast({
         title: "Error",
         description:
-          error.response?.data?.error || "Failed to create child ticket",
+          error.response?.data?.error || "Failed to create ticket",
         variant: "destructive",
       });
     } finally {
@@ -2354,6 +2688,7 @@ export default function SupportTicketsPage() {
 
   const resetChildForm = () => {
     setShowChildDialog(false);
+    setCreatingChildUnderId(null);
     setChildFormData({
       title: "",
       description: "",
@@ -2377,27 +2712,64 @@ export default function SupportTicketsPage() {
   const confirmDeleteChildTicket = async () => {
     if (!deletingChildTicket) return;
 
+    const deletedId = deletingChildTicket.id;
+    const deletedParentId =
+      deletingChildTicket.parentId ||
+      deletingChildTicket._parentId ||
+      editingChildTicket?.id ||
+      editingTicket?.id ||
+      null;
+
     setDeleting(true);
     try {
-      await axios.delete(`/api/support-tickets/${deletingChildTicket.id}`, {
+      await axios.delete(`/api/support-tickets/${deletedId}`, {
         headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Remove from EVERY frontend list immediately so it disappears from UI
+      setChildTicketsList((prev) => prev.filter((t) => t.id !== deletedId));
+      setSubChildTicketsList((prev) => prev.filter((t) => t.id !== deletedId));
+      setTickets((prev) => prev.filter((t) => t.id !== deletedId));
+      setTicketChildrenCache((prev) => {
+        const next: Record<string, SupportTicket[]> = {};
+        Object.keys(prev).forEach((pid) => {
+          next[pid] = prev[pid].filter((t) => t.id !== deletedId);
+        });
+        // Also drop cache entry for the deleted ticket itself
+        delete next[deletedId];
+        return next;
+      });
+      setExpandedTickets((prev) => {
+        const next = { ...prev };
+        delete next[deletedId];
+        return next;
       });
 
       toast({
         title: "Success",
-        description: "Child ticket deleted successfully",
+        description: "Ticket deleted successfully",
       });
       setShowDeleteChildDialog(false);
       setDeletingChildTicket(null);
 
+      // Refresh lists from server
+      if (editingChildTicket && editingChildTicket.id !== deletedId) {
+        await fetchChildTickets(editingChildTicket.id, { forSubLevel: true });
+      }
+      if (deletedParentId) {
+        await fetchChildTickets(deletedParentId);
+        if (editingChildTicket?.id === deletedParentId) {
+          await fetchChildTickets(deletedParentId, { forSubLevel: true });
+        }
+      }
       if (editingTicket) {
         await fetchChildTickets(editingTicket.id);
-        await fetchTickets();
       }
+      await fetchTickets();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: getErrorMessage(error, "Failed to delete child ticket"),
+        description: getErrorMessage(error, "Failed to delete ticket"),
         variant: "destructive",
       });
     } finally {
@@ -2420,42 +2792,7 @@ export default function SupportTicketsPage() {
   // HANDLERS - Child Edit Dialog
   // ============================================
 
-  // Open Child Edit Dialog
-  // const openChildEditDialog = (child: SupportTicket) => {
-  //   setEditingChildTicket(child);
-  //   setChildEditForm({
-  //     title: child.title,
-  //     description: child.description || "",
-  //     status: child.status,
-  //     priority: child.priority,
-  //     category:
-  //       typeof child.category === "object" && child.category
-  //         ? (child.category as any).id || ""
-  //         : (child.category as string) || "",
-  //   });
-  //   setChildEditExistingAttachments(child.attachments || []);
-  //   setChildEditAttachments([]);
-  //   setChildEditAttachmentsToDelete([]);
-
-  //   // Load existing comments
-  //   const existingComments = (child.commentBoxes || []).map((box: any) => ({
-  //     id: `existing-${box.id}`,
-  //     text: box.comment || "",
-  //     attachments: box.attachments || [],
-  //     createdAt: box.createdAt || new Date().toISOString(),
-  //     isExisting: true,
-  //     originalId: box.id,
-  //   }));
-  //   setChildEditComments(existingComments);
-  //   setChildEditCommentText("");
-  //   setChildEditCommentAttachments([]);
-  //   setShowChildEditDialog(true);
-  // };
-
-  const openChildEditDialog = (child: SupportTicket) => {
-    setEditingChildTicket(child);
-
-    // ✅ Get the category ID properly
+  const loadChildEditForm = async (child: SupportTicket) => {
     let categoryId = "";
     if (typeof child.category === "object" && child.category) {
       categoryId = (child.category as any).id || "";
@@ -2463,40 +2800,57 @@ export default function SupportTicketsPage() {
       categoryId = child.category || "";
     }
 
-    console.log("🔍 Child category ID from ticket:", categoryId);
-    console.log("🔍 Available childCategories:", childCategories);
+    const resolvedParentId =
+      child.parentId ||
+      child.parentTicket?.id ||
+      child._parentId ||
+      editingTicket?.id ||
+      "";
 
-    // ✅ Check if this category exists in childCategories
-    const isValidChildCategory = childCategories.some(
-      (cat) => cat.id === categoryId,
-    );
+    // Enrich parentTicket meta so Parent dropdown label is never empty
+    let enrichedChild = child;
+    if (resolvedParentId && !child.parentTicket) {
+      const known =
+        (editingTicket?.id === resolvedParentId ? editingTicket : null) ||
+        tickets.find((t) => t.id === resolvedParentId) ||
+        childTicketsList.find((t) => t.id === resolvedParentId) ||
+        Object.values(ticketChildrenCache)
+          .flat()
+          .find((t) => t.id === resolvedParentId) ||
+        null;
+      enrichedChild = {
+        ...child,
+        parentId: resolvedParentId,
+        parentTicket: known
+          ? {
+              id: known.id,
+              title: known.title || "",
+              ticketNumber: known.ticketNumber || "",
+            }
+          : {
+              id: resolvedParentId,
+              title: "",
+              ticketNumber: "",
+            },
+      };
+    }
 
-    // ✅ If not a valid child category, set to empty string
-    // if (!isValidChildCategory && categoryId) {
-    //   // ✅ Don't set the invalid category - keep it empty
-    //   categoryId = "";
-    //   toast({
-    //     title: "⚠️ Invalid Category",
-    //     description:
-    //       "This ticket has a parent category. Please select a valid child category.",
-    //     variant: "destructive",
-    //   });
-    // }
+    setEditingChildTicket(enrichedChild);
 
     setChildEditForm({
       title: child.title,
       description: child.description || "",
       status: child.status,
       priority: child.priority,
-      category: categoryId, // ✅ Will be empty if invalid
+      category: categoryId,
       assignedToId: child.assignedTo?.id || "",
+      parentTicketId: resolvedParentId,
     });
 
     setChildEditExistingAttachments(child.attachments || []);
     setChildEditAttachments([]);
     setChildEditAttachmentsToDelete([]);
 
-    // Load existing comments
     const existingComments = (child.commentBoxes || []).map((box: any) => ({
       id: `existing-${box.id}`,
       text: box.comment || "",
@@ -2509,10 +2863,99 @@ export default function SupportTicketsPage() {
     setChildEditCommentText("");
     setChildEditCommentAttachments([]);
     setShowChildEditDialog(true);
+
+    // Prefer full details if available (parentTicket from API)
+    try {
+      const res = await axios.get(`/api/support-tickets/${child.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const full = res.data?.data || res.data;
+      if (full?.id) {
+        const fullParentId =
+          full.parentId ||
+          full.parentTicket?.id ||
+          full._parentId ||
+          resolvedParentId;
+        const fullCat =
+          typeof full.category === "object"
+            ? full.category?.id || categoryId
+            : full.category || categoryId;
+
+        setEditingChildTicket({
+          ...enrichedChild,
+          ...full,
+          parentId: fullParentId,
+          parentTicket:
+            full.parentTicket ||
+            enrichedChild.parentTicket ||
+            (fullParentId
+              ? {
+                  id: fullParentId,
+                  title: "",
+                  ticketNumber: "",
+                }
+              : null),
+        });
+        setChildEditForm((prev) => ({
+          ...prev,
+          title: full.title ?? prev.title,
+          description: full.description ?? prev.description,
+          status: full.status ?? prev.status,
+          priority: full.priority ?? prev.priority,
+          category: fullCat,
+          assignedToId: full.assignedTo?.id || prev.assignedToId,
+          parentTicketId: fullParentId,
+        }));
+        if (full.attachments) {
+          setChildEditExistingAttachments(full.attachments);
+        }
+        if (full.commentBoxes) {
+          setChildEditComments(
+            full.commentBoxes.map((box: any) => ({
+              id: `existing-${box.id}`,
+              text: box.comment || "",
+              attachments: box.attachments || [],
+              createdAt: box.createdAt || new Date().toISOString(),
+              isExisting: true,
+              originalId: box.id,
+            })),
+          );
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching child ticket details:", e);
+    }
+
+    await fetchChildTickets(child.id, { forSubLevel: true });
   };
+
+  const openChildEditDialog = async (child: SupportTicket) => {
+    // Push current editing child onto stack before opening deeper level
+    if (editingChildTicket && editingChildTicket.id !== child.id) {
+      setChildEditStack((prev) => [...prev, editingChildTicket]);
+    }
+    await loadChildEditForm(child);
+  };
+
+  // Back button: go to previous nested child (or close if stack empty)
+  const handleBackChildEdit = async () => {
+    if (childEditStack.length === 0) {
+      resetChildEditForm();
+      // Refresh parent-level children list if main edit is open
+      if (editingTicket) {
+        await fetchChildTickets(editingTicket.id);
+      }
+      return;
+    }
+    const prev = childEditStack[childEditStack.length - 1];
+    setChildEditStack((stack) => stack.slice(0, -1));
+    await loadChildEditForm(prev);
+  };
+
   // Reset Child Edit Form
   const resetChildEditForm = () => {
     setEditingChildTicket(null);
+    setChildEditStack([]);
     setChildEditForm({
       title: "",
       description: "",
@@ -2520,6 +2963,7 @@ export default function SupportTicketsPage() {
       priority: "medium",
       category: "",
       assignedToId: "",
+      parentTicketId: "",
     });
     setChildEditAttachments([]);
     setChildEditExistingAttachments([]);
@@ -2527,7 +2971,354 @@ export default function SupportTicketsPage() {
     setChildEditComments([]);
     setChildEditCommentText("");
     setChildEditCommentAttachments([]);
+    setSubChildTicketsList([]);
     setShowChildEditDialog(false);
+  };
+
+  // Categories for nested child: leaf only, exclude parent ticket's own category
+  // Helper: extract category id from ticket
+  const getTicketCategoryId = (t: SupportTicket | null | undefined) => {
+    if (!t) return "";
+    if (typeof t.category === "object" && t.category) {
+      return (t.category as any).id || "";
+    }
+    return (t.category as string) || "";
+  };
+
+  // Find a category node in the tree by id
+  const findCategoryNode = (
+    items: TicketCategory[],
+    id: string,
+  ): TicketCategory | null => {
+    for (const item of items) {
+      if (item.id === id) return item;
+      if (item.children?.length) {
+        const found = findCategoryNode(item.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Ancestor category ids above a category (User Story → Features, Epic)
+  const getAncestorCategoryIds = (categoryId: string): Set<string> => {
+    const result = new Set<string>();
+    if (!categoryId) return result;
+    let current = String(categoryId);
+    const guard = new Set<string>();
+    while (current && !guard.has(current)) {
+      guard.add(current);
+      const node = flatCategories.find((c) => String(c.id) === current);
+      if (!node || node.parentId == null || node.parentId === "") break;
+      const pid = String(node.parentId);
+      result.add(pid);
+      current = pid;
+    }
+    return result;
+  };
+
+  // Immediate parent category id only (User Story → Features)
+  const getImmediateParentCategoryId = (categoryId: string): string => {
+    if (!categoryId) return "";
+    const node = flatCategories.find((c) => String(c.id) === String(categoryId));
+    if (!node || node.parentId == null || node.parentId === "") return "";
+    return String(node.parentId);
+  };
+
+  // Collect every ticket we already know about (main list + nested caches)
+  // so parent dropdown is not limited to top-level page results.
+  const collectAllKnownTickets = useCallback((): SupportTicket[] => {
+    const map = new Map<string, SupportTicket>();
+    const add = (t: SupportTicket | null | undefined) => {
+      if (!t?.id) return;
+      const existing = map.get(t.id);
+      if (!existing) {
+        map.set(t.id, t);
+        return;
+      }
+      map.set(t.id, {
+        ...existing,
+        ...t,
+        parentTicket: t.parentTicket || existing.parentTicket,
+        ticketNumber: t.ticketNumber || existing.ticketNumber,
+        title: t.title || existing.title,
+        category: t.category ?? existing.category,
+      });
+    };
+
+    tickets.forEach(add);
+    childTicketsList.forEach(add);
+    subChildTicketsList.forEach(add);
+    Object.values(ticketChildrenCache).forEach((list) => list.forEach(add));
+    add(editingTicket || undefined);
+    add(editingChildTicket || undefined);
+    if (editingTicket?.parentTicket) {
+      add({
+        id: editingTicket.parentTicket.id,
+        ticketNumber: editingTicket.parentTicket.ticketNumber || "",
+        title: editingTicket.parentTicket.title || "",
+      } as SupportTicket);
+    }
+    if (editingChildTicket?.parentTicket) {
+      add({
+        id: editingChildTicket.parentTicket.id,
+        ticketNumber: editingChildTicket.parentTicket.ticketNumber || "",
+        title: editingChildTicket.parentTicket.title || "",
+      } as SupportTicket);
+    }
+    return Array.from(map.values());
+  }, [
+    tickets,
+    childTicketsList,
+    subChildTicketsList,
+    ticketChildrenCache,
+    editingTicket,
+    editingChildTicket,
+  ]);
+
+  /**
+   * Parent-ticket options for edit/create:
+   * - Never self
+   * - Prefer tickets whose category is the IMMEDIATE parent category of the
+   *   current ticket category (e.g. User Story → tickets with category Features)
+   * - Always keep the currently assigned parent visible even if nested / not on page
+   */
+  const getParentTicketOptions = useCallback(
+    (opts: {
+      currentCategoryId?: string;
+      currentParentId?: string;
+      excludeTicketId?: string;
+    }): SupportTicket[] => {
+      const {
+        currentCategoryId = "",
+        currentParentId = "",
+        excludeTicketId = "",
+      } = opts;
+
+      const all = collectAllKnownTickets();
+      const immediateParentCatId = currentCategoryId
+        ? getImmediateParentCategoryId(currentCategoryId)
+        : "";
+      const ancestorCatIds = currentCategoryId
+        ? getAncestorCategoryIds(currentCategoryId)
+        : new Set<string>();
+
+      const filtered = all.filter((t) => {
+        if (!t.id) return false;
+        if (excludeTicketId && t.id === excludeTicketId) return false;
+
+        // Always keep currently assigned parent
+        if (currentParentId && t.id === currentParentId) return true;
+
+        const tCatId = getTicketCategoryId(t);
+
+        if (currentCategoryId) {
+          if (immediateParentCatId) {
+            if (tCatId === immediateParentCatId) return true;
+            if (ancestorCatIds.has(tCatId)) return true;
+            return false;
+          }
+          // Current category is a root → no higher-category parents
+          return false;
+        }
+
+        // No category selected: only top-level tickets as parent candidates
+        const hasParent =
+          !!t.parentId ||
+          !!t.parentTicket?.id ||
+          !!t._parentId ||
+          !!t._isChild;
+        return !hasParent;
+      });
+
+      // Ensure current parent is present even if API only gave id/title
+      if (
+        currentParentId &&
+        !filtered.some((t) => t.id === currentParentId)
+      ) {
+        const fromAll = all.find((t) => t.id === currentParentId);
+        const parentMeta =
+          editingTicket?.parentTicket?.id === currentParentId
+            ? editingTicket.parentTicket
+            : editingChildTicket?.parentTicket?.id === currentParentId
+              ? editingChildTicket.parentTicket
+              : null;
+        filtered.unshift(
+          fromAll ||
+            ({
+              id: currentParentId,
+              ticketNumber: parentMeta?.ticketNumber || "",
+              title: parentMeta?.title || currentParentId,
+            } as SupportTicket),
+        );
+      }
+
+      const seen = new Set<string>();
+      return filtered.filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      });
+    },
+    [
+      collectAllKnownTickets,
+      flatCategories,
+      editingTicket,
+      editingChildTicket,
+    ],
+  );
+
+  const formatParentTicketLabel = (
+    ticketId: string,
+    fallbackParent?: { id: string; title?: string; ticketNumber?: string } | null,
+  ): string => {
+    if (!ticketId) return "";
+    const all = collectAllKnownTickets();
+    const found = all.find((t) => t.id === ticketId);
+    if (found) {
+      const num = found.ticketNumber || "";
+      const title = found.title || "";
+      if (num || title)
+        return `${num}${num && title ? " — " : ""}${title}`.trim();
+    }
+    if (fallbackParent && (fallbackParent.id === ticketId || !found)) {
+      const num = fallbackParent.ticketNumber || "";
+      const title = fallbackParent.title || "";
+      if (num || title)
+        return `${num}${num && title ? " — " : ""}${title}`.trim();
+    }
+    return ticketId;
+  };
+
+  // Descendants via flat parentId links (reliable).
+  // Features → { User Story }
+  // Epic → { Features, User Story, Bugs, Task }
+  const getDescendantCategoryIds = (rootCategoryId: string): Set<string> => {
+    const result = new Set<string>();
+    if (!rootCategoryId) return result;
+    const root = String(rootCategoryId);
+    const queue = [root];
+    while (queue.length) {
+      const current = queue.shift()!;
+      flatCategories.forEach((cat) => {
+        const id = String(cat.id);
+        const pid = cat.parentId != null ? String(cat.parentId) : "";
+        if (pid === current && !result.has(id) && id !== root) {
+          result.add(id);
+          queue.push(id);
+        }
+      });
+    }
+    // Also try tree walk as backup
+    const node = findCategoryNode(categories, root);
+    const walk = (n: TicketCategory) => {
+      n.children?.forEach((c) => {
+        if (!result.has(c.id)) {
+          result.add(c.id);
+          walk(c);
+        }
+      });
+    };
+    if (node) walk(node);
+    return result;
+  };
+
+  // Categories under a parent category (for child ticket dropdown)
+  // Example: parent ticket category = Features → only User Story (not Bugs/Task)
+  const getCategoriesUnderParentCategory = (parentCatId: string) => {
+    if (!parentCatId) return [];
+    const allowed = getDescendantCategoryIds(parentCatId);
+    // Prefer ALL descendants under that branch (not only global leaves)
+    // so intermediate nodes under Features are also available if needed
+    return flatCategories
+      .filter((cat) => {
+        const id = String(cat.id);
+        if (id === String(parentCatId)) return false;
+        if (!allowed.has(id)) return false;
+        // must have a parent (never root Epic as option under Features)
+        if (cat.parentId == null || cat.parentId === "") return false;
+        return true;
+      })
+      .map((cat) => ({
+        id: String(cat.id),
+        name: cat.name,
+        parentId: cat.parentId,
+        level: cat.level || 0,
+      }));
+  };
+
+  // Resolve which ticket is the "parent" for category scope
+  const resolveParentTicketForCategories = (): SupportTicket | null => {
+    if (creatingChildUnderId) {
+      if (editingChildTicket?.id === creatingChildUnderId)
+        return editingChildTicket;
+      const fromStack = childEditStack.find(
+        (t) => t.id === creatingChildUnderId,
+      );
+      if (fromStack) return fromStack;
+      const fromList =
+        childTicketsList.find((t) => t.id === creatingChildUnderId) ||
+        subChildTicketsList.find((t) => t.id === creatingChildUnderId);
+      if (fromList) return fromList;
+      if (editingTicket?.id === creatingChildUnderId) return editingTicket;
+    }
+    if (editingChildTicket) return editingChildTicket;
+    if (editingTicket) return editingTicket;
+    return null;
+  };
+
+  /**
+   * Create-child category list:
+   * Parent ticket category = Features → show User Story only
+   * Parent ticket category = Epic → show Features, User Story, Bugs, Task
+   * Never show sibling branches (Bugs/Task when under Features)
+   */
+  const getCategoriesForChildCreate = () => {
+    const parentTicket = resolveParentTicketForCategories();
+    const parentCatId = getTicketCategoryId(parentTicket);
+
+    if (parentCatId) {
+      return getCategoriesUnderParentCategory(parentCatId);
+    }
+
+    const rootIds = new Set(parentCategories.map((p) => String(p.id)));
+    return flatCategories.filter(
+      (cat) =>
+        cat.parentId != null &&
+        cat.parentId !== "" &&
+        !rootIds.has(String(cat.id)),
+    );
+  };
+
+  /**
+   * Edit-child category list: same branch rule as create
+   */
+  const getCategoriesForChildEdit = () => {
+    const immediateParent =
+      childEditStack.length > 0
+        ? childEditStack[childEditStack.length - 1]
+        : editingTicket;
+
+    const parentCatId = getTicketCategoryId(immediateParent);
+    const currentCatId = childEditForm.category
+      ? String(childEditForm.category)
+      : "";
+
+    let list = parentCatId
+      ? getCategoriesUnderParentCategory(parentCatId)
+      : flatCategories.filter(
+          (cat) => cat.parentId != null && cat.parentId !== "",
+        );
+
+    // Keep current category selectable
+    if (currentCatId && !list.some((c) => String(c.id) === currentCatId)) {
+      const current = flatCategories.find(
+        (c) => String(c.id) === currentCatId,
+      );
+      if (current) list = [current, ...list];
+    }
+
+    return list;
   };
 
   // Child Edit File Handlers
@@ -2735,128 +3526,6 @@ export default function SupportTicketsPage() {
     toast({ title: "Success", description: "Comment removed" });
   };
 
-  // Update Child Ticket Handler
-  // const handleUpdateChildTicket = async () => {
-  //   if (!editingChildTicket) return;
-
-  //   if (!childEditForm.title.trim() || !childEditForm.category) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Please fill in all required fields",
-  //       variant: "destructive",
-  //     });
-  //     return;
-  //   }
-
-  //   setChildEditUploading(true);
-
-  //   try {
-  //     const updatePayload: any = {
-  //       title: childEditForm.title,
-  //       description: childEditForm.description,
-  //       status: childEditForm.status,
-  //       priority: childEditForm.priority,
-  //       category: childEditForm.category,
-  //       assignedToId:
-  //         childEditForm.assignedToId === "unassigned" ||
-  //         !childEditForm.assignedToId
-  //           ? null
-  //           : childEditForm.assignedToId,
-  //     };
-
-  //     await axios.put(
-  //       `/api/support-tickets/${editingChildTicket.id}`,
-  //       updatePayload,
-  //       {
-  //         headers: token ? { Authorization: `Bearer ${token}` } : {},
-  //       },
-  //     );
-
-  //     // Delete attachments
-  //     for (const attachmentId of childEditAttachmentsToDelete) {
-  //       try {
-  //         await axios.delete(
-  //           `/api/support-tickets/${editingChildTicket.id}/attachments/${attachmentId}`,
-  //           { headers: { Authorization: `Bearer ${token}` } },
-  //         );
-  //       } catch (e) {
-  //         console.error("Delete attachment failed:", e);
-  //       }
-  //     }
-
-  //     // Upload new attachments
-  //     if (childEditAttachments.length > 0) {
-  //       try {
-  //         const fd = new FormData();
-  //         childEditAttachments.forEach((file) => fd.append("files", file));
-  //         await axios.post(
-  //           `/api/support-tickets/${editingChildTicket.id}/attachments`,
-  //           fd,
-  //           {
-  //             headers: {
-  //               Authorization: `Bearer ${token}`,
-  //               "Content-Type": "multipart/form-data",
-  //             },
-  //           },
-  //         );
-  //       } catch (e) {
-  //         console.error("Upload attachments failed:", e);
-  //       }
-  //     }
-
-  //     // Handle new comments
-  //     const newComments = childEditComments.filter((c) => !c.isExisting);
-  //     if (newComments.length > 0) {
-  //       try {
-  //         const fd = new FormData();
-  //         fd.append(
-  //           "commentBoxes",
-  //           JSON.stringify(
-  //             newComments.map((c) => ({ tempId: c.id, comment: c.text })),
-  //           ),
-  //         );
-  //         newComments.forEach((comment) => {
-  //           comment.attachments.forEach((file) => {
-  //             fd.append(`comment-${comment.id}`, file);
-  //           });
-  //         });
-  //         await axios.post(
-  //           `/api/support-tickets/${editingChildTicket.id}/comments/batch`,
-  //           fd,
-  //           {
-  //             headers: {
-  //               Authorization: `Bearer ${token}`,
-  //               "Content-Type": "multipart/form-data",
-  //             },
-  //           },
-  //         );
-  //       } catch (e) {
-  //         console.error("Upload comments failed:", e);
-  //       }
-  //     }
-
-  //     toast({
-  //       title: "Success",
-  //       description: "Child ticket updated successfully",
-  //     });
-
-  //     resetChildEditForm();
-  //     if (editingTicket) {
-  //       await fetchChildTickets(editingTicket.id);
-  //       await fetchTickets();
-  //     }
-  //   } catch (error: any) {
-  //     console.error("Update Child Error:", error);
-  //     toast({
-  //       title: "Error",
-  //       description: getErrorMessage(error, "Failed to update child ticket"),
-  //       variant: "destructive",
-  //     });
-  //   } finally {
-  //     setChildEditUploading(false);
-  //   }
-  // };
-
   const handleUpdateChildTicket = async () => {
     if (!editingChildTicket) return;
 
@@ -2883,6 +3552,11 @@ export default function SupportTicketsPage() {
           !childEditForm.assignedToId
             ? null
             : childEditForm.assignedToId,
+        parentId:
+          childEditForm.parentTicketId === "none" ||
+          !childEditForm.parentTicketId
+            ? null
+            : childEditForm.parentTicketId,
       };
 
       await axios.put(
@@ -2958,57 +3632,73 @@ export default function SupportTicketsPage() {
 
       toast({
         title: "Success",
-        description: "Child ticket updated successfully",
+        description: "Ticket updated successfully",
       });
 
-      resetChildEditForm();
+      const oldParentId =
+        editingChildTicket.parentId ||
+        editingChildTicket.parentTicket?.id ||
+        editingChildTicket._parentId ||
+        editingTicket?.id ||
+        "";
+      const newParentId =
+        childEditForm.parentTicketId === "none" ||
+        !childEditForm.parentTicketId
+          ? ""
+          : childEditForm.parentTicketId;
+      const ticketId = editingChildTicket.id;
 
-      if (editingTicket) {
-        // 1. Edit dialog ki list refresh
-        await fetchChildTickets(editingTicket.id);
+      // Invalidate hierarchy cache for this ticket + old/new parents
+      setTicketChildrenCache((prev) => {
+        const next = { ...prev };
+        delete next[ticketId];
+        if (oldParentId) delete next[oldParentId];
+        if (newParentId) delete next[newParentId];
+        return next;
+      });
+      setExpandedTickets((prev) => {
+        const next = { ...prev };
+        delete next[ticketId];
+        return next;
+      });
 
-        // 2. Main table ka children cache bhi update karo (important)
+      // Stay in nested flow: go back to previous level (3 if you were on 4)
+      // instead of jumping to top parent edit page
+      if (childEditStack.length > 0) {
+        await handleBackChildEdit();
+      } else {
+        // Level-1 child under main parent → close child dialog, refresh parent list
+        resetChildEditForm();
+      }
+
+      // Auto-refresh main table + related child lists (no manual page reload)
+      await fetchTickets();
+
+      const parentsToRefresh = Array.from(
+        new Set(
+          [oldParentId, newParentId, editingTicket?.id || ""].filter(Boolean),
+        ),
+      );
+      for (const pid of parentsToRefresh) {
         try {
-          const res = await axios.get("/api/support-tickets/children", {
-            params: {
-              parentId: editingTicket.id,
-              excludeTicketId: editingTicket.id,
-            },
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-
-          const rawChildren: SupportTicket[] = res.data?.data?.tickets || [];
-
-          const uniqueMap = new Map<string, SupportTicket>();
-          rawChildren.forEach((c) => {
-            if (!uniqueMap.has(c.id)) {
-              uniqueMap.set(c.id, {
-                ...c,
-                _isChild: true,
-                _parentId: editingTicket.id,
-                _depth: 1,
-              });
-            }
-          });
-
-          const children = Array.from(uniqueMap.values());
-
-          setTicketChildrenCache((prev) => ({
-            ...prev,
-            [editingTicket.id]: children,
-          }));
-        } catch (err) {
-          console.error("Failed to refresh children cache after update", err);
+          await fetchChildTickets(pid);
+        } catch {
+          /* ignore */
         }
-
-        // 3. Parent tickets list refresh
-        await fetchTickets();
+      }
+      // If main edit dialog still open, also refresh its nested child table
+      if (editingTicket?.id) {
+        try {
+          await fetchChildTickets(editingTicket.id);
+        } catch {
+          /* ignore */
+        }
       }
     } catch (error: any) {
       console.error("Update Child Error:", error);
       toast({
         title: "Error",
-        description: getErrorMessage(error, "Failed to update child ticket"),
+        description: getErrorMessage(error, "Failed to update ticket"),
         variant: "destructive",
       });
     } finally {
@@ -3218,9 +3908,11 @@ export default function SupportTicketsPage() {
                       const depth = ticket._depth || 0;
                       const isExpanded = !!expandedTickets[ticket.id];
                       const isLoadingKids = !!loadingChildren[ticket.id];
+                      // Expand ONLY if this ticket has children (not every row)
+                      const cachedKids = ticketChildrenCache[ticket.id];
                       const canExpand =
-                        ticket.hasChildren ||
-                        (ticketChildrenCache[ticket.id]?.length ?? 0) > 0;
+                        ticket.hasChildren === true ||
+                        (cachedKids?.length ?? 0) > 0;
 
                       return (
                         <TableRow
@@ -3535,9 +4227,10 @@ export default function SupportTicketsPage() {
                   />
                 </div>
 
-                {/* Category - Show ALL categories */}
-                {/* Create  */}
-                {/* Category - Show ALL categories with hierarchy */}
+                {/* Category:
+                    - No parent selected → ALL categories with hierarchy tree
+                    - Parent selected (creating as child) → leaf categories only
+                */}
                 <div>
                   <Label htmlFor="category" className="mb-2">
                     Category *
@@ -3547,19 +4240,53 @@ export default function SupportTicketsPage() {
                     onValueChange={(value) =>
                       setFormData({ ...formData, category: value })
                     }
-                    disabled={categoriesWithIndent.length === 0}
+                    disabled={
+                      formData.parentTicketId
+                        ? childCategories.length === 0
+                        : categoriesWithIndent.length === 0
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue
                         placeholder={
-                          categoriesWithIndent.length === 0
-                            ? "Loading categories..."
-                            : "Select category"
+                          formData.parentTicketId
+                            ? childCategories.length === 0
+                              ? "No leaf categories available"
+                              : "Select category"
+                            : categoriesWithIndent.length === 0
+                              ? "Loading categories..."
+                              : "Select category"
                         }
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {categoriesWithIndent.length === 0 ? (
+                      {formData.parentTicketId ? (
+                        // Creating under a parent → only that category's branch
+                        // Features → User Story (NOT Bugs/Task)
+                        (() => {
+                          const parentT =
+                            tickets.find(
+                              (t) => t.id === formData.parentTicketId,
+                            ) || null;
+                          const parentCatId = getTicketCategoryId(parentT);
+                          const opts = parentCatId
+                            ? getCategoriesUnderParentCategory(parentCatId)
+                            : [];
+                          if (opts.length === 0) {
+                            return (
+                              <SelectItem value="loading" disabled>
+                                No categories under parent branch
+                              </SelectItem>
+                            );
+                          }
+                          return opts.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ));
+                        })()
+                      ) : // Main Create New Ticket → full hierarchy tree
+                      categoriesWithIndent.length === 0 ? (
                         <SelectItem value="loading" disabled>
                           Loading categories...
                         </SelectItem>
@@ -3574,11 +4301,17 @@ export default function SupportTicketsPage() {
                       )}
                     </SelectContent>
                   </Select>
-                  {categoriesWithIndent.length === 0 && (
+                  {formData.parentTicketId && childCategories.length === 0 && (
                     <p className="text-xs text-yellow-500 mt-1">
-                      Loading categories...
+                      No leaf categories. Create leaf categories first.
                     </p>
                   )}
+                  {!formData.parentTicketId &&
+                    categoriesWithIndent.length === 0 && (
+                      <p className="text-xs text-yellow-500 mt-1">
+                        Loading categories...
+                      </p>
+                    )}
                 </div>
 
                 <div className="col-span-2">
@@ -3621,7 +4354,7 @@ export default function SupportTicketsPage() {
 
                 <div>
                   <Label htmlFor="assignedTo" className="mb-2">
-                    Assign To
+                    Assignee To
                   </Label>
                   <Select
                     value={formData.assignedToId}
@@ -3649,32 +4382,36 @@ export default function SupportTicketsPage() {
                   </Label>
                   <Select
                     value={formData.parentTicketId || "none"}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const newParentId = value === "none" ? "" : value;
                       setFormData({
                         ...formData,
-                        parentTicketId: value === "none" ? "" : value,
-                      })
-                    }
+                        parentTicketId: newParentId,
+                      });
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select parent ticket (optional)" />
+                      <SelectValue placeholder="Select parent ticket (optional)">
+                        {formData.parentTicketId
+                          ? formatParentTicketLabel(formData.parentTicketId)
+                          : null}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {tickets
-                        .filter((t) => {
-                          const hasParent =
-                            !!t.parentId ||
-                            !!t.parentTicket?.id ||
-                            !!t._parentId ||
-                            !!t._isChild;
-                          return !hasParent;
-                        })
-                        .map((ticket) => (
-                          <SelectItem key={ticket.id} value={ticket.id}>
-                            {ticket.ticketNumber} — {ticket.title}
-                          </SelectItem>
-                        ))}
+                      {getParentTicketOptions({
+                        currentCategoryId: formData.category
+                          ? String(formData.category)
+                          : "",
+                        currentParentId: formData.parentTicketId || "",
+                        excludeTicketId: "",
+                      }).map((ticket) => (
+                        <SelectItem key={ticket.id} value={ticket.id}>
+                          {ticket.ticketNumber
+                            ? `${ticket.ticketNumber} — ${ticket.title}`
+                            : ticket.title || ticket.id}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -3891,11 +4628,11 @@ export default function SupportTicketsPage() {
             <Button
               onClick={handleCreate}
               className="bg-emerald-600 hover:bg-emerald-700"
-              disabled={uploading || parentCategories.length === 0}
+              disabled={uploading || categoriesWithIndent.length === 0}
             >
               {uploading
                 ? "Creating..."
-                : parentCategories.length === 0
+                : categoriesWithIndent.length === 0
                   ? "Loading..."
                   : "Create Ticket"}
             </Button>
@@ -3930,40 +4667,17 @@ export default function SupportTicketsPage() {
                 />
               </div>
 
-              {/* Category Field - Disabled for Parent, Enabled for Child */}
+              {/* Category — always read-only on edit (parent or child) */}
               <div>
                 <Label className="mb-2">Category</Label>
-                {!isEditingChildTicket ? (
-                  // For parent tickets - show as read-only text
-                  <div className="w-full p-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    {parentCategories.find(
-                      (cat) => cat.id === formData.category,
-                    )?.name ||
-                      flatCategories.find((cat) => cat.id === formData.category)
-                        ?.name ||
-                      formData.category ||
-                      "No category selected"}
-                  </div>
-                ) : (
-                  // For child tickets - show as select dropdown
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, category: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {childCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <div className="w-full p-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  {flatCategories.find((cat) => cat.id === formData.category)
+                    ?.name ||
+                    parentCategories.find((cat) => cat.id === formData.category)
+                      ?.name ||
+                    formData.category ||
+                    "No category selected"}
+                </div>
               </div>
               <div className="col-span-2">
                 <Label className="mb-2">Description </Label>
@@ -4016,7 +4730,7 @@ export default function SupportTicketsPage() {
                 </Select>
               </div>
               <div className="col-span-2">
-                <Label className="mb-2">Assign To</Label>
+                <Label className="mb-2">Assignee To</Label>
                 <Select
                   value={formData.assignedToId}
                   onValueChange={(value) =>
@@ -4049,24 +4763,30 @@ export default function SupportTicketsPage() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select parent ticket (optional)" />
+                    <SelectValue placeholder="Select parent ticket (optional)">
+                      {formData.parentTicketId
+                        ? formatParentTicketLabel(
+                            formData.parentTicketId,
+                            editingTicket?.parentTicket,
+                          )
+                        : null}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {tickets
-                      .filter((t) => {
-                        const hasParent =
-                          !!t.parentId ||
-                          !!t.parentTicket?.id ||
-                          !!t._parentId ||
-                          !!t._isChild;
-                        return !hasParent;
-                      })
-                      .map((ticket) => (
-                        <SelectItem key={ticket.id} value={ticket.id}>
-                          {ticket.ticketNumber} — {ticket.title}
-                        </SelectItem>
-                      ))}
+                    {getParentTicketOptions({
+                      currentCategoryId: formData.category
+                        ? String(formData.category)
+                        : "",
+                      currentParentId: formData.parentTicketId || "",
+                      excludeTicketId: editingTicket?.id || "",
+                    }).map((ticket) => (
+                      <SelectItem key={ticket.id} value={ticket.id}>
+                        {ticket.ticketNumber
+                          ? `${ticket.ticketNumber} — ${ticket.title}`
+                          : ticket.title || ticket.id}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -4076,8 +4796,7 @@ export default function SupportTicketsPage() {
                   <Paperclip className="h-4 w-4" />
                   Attachments
                   <Badge variant="secondary" className="ml-auto">
-                    {editExistingAttachments.length + editAttachments.length} /
-                    10
+                    {editExistingAttachments.length + editAttachments.length}
                   </Badge>
                 </h4>
                 <div className="flex items-center gap-2 mt-1 mb-3">
@@ -4393,125 +5112,351 @@ export default function SupportTicketsPage() {
               </div>
 
               {/* Child Tickets Section */}
+
               {editingTicket && (
                 <div className="mb-6 col-span-2">
-                  {/* Header - Child Tickets Count + Create Button */}
+                  {/* Header */}
+                  {/* Header - Child Tickets + Create Button (same line) */}
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-medium text-gray-600 dark:text-muted-foreground flex items-center gap-2">
-                      <span>Child Tickets</span>
+                      <span>Tickets</span>
                       <Badge variant="secondary" className="text-xs">
                         {childTicketsList.length}
                       </Badge>
                     </h4>
+
                     <div className="flex items-center gap-2">
                       {loadingChildTickets && (
                         <span className="text-sm text-gray-400">
                           Loading...
                         </span>
                       )}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border hover:bg-gray-50"
+                        onClick={() => {
+                          setCreatingChildUnderId(editingTicket?.id || null);
+                          setShowChildDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Create New Ticket
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Child Tickets List - Card Style */}
+                  {/* Child Tickets Table */}
                   {childTicketsList.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
-                      {childTicketsList.map((child) => (
-                        <div
-                          key={child.id}
-                          className="group relative p-4 bg-white dark:bg-muted/20 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200 cursor-pointer"
-                          onClick={() => openChildEditDialog(child)}
-                        >
-                          {/* Line 1: Ticket Number + Title */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded whitespace-nowrap">
-                                #{child.ticketNumber}
-                              </span>
-                              <span className="font-medium text-sm truncate">
-                                {child.title}
-                              </span>
-                            </div>
-                            {/* Status Badge - Small */}
-                            <Badge
-                              className={cn(
-                                getStatusBadge(child.status).color,
-                                "text-xs px-2 py-0 h-5 whitespace-nowrap flex-shrink-0",
-                              )}
-                            >
-                              {getStatusBadge(child.status).icon}
-                              {getStatusBadge(child.status).label}
-                            </Badge>
-                          </div>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">ID</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Priority</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Assigned To</TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {getVisibleChildTableRows().map((child) => {
+                            const statusInfo = getStatusBadge(child.status);
+                            const priorityInfo = getPriorityBadge(
+                              child.priority,
+                            );
+                            const categoryDisplay = flatCategories.find(
+                              (cat) => cat.id === child.category,
+                            );
+                            const depth = child._depth || 0;
+                            const isExpanded = !!expandedTickets[child.id];
+                            const isLoadingKids = !!loadingChildren[child.id];
+                            const cachedKids = ticketChildrenCache[child.id];
+                            const canExpand =
+                              child.hasChildren === true ||
+                              (cachedKids?.length ?? 0) > 0;
 
-                          {/* Line 2: Priority + Created Date */}
-                          <div className="flex items-center gap-3 mt-2 flex-wrap">
-                            <Badge
-                              className={cn(
-                                getPriorityBadge(child.priority).color,
-                                "text-xs px-2 py-0 h-5",
-                              )}
-                            >
-                              {getPriorityBadge(child.priority).icon}
-                              {getPriorityBadge(child.priority).label}
-                            </Badge>
-                            <span className="text-xs text-gray-400 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {format(
-                                new Date(child.createdAt),
-                                "MMM dd, yyyy HH:mm",
-                              )}
-                            </span>
-                          </div>
+                            return (
+                              <TableRow
+                                key={`${child.id}-${depth}`}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => openChildEditDialog(child)}
+                              >
+                                {/* ID + hierarchy expand */}
+                                <TableCell className="text-sm text-gray-500 font-mono">
+                                  <div
+                                    className="flex items-center gap-1"
+                                    style={{ paddingLeft: `${depth * 16}px` }}
+                                  >
+                                    {canExpand ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) =>
+                                          toggleTicketExpand(e, child)
+                                        }
+                                        className="p-0.5 rounded hover:bg-muted"
+                                        disabled={isLoadingKids}
+                                      >
+                                        {isLoadingKids ? (
+                                          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                                        ) : isExpanded ? (
+                                          <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+                                        ) : (
+                                          <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
+                                        )}
+                                      </button>
+                                    ) : (
+                                      <span className="inline-block w-4" />
+                                    )}
+                                    <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded">
+                                      #{child.ticketNumber}
+                                    </span>
+                                  </div>
+                                </TableCell>
 
-                          {/* Line 3: Description (truncated) */}
-                          {child.description && (
-                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                              {child.description}
-                            </p>
-                          )}
+                                {/* Title */}
+                                <TableCell>
+                                  <p className="font-medium text-sm">
+                                    {child.title}
+                                  </p>
+                                </TableCell>
 
-                          {/* Line 4: Action Buttons - Bottom Right */}
-                          <div
-                            className="flex items-center justify-end gap-1 mt-3 pt-2 border-t border-gray-100 dark:border-gray-800"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                              onClick={() => openChildEditDialog(child)}
-                              title="Edit this child ticket"
-                            >
-                              <Edit className="h-3.5 w-3.5 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30"
-                              onClick={() => handleDeleteChildTicket(child)}
-                              title="Delete this child ticket"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                                {/* Description */}
+                                <TableCell>
+                                  <p className="text-sm text-gray-600 line-clamp-1">
+                                    {child.description
+                                      ? truncateText
+                                        ? truncateText(child.description, 10)
+                                        : child.description.slice(0, 40) + "..."
+                                      : "—"}
+                                  </p>
+                                </TableCell>
+
+                                {/* Status — quick update like main table */}
+                                <TableCell
+                                  className="w-[140px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Select
+                                    value={child.status}
+                                    onValueChange={(value) =>
+                                      handleQuickStatusUpdate(child.id, value)
+                                    }
+                                    disabled={statusUpdating === child.id}
+                                  >
+                                    <SelectTrigger className="w-full h-8 border-0 bg-transparent shadow-none hover:bg-muted/50">
+                                      <SelectValue>
+                                        {statusUpdating === child.id ? (
+                                          "Updating..."
+                                        ) : (
+                                          <Badge
+                                            className={cn(
+                                              statusInfo.color,
+                                              "text-xs",
+                                            )}
+                                          >
+                                            {statusInfo.icon}
+                                            {statusInfo.label}
+                                          </Badge>
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {statusOptions.map((status) => {
+                                        const info = getStatusBadge(
+                                          status.value,
+                                        );
+                                        return (
+                                          <SelectItem
+                                            key={status.value}
+                                            value={status.value}
+                                          >
+                                            <Badge className={info.color}>
+                                              {info.icon}
+                                              {status.label}
+                                            </Badge>
+                                          </SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+
+                                {/* Priority */}
+                                <TableCell>
+                                  <Badge
+                                    className={cn(
+                                      priorityInfo.color,
+                                      "text-xs",
+                                    )}
+                                  >
+                                    {priorityInfo.icon}
+                                    {priorityInfo.label}
+                                  </Badge>
+                                </TableCell>
+
+                                {/* Category */}
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Tag className="h-3 w-3 text-gray-400" />
+                                    <span className="text-sm font-medium">
+                                      {categoryDisplay?.name || "N/A"}
+                                    </span>
+                                  </div>
+                                </TableCell>
+
+                                {/* Assigned To — quick update like main table */}
+                                <TableCell
+                                  className="w-[180px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Select
+                                    value={
+                                      child.assignedTo?.id || "unassigned"
+                                    }
+                                    onValueChange={(value) =>
+                                      handleQuickAssigneeUpdate(
+                                        child.id,
+                                        value,
+                                      )
+                                    }
+                                    disabled={assigneeUpdating === child.id}
+                                    onOpenChange={(open) =>
+                                      open && fetchAssignees()
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full h-8 border-0 bg-transparent shadow-none hover:bg-muted/50">
+                                      <SelectValue>
+                                        {assigneeUpdating === child.id ? (
+                                          "Updating..."
+                                        ) : child.assignedTo ? (
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                              <AvatarImage
+                                                src={
+                                                  toAvatarUrl?.(
+                                                    child.assignedTo.avatar,
+                                                  ) ?? undefined
+                                                }
+                                              />
+                                              <AvatarFallback className="text-xs">
+                                                {getInitials?.(
+                                                  child.assignedTo.name,
+                                                ) ||
+                                                  child.assignedTo.name?.charAt(
+                                                    0,
+                                                  )}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm truncate max-w-[100px]">
+                                              {child.assignedTo.name}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span className="text-sm text-gray-400">
+                                            Unassigned
+                                          </span>
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="unassigned">
+                                        <span className="text-gray-400">
+                                          Unassigned
+                                        </span>
+                                      </SelectItem>
+                                      {assignees.map((assignee) => (
+                                        <SelectItem
+                                          key={assignee.id}
+                                          value={assignee.id}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                              <AvatarImage
+                                                src={
+                                                  toAvatarUrl?.(
+                                                    assignee.avatar,
+                                                  ) ?? undefined
+                                                }
+                                              />
+                                              <AvatarFallback className="text-xs">
+                                                {getInitials(assignee.name)}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span>
+                                              {assignee.name}
+                                              {assignee.role && (
+                                                <span className="text-xs text-gray-400 ml-1">
+                                                  ({assignee.role})
+                                                </span>
+                                              )}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+
+                                {/* Actions */}
+                                <TableCell className="text-right">
+                                  <div
+                                    className="flex justify-end gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={() => openChildEditDialog(child)}
+                                      title="Edit"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() =>
+                                        handleDeleteChildTicket(child)
+                                      }
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
                     </div>
                   ) : (
                     !loadingChildTickets && (
                       <div className="p-8 text-center text-sm text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
                         <div className="flex flex-col items-center gap-2">
                           <Ticket className="h-8 w-8 text-gray-300" />
-                          <p>No child tickets yet</p>
+                          <p>No tickets yet</p>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setShowChildDialog(true)}
+                            onClick={() => {
+                              setCreatingChildUnderId(
+                                editingTicket?.id || null,
+                              );
+                              setShowChildDialog(true);
+                            }}
                           >
                             <Plus className="h-3 w-3 mr-1" />
-                            Create First Child Ticket
+                            Create First Ticket
                           </Button>
                         </div>
                       </div>
@@ -4519,19 +5464,6 @@ export default function SupportTicketsPage() {
                   )}
                 </div>
               )}
-
-              {/* 👇 ADD THIS: Create Child Ticket Button 👇 */}
-              <div className="col-span-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-white border hover:bg-gray-50"
-                  onClick={() => setShowChildDialog(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Child Ticket from this Ticket
-                </Button>
-              </div>
             </div>
           </div>
 
@@ -4596,23 +5528,86 @@ export default function SupportTicketsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ==========================================
+          DELETE CHILD TICKET DIALOG
+          ========================================== */}
+      <Dialog
+        open={showDeleteChildDialog}
+        onOpenChange={setShowDeleteChildDialog}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Ticket</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the
+              ticket and all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingChildTicket && (
+            <div className="py-4">
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+                <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-red-900 dark:text-red-200">
+                    Delete ticket{" "}
+                    <strong>{deletingChildTicket.title}</strong>?
+                  </p>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                    ID: {deletingChildTicket.ticketNumber}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteChildDialog(false);
+                setDeletingChildTicket(null);
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDeleteChildTicket}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete Ticket"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ==========================================
     CHILD CREATE TICKET DIALOG
     ========================================== */}
-      <Dialog open={showChildDialog} onOpenChange={setShowChildDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog
+        open={showChildDialog}
+        onOpenChange={(open) => {
+          if (!open) resetChildForm();
+          else setShowChildDialog(open);
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Child Ticket</DialogTitle>
+            <DialogTitle>Create New Ticket</DialogTitle>
             <DialogDescription>
               Create a new child ticket under{" "}
-              {editingTicket?.title || "parent ticket"}
+              {editingChildTicket &&
+              creatingChildUnderId === editingChildTicket.id
+                ? editingChildTicket.title
+                : editingTicket?.title || "parent ticket"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               {/* Title */}
-              <div className="col-span-2">
+              <div>
                 <Label className="mb-2">Title *</Label>
                 <Input
                   value={childFormData.title}
@@ -4626,59 +5621,36 @@ export default function SupportTicketsPage() {
                 />
               </div>
 
-              {/* Category - Only show child categories */}
-              {/* <div className="col-span-2">
+              {/* Category — leaf only, exclude parent ticket's category */}
+              <div>
                 <Label className="mb-2">Category *</Label>
                 <Select
                   value={childFormData.category}
                   onValueChange={(value) =>
                     setChildFormData({ ...childFormData, category: value })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {childCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div> */}
-              {/* Category - ONLY LEAF categories (parents/Epic/Features hidden) */}
-              <div className="col-span-2">
-                <Label className="mb-2">Category *</Label>
-                <Select
-                  value={childFormData.category}
-                  onValueChange={(value) =>
-                    setChildFormData({ ...childFormData, category: value })
-                  }
-                  disabled={childCategories.length === 0}
+                  disabled={getCategoriesForChildCreate().length === 0}
                 >
                   <SelectTrigger>
                     <SelectValue
                       placeholder={
-                        childCategories.length === 0
+                        getCategoriesForChildCreate().length === 0
                           ? "No leaf categories available"
                           : "Select category"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {childCategories.map((cat) => (
+                    {getCategoriesForChildCreate().map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-
-                {childCategories.length === 0 && (
+                {getCategoriesForChildCreate().length === 0 && (
                   <p className="text-xs text-yellow-500 mt-1">
-                    No leaf categories available. Please create leaf categories
-                    first.
+                    No leaf categories available (parent category excluded).
                   </p>
                 )}
               </div>
@@ -4687,7 +5659,7 @@ export default function SupportTicketsPage() {
               <div className="col-span-2">
                 <Label className="mb-2">Description</Label>
                 <textarea
-                  className="w-full min-h-[80px] p-2 rounded-md border border-input bg-background"
+                  className="w-full min-h-[100px] p-2 rounded-md border border-input bg-background"
                   value={childFormData.description}
                   onChange={(e) =>
                     setChildFormData({
@@ -4697,28 +5669,6 @@ export default function SupportTicketsPage() {
                   }
                   placeholder="Describe the child ticket issue"
                 />
-              </div>
-
-              {/* Priority */}
-              <div>
-                <Label className="mb-2">Priority</Label>
-                <Select
-                  value={childFormData.priority}
-                  onValueChange={(value) =>
-                    setChildFormData({ ...childFormData, priority: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorityOptions.map((priority) => (
-                      <SelectItem key={priority.value} value={priority.value}>
-                        {priority.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               {/* Status */}
@@ -4743,9 +5693,31 @@ export default function SupportTicketsPage() {
                 </Select>
               </div>
 
+              {/* Priority */}
+              <div>
+                <Label className="mb-2">Priority</Label>
+                <Select
+                  value={childFormData.priority}
+                  onValueChange={(value) =>
+                    setChildFormData({ ...childFormData, priority: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map((priority) => (
+                      <SelectItem key={priority.value} value={priority.value}>
+                        {priority.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Assign To */}
               <div className="col-span-2">
-                <Label className="mb-2">Assign To</Label>
+                <Label className="mb-2">Assignee To</Label>
                 <Select
                   value={childFormData.assignedToId || "unassigned"}
                   onValueChange={(value) =>
@@ -4772,17 +5744,22 @@ export default function SupportTicketsPage() {
               </div>
 
               {/* Attachments */}
-              {/* Attachments */}
               <div className="col-span-2">
-                <Label className="mb-2">Attachments</Label>
-                <div className="flex items-center gap-2">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  Attachments
+                  <Badge variant="secondary" className="ml-auto">
+                    {childAttachments.length}
+                  </Badge>
+                </h4>
+                <div className="flex items-center gap-2 mt-1 mb-3">
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={triggerChildFileUpload}
+                    className="flex items-center gap-2"
                   >
-                    <Paperclip className="h-4 w-4 mr-1" />
+                    <Paperclip className="h-4 w-4" />
                     Add Files
                   </Button>
                   <input
@@ -4794,28 +5771,42 @@ export default function SupportTicketsPage() {
                     accept=".pdf,.jpg,.jpeg,.png"
                   />
                   {childAttachments.length > 0 && (
-                    <span className="text-sm text-gray-500">
-                      {childAttachments.length} file(s) selected
-                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // clear all new files if you have a clear function
+                        // clearChildFiles();
+                      }}
+                      className="text-red-500"
+                    >
+                      Clear New Files
+                    </Button>
                   )}
                 </div>
+
                 {childAttachments.length > 0 && (
-                  <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                  <div className="mt-2 space-y-2">
                     {childAttachments.map((file, index) => (
                       <div
-                        key={index}
-                        className="flex items-center gap-2 p-2 bg-white dark:bg-background rounded border"
+                        key={`new-${index}`}
+                        className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200"
                       >
-                        <FileIcon fileType={file.type} />
-                        <span className="text-sm truncate flex-1">
-                          {file.name}
-                        </span>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileIcon fileType={file.type} />
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {formatFileSize(file.size)} (New)
+                          </span>
+                        </div>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeChildFile(index)}
                         >
-                          <X className="h-4 w-4" />
+                          <XCircle className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
@@ -4828,109 +5819,145 @@ export default function SupportTicketsPage() {
                 <Label className="text-base font-semibold flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Comments
+                  <Badge variant="secondary" className="ml-auto">
+                    {childSavedComments.length}
+                  </Badge>
                 </Label>
 
-                <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-background">
-                  <textarea
-                    value={childCommentText}
-                    onChange={(e) => setChildCommentText(e.target.value)}
-                    placeholder="Add a comment..."
-                    className="w-full min-h-[60px] p-2 border border-gray-200 dark:border-gray-700 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-background"
-                  />
-
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={triggerChildCommentFileUpload}
-                    >
-                      <Paperclip className="h-4 w-4 mr-1" />
-                      Add Attachment
-                    </Button>
-                    <input
-                      ref={childCommentFileInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={handleChildCommentFileChange}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleSaveChildComment}
-                      disabled={
-                        !childCommentText?.trim() &&
-                        childCommentAttachments.length === 0
-                      }
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelChildComment}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
-
-                  {childCommentAttachments.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {childCommentAttachments.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 text-xs"
-                        >
-                          <Paperclip className="h-3 w-3" />
-                          <span>{file.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeChildCommentFile(index)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
+                {/* Existing Comments */}
                 {childSavedComments.length > 0 && (
-                  <div className="mt-3 space-y-2 max-h-[150px] overflow-y-auto">
+                  <div className="mt-2 space-y-3 max-h-[300px] overflow-y-auto">
                     {childSavedComments.map((comment, index) => (
                       <div
                         key={comment.id}
-                        className="border rounded-lg p-2 bg-gray-50 dark:bg-muted/20"
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-muted/20"
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="text-xs">
-                            #{index + 1}
-                          </Badge>
-                          <span className="text-xs text-gray-400">
-                            {format(
-                              new Date(comment.createdAt),
-                              "MMM dd, yyyy HH:mm",
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="text-xs">
+                                #{index + 1}
+                              </Badge>
+                              <span className="text-xs text-gray-400">
+                                {format(
+                                  new Date(comment.createdAt),
+                                  "MMM dd, yyyy HH:mm",
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {comment.text}
+                            </p>
+                            {comment.attachments?.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {comment.attachments.map(
+                                  (file: any, idx: number) => (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center gap-2 text-xs text-gray-500"
+                                    >
+                                      <Paperclip className="h-3 w-3" />
+                                      <span>{file.name}</span>
+                                      <span>({formatFileSize(file.size)})</span>
+                                    </div>
+                                  ),
+                                )}
+                              </div>
                             )}
-                          </span>
-                        </div>
-                        <p className="text-sm">{comment.text}</p>
-                        {comment.attachments.length > 0 && (
-                          <div className="mt-1 text-xs text-gray-500">
-                            {comment.attachments.map((f, i) => (
-                              <span key={i}>{f.name} </span>
-                            ))}
                           </div>
-                        )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
+
+                {/* Add New Comment */}
+                <div className="mt-2 bg-white dark:bg-background">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">
+                      Add New Comment
+                    </Label>
+                    <textarea
+                      value={childCommentText}
+                      onChange={(e) => setChildCommentText(e.target.value)}
+                      placeholder="Add a new comment..."
+                      className="w-full min-h-[80px] p-3 border border-gray-200 dark:border-gray-700 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-background"
+                    />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={triggerChildCommentFileUpload}
+                          className="h-8"
+                        >
+                          <Paperclip className="h-4 w-4 mr-1" />
+                          Add Attachment
+                        </Button>
+                      </div>
+                      <input
+                        ref={childCommentFileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handleChildCommentFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+
+                      {childCommentAttachments.length > 0 && (
+                        <div className="space-y-1">
+                          {childCommentAttachments.map((file, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-3 p-2 bg-white dark:bg-background rounded border"
+                            >
+                              <FileIcon fileType={file.type} />
+                              <span className="text-sm truncate flex-1">
+                                {file.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatFileSize(file.size)}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeChildCommentFile(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Button
+                        type="button"
+                        onClick={handleSaveChildComment}
+                        disabled={
+                          !childCommentText?.trim() &&
+                          childCommentAttachments.length === 0
+                        }
+                        className="flex-1 sm:flex-none"
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Save Comment
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelChildComment}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -4944,7 +5971,7 @@ export default function SupportTicketsPage() {
               className="bg-emerald-600 hover:bg-emerald-700"
               disabled={uploading}
             >
-              {uploading ? "Creating..." : "Create Child Ticket"}
+              {uploading ? "Creating..." : "Create New Ticket"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4952,10 +5979,20 @@ export default function SupportTicketsPage() {
       {/* ==========================================
     CHILD EDIT TICKET DIALOG
     ========================================== */}
-      <Dialog open={showChildEditDialog} onOpenChange={setShowChildEditDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog
+        open={showChildEditDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            // X → previous nested level (last page), not top parent
+            handleBackChildEdit();
+          } else {
+            setShowChildEditDialog(open);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Child Ticket</DialogTitle>
+            <DialogTitle>Edit Ticket</DialogTitle>
             <DialogDescription>
               Editing: {editingChildTicket?.ticketNumber} -{" "}
               {editingChildTicket?.title}
@@ -4965,7 +6002,7 @@ export default function SupportTicketsPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               {/* Title */}
-              <div className="col-span-2">
+              <div>
                 <Label className="mb-2">Title *</Label>
                 <Input
                   value={childEditForm.title}
@@ -4979,116 +6016,23 @@ export default function SupportTicketsPage() {
                 />
               </div>
 
-              {/* Category - Only show child categories */}
-              {/* <div className="col-span-2">
-                <Label className="mb-2">Category *</Label>
-                <Select
-                  value={childEditForm.category || ""}
-                  onValueChange={(value) =>
-                    setChildEditForm({ ...childEditForm, category: value })
-                  }
-                  disabled={childCategories.length === 0}
-                >
-                  <SelectTrigger
-                    className={
-                      childEditForm.category &&
-                      childCategories.length > 0 &&
-                      !childCategories.some(
-                        (cat) => cat.id === childEditForm.category,
-                      )
-                        ? "border-red-500 ring-1 ring-red-500"
-                        : ""
-                    }
-                  >
-                    <SelectValue
-                      placeholder={
-                        childCategories.length === 0
-                          ? "No child categories available"
-                          : childEditForm.category &&
-                              !childCategories.some(
-                                (cat) => cat.id === childEditForm.category,
-                              )
-                            ? "⚠️ Invalid - Select child category"
-                            : "Select category"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {childCategories.length === 0 ? (
-                      <SelectItem value="no-categories" disabled>
-                        No child categories available
-                      </SelectItem>
-                    ) : (
-                      childCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-
-              
-                {childEditForm.category &&
-                  childCategories.length > 0 &&
-                  !childCategories.some(
+              {/* Category — read-only on edit */}
+              <div>
+                <Label className="mb-2">Category</Label>
+                <div className="w-full p-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  {flatCategories.find(
                     (cat) => cat.id === childEditForm.category,
-                  ) && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Current category is not valid. Please select a child
-                      category.
-                    </p>
-                  )}
-
-                {childCategories.length === 0 && (
-                  <p className="text-xs text-yellow-500 mt-1">
-                    No child categories available. Please create child
-                    categories first.
-                  </p>
-                )}
-              </div> */}
-              {/* Category - ONLY LEAF categories (parents/Epic/Features hidden) */}
-              <div className="col-span-2">
-                <Label className="mb-2">Category *</Label>
-                <Select
-                  value={childEditForm.category}
-                  onValueChange={(value) =>
-                    setChildEditForm({ ...childEditForm, category: value })
-                  }
-                  disabled={childCategories.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        childCategories.length === 0
-                          ? "No leaf categories available"
-                          : "Select category"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {childCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {childCategories.length === 0 && (
-                  <p className="text-xs text-yellow-500 mt-1">
-                    No leaf categories available. Please create leaf categories
-                    first.
-                  </p>
-                )}
+                  )?.name ||
+                    childEditForm.category ||
+                    "No category selected"}
+                </div>
               </div>
 
               {/* Description */}
               <div className="col-span-2">
                 <Label className="mb-2">Description</Label>
                 <textarea
-                  className="w-full min-h-[80px] p-2 rounded-md border border-input bg-background"
+                  className="w-full min-h-[100px] p-2 rounded-md border border-input bg-background"
                   value={childEditForm.description}
                   onChange={(e) =>
                     setChildEditForm({
@@ -5098,6 +6042,28 @@ export default function SupportTicketsPage() {
                   }
                   placeholder="Describe the child ticket issue"
                 />
+              </div>
+
+              {/* Status */}
+              <div>
+                <Label className="mb-2">Status</Label>
+                <Select
+                  value={childEditForm.status}
+                  onValueChange={(value) =>
+                    setChildEditForm({ ...childEditForm, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Priority */}
@@ -5122,34 +6088,14 @@ export default function SupportTicketsPage() {
                 </Select>
               </div>
 
-              {/* Status */}
-              <div>
-                <Label className="mb-2">Status</Label>
-                <Select
-                  value={childEditForm.status}
-                  onValueChange={(value) =>
-                    setChildEditForm({ ...childEditForm, status: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Assign To */}
               <div className="col-span-2">
-                <Label className="mb-2">Assign To</Label>
+                <Label className="mb-2">Assignee To</Label>
                 <Select
-                  value={childFormData.assignedToId || "unassigned"} // edit: childEditForm
+                  value={childEditForm.assignedToId || "unassigned"}
                   onValueChange={(value) =>
-                    setChildFormData({
-                      ...childFormData,
+                    setChildEditForm({
+                      ...childEditForm,
                       assignedToId: value === "unassigned" ? "" : value,
                     })
                   }
@@ -5170,17 +6116,74 @@ export default function SupportTicketsPage() {
                 </Select>
               </div>
 
+              {/* Parent Ticket — same option as main edit */}
+              <div className="col-span-2">
+                <Label className="mb-2">Parent Ticket</Label>
+                <Select
+                  value={childEditForm.parentTicketId || "none"}
+                  onValueChange={(value) =>
+                    setChildEditForm({
+                      ...childEditForm,
+                      parentTicketId: value === "none" ? "" : value,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select parent ticket (optional)">
+                      {childEditForm.parentTicketId
+                        ? formatParentTicketLabel(
+                            childEditForm.parentTicketId,
+                            editingChildTicket?.parentTicket ||
+                              (editingTicket?.id ===
+                              childEditForm.parentTicketId
+                                ? {
+                                    id: editingTicket.id,
+                                    title: editingTicket.title,
+                                    ticketNumber: editingTicket.ticketNumber,
+                                  }
+                                : null),
+                          )
+                        : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {getParentTicketOptions({
+                      currentCategoryId: childEditForm.category
+                        ? String(childEditForm.category)
+                        : "",
+                      currentParentId: childEditForm.parentTicketId || "",
+                      excludeTicketId: editingChildTicket?.id || "",
+                    }).map((ticket) => (
+                      <SelectItem key={ticket.id} value={ticket.id}>
+                        {ticket.ticketNumber
+                          ? `${ticket.ticketNumber} — ${ticket.title}`
+                          : ticket.title || ticket.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Attachments */}
               <div className="col-span-2">
-                <Label className="mb-2">Attachments</Label>
-                <div className="flex items-center gap-2">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  Attachments
+                  <Badge variant="secondary" className="ml-auto">
+                    {childEditExistingAttachments.length +
+                      childEditAttachments.length}{" "}
+                    
+                  </Badge>
+                </h4>
+                <div className="flex items-center gap-2 mt-1 mb-3">
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     onClick={triggerChildEditFileUpload}
+                    className="flex items-center gap-2"
                   >
-                    <Paperclip className="h-4 w-4 mr-1" />
+                    <Paperclip className="h-4 w-4" />
                     Add Files
                   </Button>
                   <input
@@ -5191,25 +6194,43 @@ export default function SupportTicketsPage() {
                     onChange={handleChildEditFileChange}
                     accept=".pdf,.jpg,.jpeg,.png"
                   />
+                  {childEditAttachments.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // clearChildEditFiles();
+                      }}
+                      className="text-red-500"
+                    >
+                      Clear New Files
+                    </Button>
+                  )}
                 </div>
 
                 {/* New Attachments */}
                 {childEditAttachments.length > 0 && (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 space-y-2">
                     {childEditAttachments.map((file, index) => (
                       <div
-                        key={index}
-                        className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200 text-sm"
+                        key={`new-${index}`}
+                        className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200"
                       >
-                        <FileIcon fileType={file.type} />
-                        <span className="truncate flex-1">{file.name}</span>
-                        <span className="text-xs text-gray-500">(New)</span>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileIcon fileType={file.type} />
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {formatFileSize(file.size)} (New)
+                          </span>
+                        </div>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeChildEditFile(index)}
                         >
-                          <X className="h-3 w-3" />
+                          <XCircle className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
@@ -5218,26 +6239,46 @@ export default function SupportTicketsPage() {
 
                 {/* Existing Attachments */}
                 {childEditExistingAttachments.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs text-gray-500">
-                      Existing Attachments:
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm text-gray-500">
+                      Current Attachments:
                     </p>
-                    {childEditExistingAttachments.map((att: any) => (
+                    {childEditExistingAttachments.map((attachment: any) => (
                       <div
-                        key={att.id}
-                        className="flex items-center gap-2 p-2 bg-gray-100 rounded border text-sm"
+                        key={attachment.id}
+                        className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-muted/30 rounded-lg border"
                       >
-                        <FileIcon fileType={att.fileType} />
-                        <span className="truncate flex-1">{att.fileName}</span>
+                        <FileIcon fileType={attachment.fileType} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {attachment.fileName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatFileSize(attachment.fileSize)}
+                          </p>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() =>
-                            markChildEditAttachmentForDeletion(att.id)
+                            downloadAttachment(
+                              editingChildTicket?.id || "",
+                              attachment.id,
+                              attachment.fileName,
+                            )
+                          }
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            markChildEditAttachmentForDeletion(attachment.id)
                           }
                           className="text-red-500"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
@@ -5246,8 +6287,8 @@ export default function SupportTicketsPage() {
               </div>
 
               {/* Comments */}
-              <div className="col-span-2 border-t pt-4">
-                <Label className="text-base font-semibold flex items-center gap-2 mb-3">
+              <div className="col-span-2">
+                <Label className="text-base font-semibold flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Comments
                   <Badge variant="secondary" className="ml-auto">
@@ -5255,9 +6296,9 @@ export default function SupportTicketsPage() {
                   </Badge>
                 </Label>
 
-                {/* Existing Comments */}
+                {/* Existing Comments with Edit/Delete */}
                 {childEditComments.length > 0 && (
-                  <div className="mt-2 space-y-3 max-h-[280px] overflow-y-auto">
+                  <div className="mt-2 space-y-3 max-h-[300px] overflow-y-auto">
                     {childEditComments.map((comment, index) => (
                       <div
                         key={comment.id}
@@ -5278,7 +6319,7 @@ export default function SupportTicketsPage() {
                               {comment.isExisting && (
                                 <Badge
                                   variant="secondary"
-                                  className="text-xs bg-blue-100 text-blue-700"
+                                  className="text-xs bg-green-100 text-green-600"
                                 >
                                   Existing
                                 </Badge>
@@ -5322,18 +6363,20 @@ export default function SupportTicketsPage() {
                               </p>
                             )}
 
-                            {comment.attachments.length > 0 && (
+                            {comment.attachments?.length > 0 && (
                               <div className="mt-2 space-y-1">
-                                {comment.attachments.map((file, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-2 text-xs text-gray-500"
-                                  >
-                                    <Paperclip className="h-3 w-3" />
-                                    <span>{file.name}</span>
-                                    <span>({formatFileSize(file.size)})</span>
-                                  </div>
-                                ))}
+                                {comment.attachments.map(
+                                  (file: any, idx: number) => (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center gap-2 text-xs text-gray-500"
+                                    >
+                                      <Paperclip className="h-3 w-3" />
+                                      <span>{file.name}</span>
+                                      <span>({formatFileSize(file.size)})</span>
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             )}
                           </div>
@@ -5372,91 +6415,425 @@ export default function SupportTicketsPage() {
                 )}
 
                 {/* Add New Comment */}
-                <div className="mt-4 bg-white dark:bg-background">
-                  <Label className="text-sm font-medium block mb-2">
-                    Add New Comment
-                  </Label>
-                  <textarea
-                    value={childEditCommentText}
-                    onChange={(e) => setChildEditCommentText(e.target.value)}
-                    placeholder="Add a new comment..."
-                    className="w-full min-h-[80px] p-3 border border-gray-200 dark:border-gray-700 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-background"
-                  />
+                <div className="mt-2 bg-white dark:bg-background">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">
+                      Add New Comment
+                    </Label>
+                    <textarea
+                      value={childEditCommentText}
+                      onChange={(e) => setChildEditCommentText(e.target.value)}
+                      placeholder="Add a new comment..."
+                      className="w-full min-h-[80px] p-3 border border-gray-200 dark:border-gray-700 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-background"
+                    />
 
-                  <div className="space-y-2 mt-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={triggerChildEditCommentFileUpload}
+                          className="h-8"
+                        >
+                          <Paperclip className="h-4 w-4 mr-1" />
+                          Add Attachment
+                        </Button>
+                      </div>
+                      <input
+                        ref={childEditCommentFileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handleChildEditCommentFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+
+                      {childEditCommentAttachments.length > 0 && (
+                        <div className="space-y-1">
+                          {childEditCommentAttachments.map((file, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-3 p-2 bg-white dark:bg-background rounded border"
+                            >
+                              <FileIcon fileType={file.type} />
+                              <span className="text-sm truncate flex-1">
+                                {file.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatFileSize(file.size)}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  removeChildEditCommentFile(index)
+                                }
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <Button
+                        type="button"
+                        onClick={handleSaveChildEditComment}
+                        disabled={
+                          !childEditCommentText?.trim() &&
+                          childEditCommentAttachments.length === 0
+                        }
+                        className="flex-1 sm:flex-none"
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Save Comment
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelChildEditComment}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nested Child Tickets (child → child) */}
+              {editingChildTicket && (
+                <div className="mb-6 col-span-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-600 dark:text-muted-foreground flex items-center gap-2">
+                      <span>Tickets</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {subChildTicketsList.length}
+                      </Badge>
+                    </h4>
                     <div className="flex items-center gap-2">
+                      {loadingSubChildTickets && (
+                        <span className="text-sm text-gray-400">Loading...</span>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={triggerChildEditCommentFileUpload}
-                        className="h-8"
+                        className="bg-white border hover:bg-gray-50"
+                        onClick={() => {
+                          setCreatingChildUnderId(
+                            editingChildTicket?.id || null,
+                          );
+                          setShowChildDialog(true);
+                        }}
                       >
-                        <Paperclip className="h-4 w-4 mr-1" />
-                        Add Attachment
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Create New Ticket
                       </Button>
                     </div>
-                    <input
-                      ref={childEditCommentFileInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={handleChildEditCommentFileChange}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
+                  </div>
 
-                    {childEditCommentAttachments.length > 0 && (
-                      <div className="space-y-1">
-                        {childEditCommentAttachments.map((file, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-3 p-2 bg-white dark:bg-background rounded border"
+                  {subChildTicketsList.length > 0 ? (
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">ID</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Priority</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Assigned To</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {getVisibleSubChildTableRows().map((child) => {
+                            const statusInfo = getStatusBadge(child.status);
+                            const priorityInfo = getPriorityBadge(
+                              child.priority,
+                            );
+                            const categoryDisplay = flatCategories.find(
+                              (cat) => cat.id === child.category,
+                            );
+                            const depth = child._depth || 0;
+                            const isExpanded = !!expandedTickets[child.id];
+                            const isLoadingKids = !!loadingChildren[child.id];
+                            const cachedKids = ticketChildrenCache[child.id];
+                            const canExpand =
+                              child.hasChildren === true ||
+                              (cachedKids?.length ?? 0) > 0;
+                            return (
+                              <TableRow
+                                key={`${child.id}-${depth}`}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => openChildEditDialog(child)}
+                              >
+                                <TableCell className="text-sm text-gray-500 font-mono">
+                                  <div
+                                    className="flex items-center gap-1"
+                                    style={{ paddingLeft: `${depth * 16}px` }}
+                                  >
+                                    {canExpand ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) =>
+                                          toggleTicketExpand(e, child)
+                                        }
+                                        className="p-0.5 rounded hover:bg-muted"
+                                        disabled={isLoadingKids}
+                                      >
+                                        {isLoadingKids ? (
+                                          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                                        ) : isExpanded ? (
+                                          <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+                                        ) : (
+                                          <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
+                                        )}
+                                      </button>
+                                    ) : (
+                                      <span className="inline-block w-4" />
+                                    )}
+                                    <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded">
+                                      #{child.ticketNumber}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <p className="font-medium text-sm">
+                                    {child.title}
+                                  </p>
+                                </TableCell>
+                                <TableCell>
+                                  <p className="text-sm text-gray-600 line-clamp-1">
+                                    {child.description
+                                      ? truncateText(child.description, 10)
+                                      : "—"}
+                                  </p>
+                                </TableCell>
+                                <TableCell
+                                  className="w-[140px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Select
+                                    value={child.status}
+                                    onValueChange={(value) =>
+                                      handleQuickStatusUpdate(child.id, value)
+                                    }
+                                    disabled={statusUpdating === child.id}
+                                  >
+                                    <SelectTrigger className="w-full h-8 border-0 bg-transparent shadow-none hover:bg-muted/50">
+                                      <SelectValue>
+                                        {statusUpdating === child.id ? (
+                                          "Updating..."
+                                        ) : (
+                                          <Badge
+                                            className={cn(
+                                              statusInfo.color,
+                                              "text-xs",
+                                            )}
+                                          >
+                                            {statusInfo.icon}
+                                            {statusInfo.label}
+                                          </Badge>
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {statusOptions.map((status) => {
+                                        const info = getStatusBadge(
+                                          status.value,
+                                        );
+                                        return (
+                                          <SelectItem
+                                            key={status.value}
+                                            value={status.value}
+                                          >
+                                            <Badge className={info.color}>
+                                              {info.icon}
+                                              {status.label}
+                                            </Badge>
+                                          </SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    className={cn(
+                                      priorityInfo.color,
+                                      "text-xs",
+                                    )}
+                                  >
+                                    {priorityInfo.icon}
+                                    {priorityInfo.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Tag className="h-3 w-3 text-gray-400" />
+                                    <span className="text-sm font-medium">
+                                      {categoryDisplay?.name || "N/A"}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell
+                                  className="w-[180px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Select
+                                    value={
+                                      child.assignedTo?.id || "unassigned"
+                                    }
+                                    onValueChange={(value) =>
+                                      handleQuickAssigneeUpdate(
+                                        child.id,
+                                        value,
+                                      )
+                                    }
+                                    disabled={assigneeUpdating === child.id}
+                                    onOpenChange={(open) =>
+                                      open && fetchAssignees()
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full h-8 border-0 bg-transparent shadow-none hover:bg-muted/50">
+                                      <SelectValue>
+                                        {assigneeUpdating === child.id ? (
+                                          "Updating..."
+                                        ) : child.assignedTo ? (
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                              <AvatarImage
+                                                src={
+                                                  toAvatarUrl?.(
+                                                    child.assignedTo.avatar,
+                                                  ) ?? undefined
+                                                }
+                                              />
+                                              <AvatarFallback className="text-xs">
+                                                {getInitials?.(
+                                                  child.assignedTo.name,
+                                                ) ||
+                                                  child.assignedTo.name?.charAt(
+                                                    0,
+                                                  )}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm truncate max-w-[100px]">
+                                              {child.assignedTo.name}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span className="text-sm text-gray-400">
+                                            Unassigned
+                                          </span>
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="unassigned">
+                                        <span className="text-gray-400">
+                                          Unassigned
+                                        </span>
+                                      </SelectItem>
+                                      {assignees.map((assignee) => (
+                                        <SelectItem
+                                          key={assignee.id}
+                                          value={assignee.id}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                              <AvatarImage
+                                                src={
+                                                  toAvatarUrl?.(
+                                                    assignee.avatar,
+                                                  ) ?? undefined
+                                                }
+                                              />
+                                              <AvatarFallback className="text-xs">
+                                                {getInitials(assignee.name)}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span>
+                                              {assignee.name}
+                                              {assignee.role && (
+                                                <span className="text-xs text-gray-400 ml-1">
+                                                  ({assignee.role})
+                                                </span>
+                                              )}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div
+                                    className="flex justify-end gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={() =>
+                                        openChildEditDialog(child)
+                                      }
+                                      title="Edit"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() =>
+                                        handleDeleteChildTicket(child)
+                                      }
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    !loadingSubChildTickets && (
+                      <div className="p-8 text-center text-sm text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                        <div className="flex flex-col items-center gap-2">
+                          <Ticket className="h-8 w-8 text-gray-300" />
+                          <p>No tickets yet</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setCreatingChildUnderId(
+                                editingChildTicket?.id || null,
+                              );
+                              setShowChildDialog(true);
+                            }}
                           >
-                            <FileIcon fileType={file.type} />
-                            <span className="text-sm truncate flex-1">
-                              {file.name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {formatFileSize(file.size)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeChildEditCommentFile(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+                            <Plus className="h-3 w-3 mr-1" />
+                            Create First Ticket
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-3 border-t mt-4">
-                    <Button
-                      type="button"
-                      onClick={handleSaveChildEditComment}
-                      disabled={
-                        !childEditCommentText?.trim() &&
-                        childEditCommentAttachments.length === 0
-                      }
-                      className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Save Comment
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCancelChildEditComment}
-                      className="flex-1 sm:flex-none"
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
+                    )
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -5469,7 +6846,7 @@ export default function SupportTicketsPage() {
               className="bg-emerald-600 hover:bg-emerald-700"
               disabled={childEditUploading || !childEditForm.category}
             >
-              {childEditUploading ? "Updating..." : "Update Child Ticket"}
+              {childEditUploading ? "Updating..." : "Update Ticket"}
             </Button>
           </DialogFooter>
         </DialogContent>
