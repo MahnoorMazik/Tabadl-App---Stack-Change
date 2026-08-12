@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       )
     )
   } catch (error: unknown) {
-    logError(error, {
+    logError(error instanceof Error ? error : new Error(String(error)), {
       code: ErrorCodes.INTERNAL_ERROR,
       requestId,
       endpoint: '/api/admin/reset-password',

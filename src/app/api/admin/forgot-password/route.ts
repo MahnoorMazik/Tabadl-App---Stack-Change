@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     return addCorsHeaders(createSuccessResponse(successMessage, 200, { requestId }))
   } catch (error: unknown) {
-    logError(error, {
+    logError(error instanceof Error ? error : new Error(String(error)), {
       code: ErrorCodes.INTERNAL_ERROR,
       requestId,
       endpoint: '/api/admin/forgot-password',
