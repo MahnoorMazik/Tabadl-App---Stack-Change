@@ -94,9 +94,9 @@ export function FormBuilder({
   }, [initialTemplate])
 
   useEffect(() => {
-    const encoded = (nameEn || nameAr) ? encodeBilingualText(nameEn, nameAr) : ''
+    const encoded = nameEn.trim() ? encodeBilingualText(nameEn.trim(), '') : ''
     setTemplate((prev) => (prev.name === encoded ? prev : { ...prev, name: encoded }))
-  }, [nameEn, nameAr])
+  }, [nameEn])
 
   useEffect(() => {
     let cancelled = false
@@ -202,10 +202,10 @@ export function FormBuilder({
 
   const handleSave = async () => {
     setShowValidation(true)
-    if (!nameEn.trim() || !nameAr.trim() || !effectiveArea || template.fields.length === 0) {
+    if (!nameEn.trim() || !effectiveArea || template.fields.length === 0) {
       toast({
         title: isRTL ? 'تعذر حفظ النموذج' : 'Cannot save form',
-        description: isRTL ? 'يرجى إدخال اسم النموذج باللغتين الإنجليزية والعربية واستكمال باقي البيانات.' : 'Both English and Arabic form names are required.',
+        description: isRTL ? 'يرجى إدخال اسم النموذج واستكمال باقي البيانات.' : 'Form name is required and at least 1 field must be added.',
         variant: 'destructive',
       })
       return
@@ -279,7 +279,7 @@ export function FormBuilder({
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="form-name-en" className={cn("block", isRTL ? "text-right" : "text-left")}>
-                Form Name (English) <span className="text-destructive">*</span>
+                Form Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="form-name-en"
@@ -291,27 +291,7 @@ export function FormBuilder({
               />
               {showValidation && !nameEn.trim() && (
                 <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
-                  English form name is required.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="form-name-ar" className={cn("block", isRTL ? "text-right" : "text-left")}>
-                اسم النموذج (بالعربية) <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="form-name-ar"
-                value={nameAr}
-                onChange={(e) => setNameAr(e.target.value)}
-                placeholder="مثال: نموذج تعبئة بيانات تأسيس الشركة"
-                aria-invalid={showValidation && !nameAr.trim()}
-                dir="rtl"
-                className={cn(showValidation && !nameAr.trim() ? 'border-destructive' : undefined, "text-right")}
-              />
-              {showValidation && !nameAr.trim() && (
-                <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
-                  اسم النموذج بالعربية مطلوب.
+                  Form name is required.
                 </p>
               )}
             </div>
