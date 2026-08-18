@@ -37,16 +37,16 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
   const parsedLabel = parseBilingualText(field.label)
   const parsedHelp = parseBilingualText(field.helpText)
 
-  const handleLabelChange = (en: string, ar: string) => {
-    const encoded = encodeBilingualText(en, ar)
+  const handleLabelChange = (en: string) => {
+    const encoded = encodeBilingualText(en, '')
     onUpdate(field.id, {
       label: encoded,
       labelOverride: encoded,
     })
   }
 
-  const handleHelpChange = (en: string, ar: string) => {
-    const encoded = (en.trim() || ar.trim()) ? encodeBilingualText(en, ar) : null
+  const handleHelpChange = (en: string) => {
+    const encoded = en.trim() ? encodeBilingualText(en, '') : null
     onUpdate(field.id, { helpText: encoded })
   }
 
@@ -71,19 +71,12 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
           <GripVertical className="h-4 w-4" />
         </button>
 
-        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="flex-1 min-w-0">
           <Input
             value={parsedLabel.en}
-            onChange={(e) => handleLabelChange(e.target.value, parsedLabel.ar)}
-            placeholder={isInstruction ? 'Heading (English)' : 'Field label (English)'}
+            onChange={(e) => handleLabelChange(e.target.value)}
+            placeholder={isInstruction ? 'Heading' : 'Field label'}
             className="h-8 text-xs"
-          />
-          <Input
-            value={parsedLabel.ar}
-            onChange={(e) => handleLabelChange(parsedLabel.en, e.target.value)}
-            placeholder={isInstruction ? 'العنوان (بالعربية)' : 'اسم الحقل (بالعربية)'}
-            dir="rtl"
-            className="h-8 text-xs text-right"
           />
         </div>
 
@@ -128,50 +121,25 @@ export function SortableFieldRow({ field, onUpdate, onRemove }: SortableFieldRow
 
       <div className="sm:pl-8 space-y-1.5">
         {isInstruction ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <Label className="text-[11px] font-normal text-muted-foreground">Instruction text (English)</Label>
-              <Textarea
-                value={parsedHelp.en}
-                onChange={(e) => handleHelpChange(e.target.value, parsedHelp.ar)}
-                placeholder="Guidance in English…"
-                rows={2}
-                className="text-xs resize-y min-h-[50px]"
-              />
-            </div>
-            <div>
-              <Label className="text-[11px] font-normal text-muted-foreground block text-right">نص الإرشادات (بالعربية)</Label>
-              <Textarea
-                value={parsedHelp.ar}
-                onChange={(e) => handleHelpChange(parsedHelp.en, e.target.value)}
-                placeholder="الإرشادات بالعربية..."
-                rows={2}
-                dir="rtl"
-                className="text-xs resize-y min-h-[50px] text-right"
-              />
-            </div>
+          <div>
+            <Label className="text-[11px] font-normal text-muted-foreground">Instruction text</Label>
+            <Textarea
+              value={parsedHelp.en}
+              onChange={(e) => handleHelpChange(e.target.value)}
+              placeholder="Guidance text…"
+              rows={2}
+              className="text-xs resize-y min-h-[50px]"
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <Label className="text-[11px] font-normal text-muted-foreground">Tooltip (English)</Label>
-              <Input
-                value={parsedHelp.en}
-                onChange={(e) => handleHelpChange(e.target.value, parsedHelp.ar)}
-                placeholder="Help message in English…"
-                className="h-7 text-xs"
-              />
-            </div>
-            <div>
-              <Label className="text-[11px] font-normal text-muted-foreground block text-right">تلميح توضيحي (بالعربية)</Label>
-              <Input
-                value={parsedHelp.ar}
-                onChange={(e) => handleHelpChange(parsedHelp.en, e.target.value)}
-                placeholder="نص توضيحي بالعربية..."
-                dir="rtl"
-                className="h-7 text-xs text-right"
-              />
-            </div>
+          <div>
+            <Label className="text-[11px] font-normal text-muted-foreground">Tooltip / Help text</Label>
+            <Input
+              value={parsedHelp.en}
+              onChange={(e) => handleHelpChange(e.target.value)}
+              placeholder="Help message shown on hover…"
+              className="h-7 text-xs"
+            />
           </div>
         )}
       </div>

@@ -8,6 +8,8 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
+import { LocalizedText } from '@/components/forms/LocalizedText'
+
 type FieldHelpTooltipProps = {
   text?: string | null
   className?: string
@@ -44,7 +46,7 @@ export function FieldHelpTooltip({
         sideOffset={6}
         className="max-w-xs text-left font-normal normal-case tracking-normal"
       >
-        {message}
+        <LocalizedText raw={message} />
       </TooltipContent>
     </Tooltip>
   )

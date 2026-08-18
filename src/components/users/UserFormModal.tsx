@@ -21,6 +21,9 @@ import axios from 'axios'
 import { useToast } from '@/hooks/use-toast'
 import { CORE_ADMIN_EMAIL } from '@/lib/users/constants'
 
+import { useLocale } from '@/contexts/LocaleContext'
+import { parseBilingualText, encodeBilingualText } from '@/lib/multilingual-text'
+
 interface RoleOption {
   id: string
   name: string
@@ -42,6 +45,7 @@ export function UserFormModal({
   canEdit = true,
 }: UserFormModalProps) {
   const { toast } = useToast()
+  const { t } = useLocale()
   const isEdit = !!userId
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -53,11 +57,12 @@ export function UserFormModal({
   const [isCoreAdmin, setIsCoreAdmin] = useState(false)
 
   const [form, setForm] = useState({
-    name: '',
+    nameEn: '',
+    nameAr: '',
     email: '',
     phone: '',
     role: UserRole.STAFF as UserRole,
-    staffType: '' as string,
+    staffType: 'NONE' as string,
     customRoleId: '',
     isActive: true,
     password: '',
@@ -83,12 +88,14 @@ export function UserFormModal({
           const userRes = await axios.get(`/api/users/${userId}`, { headers: authHeaders() })
           const u = userRes.data?.user ?? userRes.data
           setIsCoreAdmin(u.email === CORE_ADMIN_EMAIL)
+          const parsed = parseBilingualText(u.name ?? '')
           setForm({
-            name: u.name ?? '',
+            nameEn: parsed.en,
+            nameAr: parsed.ar,
             email: u.email ?? '',
             phone: u.phone ?? '',
             role: u.role ?? UserRole.STAFF,
-            staffType: u.staffType ?? '',
+            staffType: u.staffType ?? 'NONE',
             customRoleId: u.customRoleId ?? u.customRole?.id ?? '',
             isActive: u.isActive ?? true,
             password: '',
@@ -97,11 +104,12 @@ export function UserFormModal({
         } else {
           setIsCoreAdmin(false)
           setForm({
-            name: '',
+            nameEn: '',
+            nameAr: '',
             email: '',
             phone: '',
             role: UserRole.STAFF,
-            staffType: '',
+            staffType: 'NONE',
             customRoleId: '',
             isActive: true,
             password: '',
@@ -122,15 +130,17 @@ export function UserFormModal({
     e.preventDefault()
     if (!canEdit) return
 
+    const finalName = encodeBilingualText(form.nameEn.trim(), form.nameEn.trim())
+
     setSaving(true)
     try {
       if (isEdit && userId) {
         const payload: Record<string, unknown> = {
-          name: form.name,
+          name: finalName,
           email: form.email,
           phone: form.phone || null,
           customRoleId: form.customRoleId || null,
-          staffType: form.staffType || null,
+          staffType: form.staffType === 'NONE' ? null : (form.staffType || null),
           isActive: form.isActive,
         }
         if (form.password.trim()) payload.password = form.password
@@ -141,11 +151,11 @@ export function UserFormModal({
         await axios.post(
           '/api/users',
           {
-            name: form.name,
+            name: finalName,
             email: form.email,
             phone: form.phone || null,
             role: form.role,
-            staffType: form.staffType || null,
+            staffType: form.staffType === 'NONE' ? null : (form.staffType || null),
             customRoleId: form.customRoleId || null,
           },
           { headers: authHeaders() }
@@ -198,8 +208,9 @@ export function UserFormModal({
     }
   }
 
-  const initials = form.name
-    ? form.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+  const nameForInitials = form.nameEn || form.nameAr
+  const initials = nameForInitials
+    ? nameForInitials.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : '?'
 
   return (
@@ -261,11 +272,12 @@ export function UserFormModal({
             )}
 
             <div>
-              <Label htmlFor="name">Full Name *</Label>
+              <Label htmlFor="nameEn">Full Name *</Label>
               <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                id="nameEn"
+                value={form.nameEn}
+                onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+                placeholder="Enter full name"
                 required
                 disabled={isCoreAdmin && isEdit}
               />
@@ -343,7 +355,7 @@ export function UserFormModal({
                       <SelectValue placeholder="Optional" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="NONE">None</SelectItem>
                       {Object.values(StaffType).map((st) => (
                         <SelectItem key={st} value={st}>
                           {st.replace('_', ' ')}

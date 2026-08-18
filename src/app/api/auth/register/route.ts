@@ -8,8 +8,11 @@ import { UserRole } from '@prisma/client'
 import { ensureClientProfileRecords } from '@/lib/business-workflow/profile-completion'
 import crypto from 'crypto'
 
+import { encodeBilingualText } from '@/lib/multilingual-text'
+
 const registerSchema = z.object({
   name: z.string().min(2),
+  nameAr: z.string().optional(),
   email: z.string().email(),
   password: z.string().min(6),
   companyName: z.string().optional(),
@@ -28,7 +31,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, password, companyName, phone } = registerSchema.parse(body)
+    const { name, nameAr, email, password, companyName, phone } = registerSchema.parse(body)
+
+    // Encode English and Arabic names into JSON string
+    const finalName = nameAr?.trim() ? encodeBilingualText(name.trim(), nameAr.trim()) : name.trim()
 
     const existingUser = await db.user.findFirst({
       where: { email, isDeleted: false }
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
     const result = await db.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          name,
+          name: finalName,
           email,
           passwordHash,
           role: UserRole.CLIENT,

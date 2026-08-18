@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FileInput } from '@/components/ui/file-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, ArrowLeft, ArrowRight, Check, Save, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Loader2, ArrowLeft, ArrowRight, Check, Save, Clock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -23,6 +24,7 @@ import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
 import { isWizardFileUrl } from '@/lib/wizards/wizard-file-utils'
 import { useLocale } from '@/contexts/LocaleContext'
 import { getLocalizedText } from '@/lib/multilingual-text'
+import { LocalizedText } from '@/components/forms/LocalizedText'
 
 export interface StepField {
   id?: string
@@ -139,13 +141,11 @@ const StepFieldRow = memo(function StepFieldRow({
             i
           </span>
           <div className="min-w-0 space-y-1">
-            {displayLabel?.trim() && (
-              <p className="text-sm font-semibold text-sky-950">{displayLabel}</p>
+            {field.label?.trim() && (
+              <LocalizedText raw={field.label} as="p" className="text-sm font-semibold text-sky-950" />
             )}
-            {displayHelpText?.trim() ? (
-              <p className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed">
-                {displayHelpText}
-              </p>
+            {field.helpText?.trim() ? (
+              <LocalizedText raw={field.helpText} as="p" className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed" />
             ) : null}
           </div>
         </div>
@@ -169,7 +169,7 @@ const StepFieldRow = memo(function StepFieldRow({
         )}
       >
         <span className="text-muted-foreground/70 text-xs font-normal">{index + 1}.</span>
-        <span>{displayLabel}</span>
+        <LocalizedText raw={field.label} />
         {field.isRequired && <span className="text-destructive">*</span>}
         <FieldHelpTooltip text={displayHelpText} />
       </Label>
@@ -204,7 +204,7 @@ const StepFieldRow = memo(function StepFieldRow({
           <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
             {(field.options ?? []).map((opt) => (
               <SelectItem key={opt} value={opt}>
-                {opt}
+                <LocalizedText raw={opt} />
               </SelectItem>
             ))}
           </SelectContent>
@@ -227,11 +227,9 @@ const StepFieldRow = memo(function StepFieldRow({
               onRemove={!readOnly ? () => onRemoveFile(field.fieldId) : undefined}
             />
           ) : (
-            <Input
-              type="file"
+            <FileInput
               disabled={readOnly || uploading}
               onChange={(e) => void onFileUpload(field.fieldId, e.target.files?.[0])}
-              className="h-10 cursor-pointer text-sm"
             />
           )}
           {uploading && (
@@ -554,7 +552,7 @@ export function ApplicationStepForm({
               )}
             >
               <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">
-                {localizedFormName}
+                <LocalizedText raw={formName} />
               </h2>
               <p className="text-xs text-muted-foreground">
                 {t('client.fill.stepOf')

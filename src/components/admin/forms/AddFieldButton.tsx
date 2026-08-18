@@ -14,6 +14,8 @@ import { Plus, Loader2 } from 'lucide-react'
 import {
   FormFieldType,
   FIELD_TYPE_LABELS,
+  FIELD_TYPE_LABELS_AR,
+  getFieldTypeLabel,
   ReusableField,
   CanvasField,
   canvasFieldFromReusable,
@@ -22,6 +24,7 @@ import {
 import { formApi, FormApiError } from './api'
 import { useToast } from '@/hooks/use-toast'
 import { encodeBilingualText } from '@/lib/multilingual-text'
+import { useLocale } from '@/contexts/LocaleContext'
 
 interface AddFieldButtonProps {
   type: FormFieldType
@@ -65,19 +68,19 @@ export function AddFieldButton({
   }
 
   const handleCreate = async () => {
-    if (!labelEn.trim() || !labelAr.trim()) {
+    if (!labelEn.trim()) {
       toast({
         title: 'Field label required',
-        description: 'Please enter field label in both English and Arabic.',
+        description: 'Please enter a field label.',
         variant: 'destructive',
       })
       return
     }
 
-    if (isInstruction && (!helpEn.trim() || !helpAr.trim())) {
+    if (isInstruction && !helpEn.trim()) {
       toast({
         title: 'Instruction text required',
-        description: 'Add the guidance text in both English and Arabic.',
+        description: 'Add the guidance text for applicants.',
         variant: 'destructive',
       })
       return
@@ -99,9 +102,9 @@ export function AddFieldButton({
       return
     }
 
-    const encodedLabel = encodeBilingualText(labelEn.trim(), labelAr.trim())
-    const encodedHelpText = (helpEn.trim() || helpAr.trim())
-      ? encodeBilingualText(helpEn.trim(), helpAr.trim())
+    const encodedLabel = encodeBilingualText(labelEn.trim(), '')
+    const encodedHelpText = helpEn.trim()
+      ? encodeBilingualText(helpEn.trim(), '')
       : null
 
     setCreating(true)
@@ -144,21 +147,24 @@ export function AddFieldButton({
     }
   }
 
+  const { locale } = useLocale()
+  const isRTL = locale === 'ar'
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="justify-start gap-1.5">
+        <Button type="button" variant="outline" size="sm" className="justify-start gap-1.5 cursor-pointer">
           <Plus className="h-3.5 w-3.5" />
-          {FIELD_TYPE_LABELS[type]}
+          {getFieldTypeLabel(type, isRTL)}
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-80 p-3 space-y-3" align="start">
+      <PopoverContent dir={isRTL ? 'rtl' : 'ltr'} className="w-80 p-3 space-y-3" align="start">
         <div>
-          <p className="text-sm font-medium">{FIELD_TYPE_LABELS[type]}</p>
+          <p className="text-sm font-medium">{getFieldTypeLabel(type, isRTL)}</p>
           {isInstruction && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Shows guidance on the form — no input from the applicant.
+              {isRTL ? 'يعرض إرشادات في النموذج — لا يتطلب إدخال من المتقدم.' : 'Shows guidance on the form — no input from the applicant.'}
             </p>
           )}
         </div>
@@ -166,7 +172,7 @@ export function AddFieldButton({
         <div className="space-y-2">
           <div className="space-y-1">
             <Label htmlFor={`new-field-en-${type}`} className="text-xs font-medium">
-              {isInstruction ? 'Heading (English)' : 'Field label (English)'} <span className="text-destructive">*</span>
+              {isInstruction ? 'Heading' : 'Field label'} <span className="text-destructive">*</span>
             </Label>
             <Input
               id={`new-field-en-${type}`}
@@ -178,28 +184,13 @@ export function AddFieldButton({
               className="h-8 text-sm"
             />
           </div>
-
-          <div className="space-y-1">
-            <Label htmlFor={`new-field-ar-${type}`} className="text-xs font-medium">
-              {isInstruction ? 'العنوان (بالعربية)' : 'اسم الحقل (بالعربية)'} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id={`new-field-ar-${type}`}
-              value={labelAr}
-              onChange={(e) => setLabelAr(e.target.value)}
-              placeholder={isInstruction ? 'مثال: ملاحظات هامة' : FIELD_TYPE_LABELS[type]}
-              disabled={creating}
-              dir="rtl"
-              className="h-8 text-sm text-right"
-            />
-          </div>
         </div>
 
         {isInstruction ? (
           <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor={`new-field-instruction-en-${type}`} className="text-xs font-medium">
-                Instruction text (English) <span className="text-destructive">*</span>
+                Instruction text <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id={`new-field-instruction-en-${type}`}
@@ -211,26 +202,11 @@ export function AddFieldButton({
                 className="text-xs resize-y"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor={`new-field-instruction-ar-${type}`} className="text-xs font-medium">
-                نص الإرشادات (بالعربية) <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id={`new-field-instruction-ar-${type}`}
-                value={helpAr}
-                onChange={(e) => setHelpAr(e.target.value)}
-                placeholder="اكتب الإرشادات التي يجب على مقدم الطلب قراءتها..."
-                rows={3}
-                disabled={creating}
-                dir="rtl"
-                className="text-xs resize-y text-right"
-              />
-            </div>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="space-y-1">
-              <Label htmlFor={`new-field-tooltip-en-${type}`} className="text-xs font-normal text-muted-foreground">Tooltip (English)</Label>
+              <Label htmlFor={`new-field-tooltip-en-${type}`} className="text-xs font-normal text-muted-foreground">Tooltip / Help text</Label>
               <Input
                 id={`new-field-tooltip-en-${type}`}
                 value={helpEn}
@@ -238,18 +214,6 @@ export function AddFieldButton({
                 placeholder="Help text shown on ? hover"
                 disabled={creating}
                 className="h-8 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor={`new-field-tooltip-ar-${type}`} className="text-xs font-normal text-muted-foreground">تلميح توضيحي (بالعربية)</Label>
-              <Input
-                id={`new-field-tooltip-ar-${type}`}
-                value={helpAr}
-                onChange={(e) => setHelpAr(e.target.value)}
-                placeholder="نص توضيحي عند التمرير على العلامة"
-                disabled={creating}
-                dir="rtl"
-                className="h-8 text-xs text-right"
               />
             </div>
           </div>

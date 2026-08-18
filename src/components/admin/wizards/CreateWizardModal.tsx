@@ -40,7 +40,7 @@ import {
 import { Loader2, Plus, ArrowLeft, ArrowRight, Search, Wand2, Shapes } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { parseBilingualText, encodeBilingualText } from '@/lib/multilingual-text'
+import { parseBilingualText, encodeBilingualText, getLocalizedText } from '@/lib/multilingual-text'
 import { formApi, FormApiError } from '@/components/admin/forms/api'
 import { wizardApi, WizardApiError } from '@/components/admin/wizards/api'
 import {
@@ -153,9 +153,9 @@ export function CreateWizardModal({
   }, [])
 
   useEffect(() => {
-    const encoded = encodeBilingualText(wizardNameEn, wizardNameAr)
+    const encoded = wizardNameEn.trim() ? encodeBilingualText(wizardNameEn.trim(), '') : ''
     setDraft((prev) => (prev.name === encoded ? prev : { ...prev, name: encoded }))
-  }, [wizardNameEn, wizardNameAr])
+  }, [wizardNameEn])
 
   useEffect(() => {
     if (!open) {
@@ -323,10 +323,10 @@ export function CreateWizardModal({
 
   const handleNext = () => {
     setShowValidation(true)
-    if (!wizardNameEn.trim() || !wizardNameAr.trim() || !draft.areaOfInterest) {
+    if (!wizardNameEn.trim() || !draft.areaOfInterest) {
       toast({
         title: isRTL ? 'استكمال الإعدادات' : 'Complete setup',
-        description: isRTL ? 'يرجى إدخال اسم المعالج باللغتين الإنجليزية والعربية واختيار الخدمة.' : 'Enter wizard name in both English and Arabic, and select a service.',
+        description: isRTL ? 'يرجى إدخال اسم المعالج واختيار الخدمة.' : 'Enter wizard name and select a service.',
         variant: 'destructive',
       })
       return
@@ -358,10 +358,10 @@ export function CreateWizardModal({
 
   const handleCreate = async () => {
     setShowValidation(true)
-    if (!wizardNameEn.trim() || !wizardNameAr.trim()) {
+    if (!wizardNameEn.trim()) {
       toast({
         title: isRTL ? 'الاسم مطلوب' : 'Name required',
-        description: isRTL ? 'يرجى إدخال اسم المعالج باللغتين الإنجليزية والعربية قبل الحفظ.' : 'Enter wizard name in both English and Arabic before saving.',
+        description: isRTL ? 'يرجى إدخال اسم المعالج قبل الحفظ.' : 'Enter wizard name before saving.',
         variant: 'destructive',
       })
       return
@@ -377,7 +377,7 @@ export function CreateWizardModal({
     if (!isEdit && (!draft.areaOfInterest || !draft.name.trim())) return
 
     setSaving(true)
-    const encodedName = encodeBilingualText(wizardNameEn.trim(), wizardNameAr.trim())
+    const encodedName = encodeBilingualText(wizardNameEn.trim(), '')
     const stepsPayload = draft.steps.map((step, index) => ({
       formTemplateId: step.formTemplateId,
       paymentRequired: step.paymentRequired,
@@ -404,17 +404,19 @@ export function CreateWizardModal({
         const res = await wizardApi.update(editingWizard.id, payload)
         const wizard = mapApiWizard(res.wizard)
         onUpdated?.(wizard)
+        const displayWizardName = getLocalizedText(wizard.name, locale)
         toast({
           title: 'Application updated',
-          description: `${wizard.name} saved with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
+          description: `${displayWizardName} saved with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
         })
       } else {
         const res = await wizardApi.create(payload)
         const wizard = mapApiWizard(res.wizard)
         onCreated(wizard)
+        const displayWizardName = getLocalizedText(wizard.name, locale)
         toast({
           title: 'Wizard created',
-          description: `${wizard.name} configured with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
+          description: `${displayWizardName} configured with ${wizard.steps.length} step${wizard.steps.length === 1 ? '' : 's'}.`,
         })
       }
       onOpenChange(false)
@@ -601,7 +603,7 @@ export function CreateWizardModal({
           'max-h-[90vh] overflow-y-auto',
           isEdit
             ? [
-                'sm:max-w-3xl border-border bg-background p-0 gap-0',
+                'sm:max-w-4xl w-[95vw] border-border bg-background p-0 gap-0',
                 // Modern open/close: soft fade + rise instead of default zoom snap
                 'duration-300 ease-out',
                 'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
@@ -639,7 +641,7 @@ export function CreateWizardModal({
                       <div className="space-y-3">
                         <div className="space-y-1.5">
                           <Label htmlFor="wizard-name-en-edit" className={cn("block", isRTL ? "text-right" : "text-left")}>
-                            {t('admin.wizards.modal.wizardNameEn')} <span className="text-destructive">*</span>
+                            Application Wizard Name <span className="text-destructive">*</span>
                           </Label>
                           <Input
                             id="wizard-name-en-edit"
@@ -652,26 +654,6 @@ export function CreateWizardModal({
                           {showValidation && !wizardNameEn.trim() && (
                             <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
                               {t('admin.wizards.modal.nameRequiredEn')}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label htmlFor="wizard-name-ar-edit" className={cn("block", isRTL ? "text-right" : "text-left")}>
-                            {t('admin.wizards.modal.wizardNameAr')} <span className="text-destructive">*</span>
-                          </Label>
-                          <Input
-                            id="wizard-name-ar-edit"
-                            value={wizardNameAr}
-                            onChange={(e) => setWizardNameAr(e.target.value)}
-                            placeholder={t('admin.wizards.modal.wizardNamePlaceholderAr')}
-                            dir="rtl"
-                            className="h-10 bg-background text-right"
-                            aria-invalid={showValidation && !wizardNameAr.trim()}
-                          />
-                          {showValidation && !wizardNameAr.trim() && (
-                            <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>
-                              {t('admin.wizards.modal.nameRequiredAr')}
                             </p>
                           )}
                         </div>
@@ -727,7 +709,7 @@ export function CreateWizardModal({
                 <div className="space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="wizard-name-en" className={cn("text-sm font-medium block", isRTL ? "text-right" : "text-left")}>
-                      {t('admin.wizards.modal.wizardNameEn')} <span className="text-destructive">*</span>
+                      Application Wizard Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="wizard-name-en"
@@ -738,23 +720,6 @@ export function CreateWizardModal({
                     />
                     {setupError && !wizardNameEn.trim() && (
                       <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.nameRequiredEn')}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="wizard-name-ar" className={cn("text-sm font-medium block", isRTL ? "text-right" : "text-left")}>
-                      {t('admin.wizards.modal.wizardNameAr')} <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="wizard-name-ar"
-                      value={wizardNameAr}
-                      onChange={(e) => setWizardNameAr(e.target.value)}
-                      placeholder={t('admin.wizards.modal.wizardNamePlaceholderAr')}
-                      dir="rtl"
-                      className="h-10 bg-background text-right"
-                    />
-                    {setupError && !wizardNameAr.trim() && (
-                      <p className={cn("text-xs text-destructive", isRTL ? "text-right" : "text-left")}>{t('admin.wizards.modal.nameRequiredAr')}</p>
                     )}
                   </div>
                 </div>
@@ -987,7 +952,7 @@ export function CreateWizardModal({
         setBuilderOpen(open)
         if (!open) setEditingFormTemplate(null)
       }}>
-        <SheetContent side={isRTL ? "left" : "right"} dir={isRTL ? "rtl" : "ltr"} className="w-[85vw] xl:w-[60vw] sm:max-w-none gap-0">
+        <SheetContent side={isRTL ? "left" : "right"} dir={isRTL ? "rtl" : "ltr"} className="w-[95vw] xl:w-[75vw] sm:max-w-none gap-0">
           <SheetHeader className="text-left">
             <SheetTitle className="text-xl">
               {editingFormTemplate
