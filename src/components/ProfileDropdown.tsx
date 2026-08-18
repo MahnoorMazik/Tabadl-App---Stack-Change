@@ -109,6 +109,8 @@ export function ProfileDropdown() {
 
   if (!user) return null
 
+  const displayName = getLocalizedText(user.name, locale) || user.email || ''
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
