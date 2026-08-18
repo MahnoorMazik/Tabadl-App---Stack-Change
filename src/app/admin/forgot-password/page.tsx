@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
-import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2, Shield } from 'lucide-react'
 
-export default function ClientForgotPasswordPage() {
+export default function AdminForgotPasswordPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [email, setEmail] = useState('')
@@ -31,7 +31,7 @@ export default function ClientForgotPasswordPage() {
     }
 
     try {
-      const response = await fetch('/api/client/forgot-password', {
+      const response = await fetch('/api/admin/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -40,7 +40,7 @@ export default function ClientForgotPasswordPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error?.message || data.error || 'Failed to send reset link')
+        throw new Error(data.error?.message || data.error || data.message || 'Failed to send reset link')
       }
 
       setSubmitted(true)
@@ -48,31 +48,34 @@ export default function ClientForgotPasswordPage() {
         title: 'Reset link sent',
         description: 'Check your email for password reset instructions.',
       })
-    } catch (error: any) {
-      setError(error.message || 'Something went wrong. Please try again.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Forgot Password</CardTitle>
-          <CardDescription className="text-center">
-            Enter your email address and we'll send you a link to reset your password
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-emerald-50 dark:bg-[#040404] p-4">
+      <Card className="w-full max-w-md shadow-lg border-amber-200 dark:border-border dark:bg-card">
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto bg-amber-100 dark:bg-amber-900/30 w-16 h-16 rounded-full flex items-center justify-center">
+            <Shield className="h-8 w-8 text-amber-700 dark:text-amber-400" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>
+          <CardDescription>
+            Enter your staff email and we&apos;ll send you a link to reset your password
           </CardDescription>
         </CardHeader>
         <CardContent>
           {submitted ? (
             <div className="space-y-4">
-              <Alert className="bg-green-50 border-green-200">
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-700">
-                  We've sent a password reset link to your email address.
+                <AlertDescription className="text-green-700 dark:text-green-400">
+                  We&apos;ve sent a password reset link to your email address.
                   <br />
-                  <span className="text-sm text-green-600">
+                  <span className="text-sm">
                     Please check your inbox (and spam folder) and follow the instructions.
                   </span>
                 </AlertDescription>
@@ -80,10 +83,10 @@ export default function ClientForgotPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/admin/login')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Login
+                Back to Staff Login
               </Button>
             </div>
           ) : (
@@ -96,25 +99,26 @@ export default function ClientForgotPasswordPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">Staff Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter your email address"
+                    placeholder="staff@tk.sa"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
                     disabled={loading}
                     required
+                    autoComplete="email"
                   />
                 </div>
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                 disabled={loading}
               >
                 {loading ? (
@@ -129,11 +133,11 @@ export default function ClientForgotPasswordPage() {
 
               <div className="text-center text-sm">
                 <Link
-                  href="/login"
-                  className="text-emerald-600 hover:underline"
+                  href="/admin/login"
+                  className="text-amber-700 dark:text-amber-400 hover:underline"
                 >
                   <ArrowLeft className="h-4 w-4 inline mr-1" />
-                  Back to Login
+                  Back to Staff Login
                 </Link>
               </div>
             </form>

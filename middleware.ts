@@ -14,12 +14,17 @@ const publicRoutes = [
   "/cookie-policy",
   "/home-new",
   "/misa",
-  "/premium-residency"
+  "/premium-residency",
+  "/admin/login",
+  "/admin/forgot-password",
+  "/client/forgot-password",
 ]
 
 const publicRoutePrefixes = [
   "/verify-email",
   "/invite/collaborator",
+  "/admin/reset-password",
+  "/client/reset-password",
 ]
 
 // Define API routes that don't require authentication
@@ -30,7 +35,11 @@ const publicApiRoutes = [
   "/api/leads/consultation",
   "/api/support-messages",
   "/api/email/send",
-  "/api/manifest"
+  "/api/manifest",
+  "/api/client/forgot-password",
+  "/api/client/reset-password",
+  "/api/admin/forgot-password",
+  "/api/admin/reset-password",
 ]
 
 export default auth((req) => {

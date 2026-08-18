@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
-import { Lock, ArrowLeft, CheckCircle, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Lock, ArrowLeft, CheckCircle, AlertCircle, Loader2, Eye, EyeOff, Shield } from 'lucide-react'
 
-export default function ClientResetPasswordPage() {
+export default function AdminResetPasswordPage() {
   const router = useRouter()
   const params = useParams()
   const token = params?.token as string
@@ -42,7 +42,7 @@ export default function ClientResetPasswordPage() {
     }
 
     try {
-      const response = await fetch('/api/client/reset-password', {
+      const response = await fetch('/api/admin/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -55,7 +55,7 @@ export default function ClientResetPasswordPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error?.message || data.error || 'Failed to reset password')
+        throw new Error(data.error?.message || data.error || data.message || 'Failed to reset password')
       }
 
       setSuccess(true)
@@ -64,46 +64,44 @@ export default function ClientResetPasswordPage() {
         description: 'Your password has been reset. Please login with your new password.',
       })
 
-      // Redirect to login after 3 seconds
       setTimeout(() => {
-        router.push('/login')
+        router.push('/admin/login')
       }, 3000)
-    } catch (error: any) {
-      setError(error.message || 'Something went wrong. Please try again.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Reset Password</CardTitle>
-          <CardDescription className="text-center">
-            Enter your new password below
-          </CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-emerald-50 dark:bg-[#040404] p-4">
+      <Card className="w-full max-w-md shadow-lg border-amber-200 dark:border-border dark:bg-card">
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto bg-amber-100 dark:bg-amber-900/30 w-16 h-16 rounded-full flex items-center justify-center">
+            <Shield className="h-8 w-8 text-amber-700 dark:text-amber-400" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+          <CardDescription>Enter your new staff password below</CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
             <div className="space-y-4">
-              <Alert className="bg-green-50 border-green-200">
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-700">
+                <AlertDescription className="text-green-700 dark:text-green-400">
                   Your password has been reset successfully!
                   <br />
-                  <span className="text-sm text-green-600">
-                    Redirecting to login page...
-                  </span>
+                  <span className="text-sm">Redirecting to staff login...</span>
                 </AlertDescription>
               </Alert>
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/admin/login')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Go to Login
+                Go to Staff Login
               </Button>
             </div>
           ) : (
@@ -118,7 +116,7 @@ export default function ClientResetPasswordPage() {
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="newPassword"
                     type={showPassword ? 'text' : 'password'}
@@ -132,24 +130,18 @@ export default function ClientResetPasswordPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 6 characters
-                </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
@@ -165,7 +157,7 @@ export default function ClientResetPasswordPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                 disabled={loading}
               >
                 {loading ? (
@@ -180,11 +172,11 @@ export default function ClientResetPasswordPage() {
 
               <div className="text-center text-sm">
                 <Link
-                  href="/login"
-                  className="text-emerald-600 hover:underline"
+                  href="/admin/login"
+                  className="text-amber-700 dark:text-amber-400 hover:underline"
                 >
                   <ArrowLeft className="h-4 w-4 inline mr-1" />
-                  Back to Login
+                  Back to Staff Login
                 </Link>
               </div>
             </form>

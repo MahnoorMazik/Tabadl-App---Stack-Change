@@ -30,9 +30,68 @@ export async function seedRBAC() {
       })
     }
 
-    // Create default roles
-    console.log('Creating default roles...')
-    for (const roleData of DEFAULT_ROLES) {
+    // ✅ Ensure collaborator permissions are included in DEFAULT_ROLES
+    // Update DEFAULT_ROLES in memory to include collaborator permissions
+    const updatedDefaultRoles = DEFAULT_ROLES.map(role => {
+      // For Admin role, ensure all collaborator permissions are included
+      if (role.name === 'Admin') {
+        const collaboratorPermissions = [
+          'collaborators.view',
+          'collaborators.create',
+          'collaborators.update',
+          'collaborators.delete',
+          'collaborators.manage'
+        ] as const
+        
+        // Add collaborator permissions if not already present
+        const existingPermissions = new Set(role.permissions)
+        let permissionsUpdated = false
+        
+        for (const perm of collaboratorPermissions) {
+          if (!existingPermissions.has(perm)) {
+            existingPermissions.add(perm)
+            permissionsUpdated = true
+          }
+        }
+        
+        if (permissionsUpdated) {
+          return {
+            ...role,
+            permissions: Array.from(existingPermissions) as any
+          }
+        }
+      }
+      
+      // For other roles (Clients, Reports, Support), optionally add collaborator view
+      if (role.name === 'Clients') {
+        const collaboratorPermissions = [
+          'collaborators.view',
+        ] as const
+        
+        const existingPermissions = new Set(role.permissions)
+        let permissionsUpdated = false
+        
+        for (const perm of collaboratorPermissions) {
+          if (!existingPermissions.has(perm)) {
+            existingPermissions.add(perm)
+            permissionsUpdated = true
+          }
+        }
+        
+        if (permissionsUpdated) {
+          return {
+            ...role,
+            permissions: Array.from(existingPermissions) as any
+          }
+        }
+      }
+      
+      return role
+    })
+
+    // Create default roles with updated permissions
+    console.log('Creating default roles with collaborator permissions...')
+    for (const roleData of updatedDefaultRoles) {
       await prisma.role.upsert({
         where: { name: roleData.name },
         update: {
@@ -48,6 +107,55 @@ export async function seedRBAC() {
           isProtected: roleData.isProtected
         }
       })
+    }
+
+    // ✅ Additional check: If admin role already exists, ensure collaborator permissions are added
+    const adminRole = await prisma.role.findUnique({
+      where: { name: 'Admin', isDeleted: false }
+    })
+
+    if (adminRole) {
+      let permissions = JSON.parse(adminRole.permissions || '[]')
+      const collaboratorPermissions = [
+        'collaborators.view',
+        'collaborators.create',
+        'collaborators.update',
+        'collaborators.delete',
+        'collaborators.manage'
+      ]
+      
+      let updated = false
+      for (const perm of collaboratorPermissions) {
+        if (!permissions.includes(perm)) {
+          permissions.push(perm)
+          updated = true
+        }
+      }
+      
+      if (updated) {
+        await prisma.role.update({
+          where: { id: adminRole.id },
+          data: { permissions: JSON.stringify(permissions) }
+        })
+        console.log('✅ Added collaborator permissions to existing Admin role')
+      }
+    }
+
+    // ✅ Also update Clients role with collaborator view permission
+    const clientsRole = await prisma.role.findUnique({
+      where: { name: 'Clients', isDeleted: false }
+    })
+
+    if (clientsRole) {
+      let permissions = JSON.parse(clientsRole.permissions || '[]')
+      if (!permissions.includes('collaborators.view')) {
+        permissions.push('collaborators.view')
+        await prisma.role.update({
+          where: { id: clientsRole.id },
+          data: { permissions: JSON.stringify(permissions) }
+        })
+        console.log('✅ Added collaborators.view to Clients role')
+      }
     }
 
     console.log('✅ RBAC seeding completed successfully!')

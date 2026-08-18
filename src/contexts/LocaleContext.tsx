@@ -538,7 +538,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.packages": "Packages",
     "admin.sidebar.addOnServices": "Add-on Services",
     "admin.sidebar.applications": "Manage Applications",
-    "admin.sidebar.allApplications": "User's Applications",
+    "admin.sidebar.allApplications": "User Applications",
     "admin.sidebar.createApplication": "Create Application",
     "admin.sidebar.tasks": "Tasks",
     "admin.sidebar.documents": "Documents",
@@ -582,6 +582,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.faq": "FAQ",
     "admin.sidebar.contactSupport": "Contact Support",
     "admin.sidebar.notifications": "Notifications",
+    "admin.sidebar.collaboratorManagement": "Collaborator Management",
     
     // Admin Dashboard
     "admin.dashboard.title": "Dashboard",
@@ -1884,7 +1885,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.sidebar.support": "Support",
     "client.sidebar.needHelp": "Need Help?",
     "client.sidebar.contactManager": "Contact your application manager",
-    "client.sidebar.collaboration": "Collaboration",
+    "client.sidebar.collaboratorManagement": "Collaborator Management",
     "client.collaboration.pageTitle": "Collaboration",
     "client.collaboration.pageDescription": "Invite people to fill and manage applications on your behalf",
     "client.collaboration.addTitle": "Add collaborator",
@@ -2746,7 +2747,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.packages": "الباقات",
     "admin.sidebar.addOnServices": "الخدمات الإضافية",
     "admin.sidebar.applications": "الطلبات",
-    "admin.sidebar.allApplications": "جميع الطلبات",
+    "admin.sidebar.allApplications": "طلب المستخدم",
     "admin.sidebar.createApplication": "إنشاء طلب",
     "admin.sidebar.tasks": "المهام",
     "admin.sidebar.documents": "المستندات",
@@ -2790,6 +2791,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.faq": "الأسئلة الشائعة",
     "admin.sidebar.contactSupport": "اتصل بالدعم",
     "admin.sidebar.notifications": "الإشعارات",
+    "admin.sidebar.collaboratorManagement": "إدارة المتعاونين",
     
     // Admin Dashboard
     "admin.dashboard.title": "لوحة التحكم",

@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import axios from 'axios'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useLocale } from '@/contexts/LocaleContext'
 import { 
@@ -85,7 +84,7 @@ const createSidebarItems = (t: (key: string) => string, role?: string): SidebarI
     ],
   },
   {
-    title: t('client.sidebar.collaboration'),
+    title: t('client.sidebar.collaboratorManagement'),
     icon: Users,
     href: '/client/collaborators',
   },
@@ -240,75 +239,80 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
   const renderSidebarItem = (item: SidebarItem, level: number = 0) => {
     const hasChildren = item.children && item.children.length > 0
     const isItemActive = item.href ? isActive(item.href) : false
+    const isChildActive = Boolean(
+      item.children?.some((child) => (child.href ? isActive(child.href) : false))
+    )
     const isItemOpen = openItems.includes(item.title)
 
     if (hasChildren) {
       return (
-        <div key={item.title} className="w-full">
-          <Collapsible open={isItemOpen} onOpenChange={() => toggleItem(item.title)}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-between h-auto p-3 text-left hover:bg-accent rounded-lg",
-                  isCollapsed && "justify-center p-2"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  {item.icon && (
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                  )}
-                  {!isCollapsed && (
-                    <span className="text-sm font-medium">{item.title}</span>
-                  )}
-                </div>
-                {!isCollapsed && (
-                  <ChevronDown 
-                    className={cn(
-                      "h-4 w-4 transition-transform duration-300 ease-in-out",
-                      isItemOpen ? "rotate-0" : "ltr:-rotate-90 rtl:rotate-90"
-                    )}
-                  />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 transition-all duration-300 ease-in-out overflow-hidden">
-              {!isCollapsed && (
-                <div className="ms-4 mt-1 space-y-1">
-                  {item.children?.map((child, index) => (
-                    <div 
-                      key={child.title}
-                      className="transition-all duration-200 ease-in-out animate-in slide-in-from-left-2 fade-in-0"
-                      style={{ 
-                        animationDelay: `${index * 50}ms`,
-                        animationFillMode: 'both'
-                      }}
-                    >
-                      {renderSidebarItem(child, level + 1)}
-                    </div>
-                  ))}
-                </div>
+        <Collapsible
+          open={isItemOpen}
+          onOpenChange={() => toggleItem(item.title)}
+          className="w-full"
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                'w-full justify-between h-auto min-h-10 p-3 text-left rounded-lg',
+                // Only highlight when a child route is active — not merely because the section is open/hovered
+                isChildActive
+                  ? 'bg-accent text-accent-foreground hover:bg-accent'
+                  : 'bg-transparent hover:bg-accent/60 data-[state=open]:bg-transparent data-[state=open]:hover:bg-accent/60',
+                isCollapsed && 'justify-center p-2'
               )}
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+            >
+              <div className="flex items-center gap-3">
+                {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                {!isCollapsed && (
+                  <span className="text-sm font-medium">{item.title}</span>
+                )}
+              </div>
+              {!isCollapsed && (
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 transition-transform duration-300 ease-in-out',
+                    isItemOpen ? 'rotate-0' : 'ltr:-rotate-90 rtl:rotate-90'
+                  )}
+                />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 transition-all duration-300 ease-in-out">
+            {!isCollapsed && (
+              <div className="ms-4 mt-1 space-y-1 pb-1">
+                {item.children?.map((child, index) => (
+                  <div
+                    key={child.title}
+                    className="transition-all duration-200 ease-in-out animate-in slide-in-from-left-2 fade-in-0"
+                    style={{
+                      animationDelay: `${index * 50}ms`,
+                      animationFillMode: 'both',
+                    }}
+                  >
+                    {renderSidebarItem(child, level + 1)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       )
     }
 
     return (
-      <Link key={item.title} href={item.href || '#'}>
+      <Link href={item.href || '#'} className="block w-full">
         <Button
-          variant={isItemActive ? "secondary" : "ghost"}
+          variant="ghost"
           className={cn(
-            "w-full justify-between h-auto p-3 text-left hover:bg-accent rounded-lg",
-            isItemActive && "bg-accent rounded-lg",
-            isCollapsed && "justify-center p-2"
+            'w-full justify-between h-auto min-h-5 p-3 text-left rounded-lg hover:bg-accent/60',
+            isItemActive && 'bg-accent text-accent-foreground hover:bg-accent',
+            isCollapsed && 'justify-center p-2'
           )}
         >
           <div className="flex items-center gap-3">
-            {item.icon && (
-              <item.icon className="h-4 w-4 flex-shrink-0" />
-            )}
+            {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
             {!isCollapsed && (
               <span className="text-sm font-medium">{item.title}</span>
             )}
@@ -329,19 +333,23 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
   }
 
   return (
-    <div className={cn(
-      "flex flex-col h-full bg-white border-r transition-all duration-300 ease-in-out",
-      "rtl:border-r-0 rtl:border-l",
-      "lg:relative lg:translate-x-0",
-      className
-    )}>
+    <div
+      className={cn(
+        'flex flex-col h-full bg-white border-r transition-all duration-300 ease-in-out',
+        'rtl:border-r-0 rtl:border-l',
+        'lg:relative lg:translate-x-0',
+        className
+      )}
+    >
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
-          <div className={cn(
-            "flex items-center gap-2 transition-all duration-300",
-            isCollapsed && "opacity-0 scale-0 w-0"
-          )}>
+          <div
+            className={cn(
+              'flex items-center gap-2 transition-all duration-300',
+              isCollapsed && 'opacity-0 scale-0 w-0'
+            )}
+          >
             <img src="/logo-horizontal.png" alt="TABADL ALKON" className="h-8 w-auto" />
           </div>
           {onToggle && (
@@ -349,7 +357,7 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className="p-1 h-8 w-8 flex-shrink-0"
+              className="p-1 h-8 w-8 shrink-0"
             >
               {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
             </Button>
@@ -357,18 +365,24 @@ export function ClientSidebar({ className, isCollapsed = false, onToggle }: Clie
         </div>
       </div>
 
-      {/* Navigation — padding on inner content so active bg right corners stay visible */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 pe-3 space-y-2">
-          {sidebarItems.map((item) => renderSidebarItem(item))}
-        </div>
-      </ScrollArea>
+      {/* Navigation — gap (not margin) so items never visually merge */}
+      <div className="flex-1 overflow-y-auto">
+        <nav className="flex flex-col gap-2 p-4 pe-3">
+          {sidebarItems.map((item) => (
+            <div key={item.title} className="w-full shrink-0">
+              {renderSidebarItem(item)}
+            </div>
+          ))}
+        </nav>
+      </div>
 
       {/* Footer */}
       <div className="p-4 border-t">
         {!isCollapsed && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-            <p className="text-sm font-medium text-emerald-900 mb-1">{t('client.sidebar.needHelp')}</p>
+            <p className="text-sm font-medium text-emerald-900 mb-1">
+              {t('client.sidebar.needHelp')}
+            </p>
             <p className="text-xs text-emerald-700">{t('client.sidebar.contactManager')}</p>
           </div>
         )}
