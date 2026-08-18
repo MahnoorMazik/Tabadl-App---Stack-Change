@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/rbac-middleware'
 import { z } from 'zod'
-import { sendTestEmailWithFormData } from '@/lib/email'
+import nodemailer from 'nodemailer'
 
 const testEmailSchema = z.object({
   mailDriver: z.string().min(1),
@@ -17,96 +17,136 @@ const testEmailSchema = z.object({
 })
 
 export const POST = withAuth(async (request) => {
-  const user = request.user!
-
-  if (user.role !== 'STAFF') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  console.log('📧 Test email API called')
 
   try {
     const body = await request.json()
+    console.log('📧 Request body received:', {
+      host: body.host,
+      port: body.port,
+      username: body.username,
+      fromAddress: body.fromAddress,
+      testEmail: body.testEmail,
+      hasPassword: !!body.password
+    })
+
     const { testEmail, ...emailConfig } = testEmailSchema.parse(body)
 
+    console.log('📧 Creating SMTP transporter with:', {
+      host: emailConfig.host,
+      port: emailConfig.port,
+      username: emailConfig.username,
+      encryption: emailConfig.encryption
+    })
 
-    // Use the new function that accepts form data
-    const result = await sendTestEmailWithFormData(
-      {
-        host: emailConfig.host,
-        port: emailConfig.port,
-        username: emailConfig.username,
-        password: emailConfig.password,
-        encryption: emailConfig.encryption,
-        fromAddress: emailConfig.fromAddress,
-        fromName: emailConfig.fromName,
-        tlsServername: (emailConfig as any).tlsServername
+    // Create transporter
+    const secure = emailConfig.encryption === 'ssl'
+    
+    const transporter = nodemailer.createTransport({
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: secure,
+      auth: {
+        user: emailConfig.username,
+        pass: emailConfig.password,
       },
-      testEmail
-    )
+      tls: {
+        servername: emailConfig.tlsServername || emailConfig.host,
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    })
 
-    if (result.success) {
-
-      return NextResponse.json({
-        success: true,
-        message: 'Test email sent successfully using form data',
-        messageId: result.messageId,
-        details: {
-          host: emailConfig.host,
-          port: emailConfig.port,
-          encryption: emailConfig.encryption,
-          from: emailConfig.username,
-          to: testEmail,
-          transportUsed: result.transportUsed,
-          response: result.response
-        },
-        troubleshooting: {
-          delivered: true,
-          rejected: false,
-          tips: [
-            '✅ Email was sent successfully using your FORM DATA configuration.',
-            'Check your spam/junk folder if not received in inbox.',
-            'The robust system automatically tried multiple SMTP configurations.',
-            'Your form settings are working correctly!'
-          ]
-        }
-      })
-    } else {
-      console.error('❌ Test email failed using form data:', result.error)
-      
+    // Verify connection
+    console.log('📧 Verifying SMTP connection...')
+    try {
+      await transporter.verify()
+      console.log('✅ SMTP connection verified successfully')
+    } catch (verifyError) {
+      console.error('❌ SMTP verification failed:', verifyError)
       return NextResponse.json({
         success: false,
-        message: 'Test email failed',
-        error: result.error,
-        troubleshooting: {
-          delivered: false,
-          rejected: true,
-          tips: [
-            '❌ Email sending failed using your form configuration.',
-            'Check your SMTP configuration settings in the form.',
-            'Verify your email credentials are correct.',
-            'Try different encryption settings (SSL vs TLS).',
-            'The robust system tried multiple transport configurations but all failed.'
-          ]
-        }
-      }, { status: 500 })
+        error: 'SMTP connection failed. Please check your credentials.',
+        details: verifyError instanceof Error ? verifyError.message : 'Unknown error'
+      }, { status: 400 })
     }
+
+    // Send test email
+    const mailOptions = {
+      from: `"${emailConfig.fromName}" <${emailConfig.fromAddress}>`,
+      to: testEmail,
+      subject: 'Test Email from Tabadl Alkon CRM',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+          <h2 style="color: #1a1a1a; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">Test Email</h2>
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+            This is a test email from <strong>Tabadl Alkon CRM</strong>.
+          </p>
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
+            Your email configuration has been set up successfully!
+          </p>
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 20px;">
+            <p style="margin: 0; color: #6b7280; font-size: 14px;">
+              <strong>Configuration Details:</strong><br>
+              Host: ${emailConfig.host}<br>
+              Port: ${emailConfig.port}<br>
+              Encryption: ${emailConfig.encryption}<br>
+              Username: ${emailConfig.username}<br>
+              From: ${emailConfig.fromName} (${emailConfig.fromAddress})
+            </p>
+          </div>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+            Sent at: ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `,
+    }
+
+    console.log('📧 Sending test email to:', testEmail)
+    const info = await transporter.sendMail(mailOptions)
+    console.log('✅ Test email sent successfully:', info.messageId)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Test email sent successfully',
+      messageId: info.messageId,
+      response: info.response
+    })
 
   } catch (error) {
-    console.error('Email test error:', error)
+    console.error('❌ Test email error:', error)
     
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.issues },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        success: false,
+        error: 'Validation failed',
+        details: error.issues
+      }, { status: 400 })
     }
 
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to send test email. Please check your configuration.',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
-      },
-      { status: 500 }
-    )
+    // Handle specific errors
+    let errorMessage = 'Failed to send test email'
+    let errorDetails = error instanceof Error ? error.message : 'Unknown error'
+
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid login') || error.message.includes('Invalid credentials')) {
+        errorMessage = 'Invalid email credentials. Please check your email and app password.'
+        errorDetails = 'For Gmail, you need to use an App Password (not your regular password).'
+      } else if (error.message.includes('connect') || error.message.includes('connection')) {
+        errorMessage = 'Could not connect to SMTP server. Please check host and port.'
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your SMTP server settings.'
+      } else if (error.message.includes('authentication')) {
+        errorMessage = 'Authentication failed. Please check your email and password.'
+      }
+    }
+
+    return NextResponse.json({
+      success: false,
+      error: errorMessage,
+      details: errorDetails
+    }, { status: 500 })
   }
 })
