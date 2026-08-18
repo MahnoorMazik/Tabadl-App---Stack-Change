@@ -1,5 +1,5 @@
 // scripts/check-migration.ts
-import { db } from '../lib/db'
+import { db } from 'src/lib/db'
 
 async function checkMigration() {
   console.log('🔍 Checking email settings migration...')
