@@ -26,7 +26,9 @@
     "setup:secrets:bash": "bash scripts/generate-secrets.sh",
     "setup:vapid": "pnpm exec web-push generate-vapid-keys",
     "add:vapid": "bash scripts/add-vapid-keys.sh",
-    "setup:local": "bash setup-local.sh"
+    "setup:local": "bash setup-local.sh",
+    "migrate:env": "npx tsx scripts/migrate-env-to-db.ts",
+    "migrate:env:check": "npx tsx scripts/check-migration.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
