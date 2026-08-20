@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer'
 import { db } from './db'
 import fs from 'fs'
 import path from 'path'
+import { getLocalizedText } from './multilingual-text'
 
 export interface EmailOptions {
   to: string
@@ -277,12 +278,16 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     attachments = [...attachments, LOGO_ATTACHMENT]
   }
   
+  // Clean up any raw bilingual JSON strings in html or text body
+  const cleanHtml = options.html ? options.html.replace(/\{"en":"([^"]*)","ar":"[^"]*"\}/g, '$1') : options.html
+  const cleanText = options.text ? options.text.replace(/\{"en":"([^"]*)","ar":"[^"]*"\}/g, '$1') : options.text
+
   const mailOptions = {
     from: fromWithName,
     to: options.to,
     subject: options.subject,
-    text: options.text,
-    html: options.html,
+    text: cleanText,
+    html: cleanHtml,
     attachments: attachments,
     envelope: options.envelope || {
       from: fromWithName,
@@ -421,9 +426,10 @@ If you have any questions, contact us at support@tabadlalkon.com
 // ============================================================
 export async function sendEmailVerificationEmail(
   to: string,
-  name: string,
+  rawName: string,
   verificationToken: string
 ): Promise<EmailResult> {
+  const name = getLocalizedText(rawName, 'en')
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const verifyUrl = `${baseUrl}/verify-email/${verificationToken}`
   const currentYear = new Date().getFullYear()

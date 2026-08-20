@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
 
     const { name, nameAr, email, password, companyName, phone } = registerSchema.parse(body)
 
-    // Encode English and Arabic names into JSON string
-    const finalName = nameAr?.trim() ? encodeBilingualText(name.trim(), nameAr.trim()) : name.trim()
+    // Store plain full name string
+    const finalName = name.trim()
 
     const existingUser = await db.user.findFirst({
       where: { email, isDeleted: false }

@@ -174,8 +174,8 @@ export default function WizardsPage() {
       toast({
         title: isActive ? t('admin.wizards.toast.activated') : t('admin.wizards.toast.deactivated'),
         description: isActive
-          ? `${wizard.name} ${t('admin.wizards.toast.activatedDesc')} ${getAreaLabel(wizard.areaOfInterest)}. ${t('admin.wizards.toast.othersDeactivated')} ${wizard.areaOfInterest} ${t('admin.wizards.toast.othersDeactivated') === t('admin.wizards.toast.othersDeactivated') ? 'wizards' : 'مماميس'} تم تعطيلها.`
-          : `${wizard.name} ${t('admin.wizards.toast.deactivatedDesc')}`,
+          ? `Wizard "${getLocalizedText(wizard.name, 'en')}" is now live for ${getAreaLabel(wizard.areaOfInterest)}.`
+          : `Wizard "${getLocalizedText(wizard.name, 'en')}" ${t('admin.wizards.toast.deactivatedDesc')}`,
       })
     } catch (error) {
       toast({
