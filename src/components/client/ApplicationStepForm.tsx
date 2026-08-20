@@ -161,18 +161,20 @@ const StepFieldRow = memo(function StepFieldRow({
         engaging ? 'bg-white dark:bg-card shadow-sm' : 'bg-card'
       )}
     >
-      <Label
-        className={cn(
-          'inline-flex items-center gap-1.5',
-          engaging ? 'text-sm font-medium' : 'text-sm',
-          isRTL ? 'flex-row justify-start w-full' : 'flex-row'
-        )}
-      >
-        <span className="text-muted-foreground/70 text-xs font-normal">{index + 1}.</span>
-        <LocalizedText raw={field.label} />
-        {field.isRequired && <span className="text-destructive">*</span>}
-        <FieldHelpTooltip text={displayHelpText} />
-      </Label>
+      {field.type !== 'CHECKBOX' && (
+        <Label
+          className={cn(
+            'inline-flex items-center gap-1.5',
+            engaging ? 'text-sm font-medium' : 'text-sm',
+            isRTL ? 'flex-row justify-start w-full' : 'flex-row'
+          )}
+        >
+          <span className="text-muted-foreground/70 text-xs font-normal">{index + 1}.</span>
+          <LocalizedText raw={field.label} />
+          {field.isRequired && <span className="text-destructive">*</span>}
+          <FieldHelpTooltip text={displayHelpText} />
+        </Label>
+      )}
 
       {field.type === 'TEXTAREA' ? (
         <Textarea
@@ -199,7 +201,7 @@ const StepFieldRow = memo(function StepFieldRow({
           disabled={readOnly}
         >
           <SelectTrigger className={cn('h-10', isRTL ? 'text-right' : 'text-left')}>
-            <SelectValue placeholder={field.placeholder || 'Select option'} />
+            <SelectValue placeholder={field.placeholder ? <LocalizedText raw={field.placeholder} /> : <LocalizedText raw="Select option" />} />
           </SelectTrigger>
           <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
             {(field.options ?? []).map((opt) => (
@@ -211,12 +213,15 @@ const StepFieldRow = memo(function StepFieldRow({
         </Select>
       ) : field.type === 'CHECKBOX' ? (
         <div className="flex items-center gap-2 pt-1">
+          <span className="text-muted-foreground/70 text-xs font-normal">{index + 1}.</span>
           <Checkbox
             checked={value === 'true'}
             onCheckedChange={(checked) => onChange(field.fieldId, checked ? 'true' : 'false')}
             disabled={readOnly}
           />
-          <span className="text-sm text-muted-foreground">Yes</span>
+          <LocalizedText raw={field.label || 'Yes'} as="span" className="text-sm font-medium cursor-pointer" />
+          {field.isRequired && <span className="text-destructive">*</span>}
+          <FieldHelpTooltip text={displayHelpText} />
         </div>
       ) : field.type === 'FILE' ? (
         <div className="space-y-2 min-h-10">
