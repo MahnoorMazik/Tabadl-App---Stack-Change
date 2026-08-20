@@ -24,43 +24,56 @@ export const POST = withAuth(async (request) => {
       orderBy: { createdAt: 'desc' }
     })
 
-    // Save to database
-    const savedSettings = existingSettings
-      ? await db.emailSettings.update({
-          where: { id: existingSettings.id },
-          data: {
-            contactEmail: contactInfo.contactEmail || null,
-            contactPhone: contactInfo.contactPhone || null
-          }
-        })
-      : await db.emailSettings.create({
-          data: {
-            mailDriver: 'SMTP',
-            host: 'mail.tk.sa',
-            port: 465,
-            username: 'request@tk.sa',
-            password: '',
-            encryption: 'tls',
-            fromAddress: 'request@tk.sa',
-            fromName: 'Tabadl Alkon CRM',
-            allowBusinessEmailConfig: true,
-            enableNewBusinessEmail: true,
-            enableNewSubscriptionEmail: true,
-            enableWelcomeEmail: true,
-            welcomeEmailSubject: 'Welcome to Tabadl Alkon CRM',
-            welcomeEmailBody: '<p>Welcome to Tabadl Alkon CRM</p>',
-            contactEmail: contactInfo.contactEmail || null,
-            contactPhone: contactInfo.contactPhone || null,
-            businessConsultationRecipients: null
-          }
-        })
+    let savedSettings
 
-    console.log('Contact information saved:', {
+    if (existingSettings) {
+      // Update existing settings
+      savedSettings = await db.emailSettings.update({
+        where: { id: existingSettings.id },
+        data: {
+          contactEmail: contactInfo.contactEmail || null,
+          contactPhone: contactInfo.contactPhone || null
+        }
+      })
+    } else {
+      // Create new settings with contact info
+      savedSettings = await db.emailSettings.create({
+        data: {
+          mailDriver: 'SMTP',
+          host: '', // Empty - user must configure
+          port: 587,
+          username: '',
+          password: '',
+          encryption: 'tls',
+          fromAddress: '',
+          fromName: 'Tabadl Alkon CRM',
+          allowBusinessEmailConfig: true,
+          enableNewBusinessEmail: true,
+          enableNewSubscriptionEmail: true,
+          enableWelcomeEmail: true,
+          welcomeEmailSubject: 'Welcome to Tabadl Alkon CRM',
+          welcomeEmailBody: '<p>Welcome to Tabadl Alkon CRM</p>',
+          contactEmail: contactInfo.contactEmail || null,
+          contactPhone: contactInfo.contactPhone || null,
+          businessConsultationRecipients: null,
+          staffWhatsAppNumbers: null,
+          enableWhatsAppNotifications: true,
+          whatsappAccessToken: null,
+          whatsappApiVersion: null,
+          whatsappPhoneNumberId: null,
+          whatsappDocumentUrl: null,
+          tlsServername: null
+        }
+      })
+    }
+
+    console.log('✅ Contact information saved:', {
       contactEmail: savedSettings.contactEmail,
       contactPhone: savedSettings.contactPhone
     })
 
     return NextResponse.json({ 
+      success: true,
       message: 'Contact information saved successfully',
       contactInfo: {
         contactEmail: savedSettings.contactEmail || '',
@@ -70,11 +83,14 @@ export const POST = withAuth(async (request) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation failed', details: error.issues },
+        { success: false, error: 'Validation failed', details: error.issues },
         { status: 400 }
       )
     }
-    console.error('Error saving contact info:', error)
-    return NextResponse.json({ error: 'Failed to save contact information' }, { status: 500 })
+    console.error('❌ Error saving contact info:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to save contact information' },
+      { status: 500 }
+    )
   }
 })

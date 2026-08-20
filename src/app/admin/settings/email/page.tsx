@@ -47,7 +47,7 @@ interface EmailConfig {
 export default function EmailSettingsPage() {
   const { token } = useAuth()
   const { toast } = useToast()
-  const { t, formatNumber } = useLocale()
+  const { t } = useLocale()
   
   const [loading, setLoading] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -65,12 +65,12 @@ export default function EmailSettingsPage() {
   
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
     mailDriver: 'SMTP',
-    host: 'mail.tk.sa',
-    port: 465,
-    username: 'request@tk.sa',
+    host: 'smtp.gmail.com',
+    port: 587,
+    username: '',
     password: '',
     encryption: 'tls',
-    fromAddress: 'request@tk.sa',
+    fromAddress: '',
     fromName: 'Tabadl Alkon CRM',
     tlsServername: '',
     allowBusinessEmailConfig: true,
@@ -93,30 +93,29 @@ export default function EmailSettingsPage() {
   const [newRecipient, setNewRecipient] = useState('')
   const [newStaffPhone, setNewStaffPhone] = useState('')
 
+  // Get auth headers helper - for APIs that need it
+  const getAuthHeaders = () => {
+    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
+    return authToken ? { Authorization: `Bearer ${authToken}` } : {}
+  }
+
   useEffect(() => {
     fetchEmailConfig()
   }, [token])
 
-     const fetchEmailConfig = async () => {
-     // Note: NextAuth uses cookies for authentication, so token may be null
-     const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-     const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-
-     setLoading(true)
-     try {
-       const response = await axios.get('/api/settings/email', {
-         headers
-       })
-       
-       // Handle structured response format: { success: true, data: { emailConfig: {...} } }
-       const emailConfigData = response.data?.data?.emailConfig || response.data?.emailConfig
-       const configured =
-         response.data?.data?.isConfigured ??
-         response.data?.isConfigured ??
-         false
-       setIsConfigured(Boolean(configured))
-       if (emailConfigData) {
-        // Ensure arrays are always arrays
+  const fetchEmailConfig = async () => {
+    setLoading(true)
+    try {
+      const response = await axios.get('/api/settings/email', {
+        headers: getAuthHeaders()
+      })
+      
+      const emailConfigData = response.data?.data?.emailConfig || response.data?.emailConfig
+      const configured = response.data?.data?.isConfigured ?? response.data?.isConfigured ?? false
+      
+      setIsConfigured(Boolean(configured))
+      
+      if (emailConfigData) {
         const configWithDefaults = {
           ...emailConfigData,
           businessConsultationRecipients: emailConfigData.businessConsultationRecipients || [],
@@ -126,19 +125,19 @@ export default function EmailSettingsPage() {
           whatsappPhoneNumberId: emailConfigData.whatsappPhoneNumberId || '',
           whatsappDocumentUrl: emailConfigData.whatsappDocumentUrl || ''
         }
-         setEmailConfig(configWithDefaults)
-       }
-     } catch (error) {
-       console.error('Error fetching email config:', error)
-       toast({
-         title: 'Error',
-         description: t('admin.settings.email.loadFailed') || 'Failed to load email configuration',
-         variant: 'destructive'
-       })
-     } finally {
-       setLoading(false)
-     }
-   }
+        setEmailConfig(configWithDefaults)
+      }
+    } catch (error) {
+      console.error('Error fetching email config:', error)
+      toast({
+        title: 'Error',
+        description: t('admin.settings.email.loadFailed') || 'Failed to load email configuration',
+        variant: 'destructive'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const validateFields = () => {
     const newErrors: { [key: string]: boolean } = {}
@@ -155,10 +154,6 @@ export default function EmailSettingsPage() {
   }
 
   const handleSave = async () => {
-    // Note: NextAuth uses cookies for authentication, so token may be null
-    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-
     // Validate all required fields
     if (!validateFields()) {
       toast({
@@ -171,15 +166,10 @@ export default function EmailSettingsPage() {
 
     setLoading(true)
     try {
-      // Note: NextAuth uses cookies for authentication, so token may be null
-      const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-      
       await axios.post('/api/settings/email', emailConfig, {
-        headers
+        headers: getAuthHeaders()
       })
       
-      // Clear errors on success
       setErrors({})
       setIsConfigured(true)
       
@@ -200,38 +190,90 @@ export default function EmailSettingsPage() {
   }
 
   const handleTest = async () => {
-    if (!token || !testEmail) return
+    console.log('📧 Test Email button clicked')
+    
+    if (!testEmail) {
+      console.error('❌ No test email provided')
+      toast({
+        title: 'Error',
+        description: 'Please enter a test email address',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    // Validate required fields
+    const requiredFields = ['host', 'username', 'password', 'fromAddress', 'fromName']
+    const missingFields = requiredFields.filter(field => !emailConfig[field as keyof EmailConfig])
+    
+    if (missingFields.length > 0) {
+      console.error('❌ Missing required fields:', missingFields)
+      toast({
+        title: 'Error',
+        description: `Please fill in: ${missingFields.join(', ')}`,
+        variant: 'destructive'
+      })
+      return
+    }
 
     setTesting(true)
     setTestResult(null)
     
     try {
+      console.log('📧 Sending test email request...')
+      console.log('📧 Test email:', testEmail)
+      console.log('📧 Config:', {
+        host: emailConfig.host,
+        port: emailConfig.port,
+        username: emailConfig.username,
+        fromAddress: emailConfig.fromAddress,
+        encryption: emailConfig.encryption,
+        hasPassword: !!emailConfig.password
+      })
+
+      // No need to send Authorization header - withAuth middleware handles it via cookies
       const response = await axios.post('/api/settings/email/test', {
         ...emailConfig,
         testEmail
       }, {
-        headers: { Authorization: `Bearer ${token}` }
+        withCredentials: true // Important for cookie-based auth
       })
       
-      setTestResult({
-        success: true,
-        message: replaceParams(t('admin.settings.email.testSent') || 'Test email sent successfully to {email}', { email: testEmail })
-      })
+      console.log('📧 Response:', response.data)
       
-      toast({
-        title: 'Success',
-        description: t('admin.settings.email.testSentSuccess') || 'Test email sent successfully!'
-      })
+      if (response.data.success) {
+        setTestResult({
+          success: true,
+          message: `✅ Test email sent successfully to ${testEmail}`
+        })
+        
+        toast({
+          title: 'Success ✅',
+          description: `Test email sent to ${testEmail}! Check your inbox.`,
+        })
+      } else {
+        throw new Error(response.data.error || 'Failed to send test email')
+      }
     } catch (error: any) {
-      console.error('Email test error:', error)
+      console.error('❌ Email test error:', error)
+      
+      let errorMsg = 'Failed to send test email'
+      if (error.response?.data?.error) {
+        errorMsg = error.response.data.error
+      } else if (error.response?.data?.details) {
+        errorMsg = error.response.data.details
+      } else if (error.message) {
+        errorMsg = error.message
+      }
+      
       setTestResult({
         success: false,
-        message: t('admin.settings.email.testFailed') || 'Failed to send test email'
+        message: `❌ ${errorMsg}`
       })
       
       toast({
-        title: 'Error',
-        description: t('admin.settings.email.testFailed') || 'Failed to send test email',
+        title: 'Error ❌',
+        description: errorMsg,
         variant: 'destructive'
       })
     } finally {
@@ -292,17 +334,13 @@ export default function EmailSettingsPage() {
   }
 
   const handleSaveStaffPhones = async () => {
-    // Note: NextAuth uses cookies for authentication, so token may be null
-    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-
     setSavingStaffPhones(true)
     try {
       await axios.post('/api/settings/email', {
         ...emailConfig,
         staffWhatsAppNumbers: emailConfig.staffWhatsAppNumbers
       }, {
-        headers
+        headers: getAuthHeaders()
       })
       
       toast({
@@ -322,17 +360,13 @@ export default function EmailSettingsPage() {
   }
 
   const handleSaveContactInfo = async () => {
-    // Note: NextAuth uses cookies for authentication, so token may be null
-    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-
     setSavingContact(true)
     try {
       await axios.post('/api/settings/email/contact', {
         contactEmail: emailConfig.contactEmail,
         contactPhone: emailConfig.contactPhone
       }, {
-        headers
+        headers: getAuthHeaders()
       })
       
       toast({
@@ -352,16 +386,12 @@ export default function EmailSettingsPage() {
   }
 
   const handleSaveRecipients = async () => {
-    // Note: NextAuth uses cookies for authentication, so token may be null
-    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-
     setSavingRecipients(true)
     try {
       await axios.post('/api/settings/email/recipients', {
         businessConsultationRecipients: emailConfig.businessConsultationRecipients
       }, {
-        headers
+        headers: getAuthHeaders()
       })
       
       toast({
@@ -377,6 +407,45 @@ export default function EmailSettingsPage() {
       })
     } finally {
       setSavingRecipients(false)
+    }
+  }
+
+  const handleSaveWhatsApp = async () => {
+    setSavingWhatsApp(true)
+    
+    try {
+      // Fetch current settings first to ensure we have all required fields
+      const currentResponse = await axios.get('/api/settings/email', {
+        headers: getAuthHeaders()
+      })
+      
+      const currentConfig = currentResponse.data?.data?.emailConfig || currentResponse.data?.emailConfig || emailConfig
+      
+      // Update WhatsApp configuration
+      await axios.post('/api/settings/email', {
+        ...currentConfig,
+        whatsappAccessToken: emailConfig.whatsappAccessToken,
+        whatsappApiVersion: emailConfig.whatsappApiVersion,
+        whatsappPhoneNumberId: emailConfig.whatsappPhoneNumberId,
+        whatsappDocumentUrl: emailConfig.whatsappDocumentUrl
+      }, {
+        headers: getAuthHeaders()
+      })
+      
+      toast({
+        title: t('common.success'),
+        description: t('admin.settings.email.whatsappConfigSaved') || 'WhatsApp configuration saved successfully',
+      })
+    } catch (error: any) {
+      console.error('Error saving WhatsApp configuration:', error)
+      const errorDetails = error.response?.data?.details || error.response?.data?.error || t('admin.settings.email.whatsappConfigSaveFailed') || 'Failed to save WhatsApp configuration'
+      toast({
+        title: t('common.error'),
+        description: errorDetails,
+        variant: 'destructive'
+      })
+    } finally {
+      setSavingWhatsApp(false)
     }
   }
 
@@ -396,6 +465,7 @@ export default function EmailSettingsPage() {
             </AlertDescription>
           </Alert>
         )}
+        
         {/* Mail Driver & Host Configuration */}
         <Card>
           <CardHeader>
@@ -429,77 +499,77 @@ export default function EmailSettingsPage() {
                 />
                 <p className="text-sm text-gray-500 mt-1">{t('admin.settings.email.tlsServernameHint') || 'Hostname on the SMTP certificate (set when using an IP)'}</p>
               </div>
-                                                           <div>
-                  <Label htmlFor="host">{t('admin.settings.email.host') || 'Host'} <span className="text-red-500">*</span></Label>
+              <div>
+                <Label htmlFor="host">{t('admin.settings.email.host') || 'Host'} <span className="text-red-500">*</span></Label>
+                <Input
+                  id="host"
+                  value={emailConfig.host}
+                  onChange={(e) => {
+                    updateConfig('host', e.target.value)
+                    if (errors.host) setErrors(prev => ({ ...prev, host: false }))
+                  }}
+                  placeholder="smtp.gmail.com"
+                  required
+                  className={errors.host ? 'border-red-500' : ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="port">{t('admin.settings.email.port') || 'Port'} <span className="text-red-500">*</span></Label>
+                <Input
+                  id="port"
+                  type="number"
+                  value={emailConfig.port}
+                  onChange={(e) => {
+                    updateConfig('port', parseInt(e.target.value))
+                    if (errors.port) setErrors(prev => ({ ...prev, port: false }))
+                  }}
+                  placeholder="587"
+                  required
+                  className={errors.port ? 'border-red-500' : ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="username">{t('admin.settings.email.username') || 'Username'} <span className="text-red-500">*</span></Label>
+                <Input
+                  id="username"
+                  value={emailConfig.username}
+                  onChange={(e) => {
+                    updateConfig('username', e.target.value)
+                    if (errors.username) setErrors(prev => ({ ...prev, username: false }))
+                  }}
+                  placeholder="your-email@gmail.com"
+                  required
+                  className={errors.username ? 'border-red-500' : ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">{t('auth.password')} <span className="text-red-500">*</span></Label>
+                <div className="relative">
                   <Input
-                   id="host"
-                   value={emailConfig.host}
-                   onChange={(e) => {
-                     updateConfig('host', e.target.value)
-                     if (errors.host) setErrors(prev => ({ ...prev, host: false }))
-                   }}
-                   placeholder="mail.tk.sa"
-                   required
-                   className={errors.host ? 'border-red-500' : ''}
-                 />
-               </div>
-                               <div>
-                  <Label htmlFor="port">{t('admin.settings.email.port') || 'Port'} <span className="text-red-500">*</span></Label>
-                  <Input
-                   id="port"
-                   type="number"
-                   value={emailConfig.port}
-                   onChange={(e) => {
-                     updateConfig('port', parseInt(e.target.value))
-                     if (errors.port) setErrors(prev => ({ ...prev, port: false }))
-                   }}
-                   placeholder="465"
-                   required
-                   className={errors.port ? 'border-red-500' : ''}
-                 />
-               </div>
-                               <div>
-                  <Label htmlFor="username">{t('admin.settings.email.username') || 'Username'} <span className="text-red-500">*</span></Label>
-                  <Input
-                   id="username"
-                   value={emailConfig.username}
-                   onChange={(e) => {
-                     updateConfig('username', e.target.value)
-                     if (errors.username) setErrors(prev => ({ ...prev, username: false }))
-                   }}
-                   placeholder="request@tk.sa"
-                   required
-                   className={errors.username ? 'border-red-500' : ''}
-                 />
-               </div>
-                                                           <div>
-                  <Label htmlFor="password">{t('auth.password')} <span className="text-red-500">*</span></Label>
-                  <div className="relative">
-                   <Input
-                     id="password"
-                     type={showPassword ? 'text' : 'password'}
-                     value={emailConfig.password}
-                     onChange={(e) => {
-                       updateConfig('password', e.target.value)
-                       if (errors.password) setErrors(prev => ({ ...prev, password: false }))
-                     }}
-                     placeholder={t('admin.settings.email.passwordPlaceholder') || 'Your email password'}
-                     required
-                     className={`pr-10 ${errors.password ? 'border-red-500' : ''}`}
-                   />
-                   <button
-                     type="button"
-                     onClick={() => setShowPassword(!showPassword)}
-                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                   >
-                     {showPassword ? (
-                       <EyeOff className="h-4 w-4" />
-                     ) : (
-                       <Eye className="h-4 w-4" />
-                     )}
-                   </button>
-                 </div>
-               </div>
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={emailConfig.password}
+                    onChange={(e) => {
+                      updateConfig('password', e.target.value)
+                      if (errors.password) setErrors(prev => ({ ...prev, password: false }))
+                    }}
+                    placeholder={t('admin.settings.email.passwordPlaceholder') || 'Your email app password'}
+                    required
+                    className={`pr-10 ${errors.password ? 'border-red-500' : ''}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
               <div>
                 <Label htmlFor="encryption">{t('admin.settings.email.encryption') || 'Encryption'}</Label>
                 <select
@@ -513,35 +583,35 @@ export default function EmailSettingsPage() {
                   <option value="none">{t('common.none')}</option>
                 </select>
               </div>
-                                                           <div>
-                  <Label htmlFor="from-address">{t('admin.settings.email.fromAddress') || 'From Address'} <span className="text-red-500">*</span></Label>
-                  <Input
-                   id="from-address"
-                   type="email"
-                   value={emailConfig.fromAddress}
-                   onChange={(e) => {
-                     updateConfig('fromAddress', e.target.value)
-                     if (errors.fromAddress) setErrors(prev => ({ ...prev, fromAddress: false }))
-                   }}
-                   placeholder="request@tk.sa"
-                   required
-                   className={errors.fromAddress ? 'border-red-500' : ''}
-                 />
-               </div>
-                               <div>
-                  <Label htmlFor="from-name">{t('admin.settings.email.fromName') || 'From Name'} <span className="text-red-500">*</span></Label>
-                  <Input
-                   id="from-name"
-                   value={emailConfig.fromName}
-                   onChange={(e) => {
-                     updateConfig('fromName', e.target.value)
-                     if (errors.fromName) setErrors(prev => ({ ...prev, fromName: false }))
-                   }}
-                   placeholder="Tabadl Alkon CRM"
-                   required
-                   className={errors.fromName ? 'border-red-500' : ''}
-                 />
-               </div>
+              <div>
+                <Label htmlFor="from-address">{t('admin.settings.email.fromAddress') || 'From Address'} <span className="text-red-500">*</span></Label>
+                <Input
+                  id="from-address"
+                  type="email"
+                  value={emailConfig.fromAddress}
+                  onChange={(e) => {
+                    updateConfig('fromAddress', e.target.value)
+                    if (errors.fromAddress) setErrors(prev => ({ ...prev, fromAddress: false }))
+                  }}
+                  placeholder="your-email@gmail.com"
+                  required
+                  className={errors.fromAddress ? 'border-red-500' : ''}
+                />
+              </div>
+              <div>
+                <Label htmlFor="from-name">{t('admin.settings.email.fromName') || 'From Name'} <span className="text-red-500">*</span></Label>
+                <Input
+                  id="from-name"
+                  value={emailConfig.fromName}
+                  onChange={(e) => {
+                    updateConfig('fromName', e.target.value)
+                    if (errors.fromName) setErrors(prev => ({ ...prev, fromName: false }))
+                  }}
+                  placeholder="Tabadl Alkon CRM"
+                  required
+                  className={errors.fromName ? 'border-red-500' : ''}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -574,17 +644,21 @@ export default function EmailSettingsPage() {
                   <AlertCircle className="h-4 w-4 text-red-600" />
                 )}
                 <AlertDescription className={testResult.success ? 'text-green-800' : 'text-red-800'}>
-                  {testResult.success ? t('admin.settings.email.testSentSuccess') : t('admin.settings.email.testFailed')}
+                  {testResult.message}
                 </AlertDescription>
               </Alert>
             )}
 
-            <div className="flex gap-4">
-              <Button onClick={handleTest} disabled={testing || !testEmail || !emailConfig.host || !emailConfig.username}>
+            <div className="flex flex-wrap gap-4">
+              <Button 
+                onClick={handleTest} 
+                disabled={testing || !testEmail}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
                 {testing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {t('admin.settings.email.testing') || 'Testing...'}
+                    {t('admin.settings.email.testing') || 'Sending...'}
                   </>
                 ) : (
                   <>
@@ -812,127 +886,86 @@ export default function EmailSettingsPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="whatsapp-access-token" className="text-base">
-                  {t('admin.settings.email.whatsappAccessToken') || 'WhatsApp Access Token'}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="whatsapp-access-token"
-                    type={showPassword ? 'text' : 'password'}
-                    value={emailConfig.whatsappAccessToken}
-                    onChange={(e) => updateConfig('whatsappAccessToken', e.target.value)}
-                    placeholder={t('admin.settings.email.whatsappAccessTokenPlaceholder') || 'Enter your WhatsApp Business API access token'}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-sm text-gray-500">
-                  {t('admin.settings.email.whatsappAccessTokenHint') || 'Your WhatsApp Business API access token from Meta Business Suite'}
-                </p>
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp-access-token" className="text-base">
+                {t('admin.settings.email.whatsappAccessToken') || 'WhatsApp Access Token'}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="whatsapp-access-token"
+                  type={showPassword ? 'text' : 'password'}
+                  value={emailConfig.whatsappAccessToken}
+                  onChange={(e) => updateConfig('whatsappAccessToken', e.target.value)}
+                  placeholder={t('admin.settings.email.whatsappAccessTokenPlaceholder') || 'Enter your WhatsApp Business API access token'}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
+              <p className="text-sm text-gray-500">
+                {t('admin.settings.email.whatsappAccessTokenHint') || 'Your WhatsApp Business API access token from Meta Business Suite'}
+              </p>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp-api-version">
-                    {t('admin.settings.email.whatsappApiVersion') || 'WhatsApp API Version'}
-                  </Label>
-                  <Input
-                    id="whatsapp-api-version"
-                    value={emailConfig.whatsappApiVersion}
-                    onChange={(e) => updateConfig('whatsappApiVersion', e.target.value)}
-                    placeholder={t('admin.settings.email.whatsappApiVersionPlaceholder') || 'e.g., v21.0, v18.0, v19.0'}
-                  />
-                  <p className="text-sm text-gray-500">
-                    {t('admin.settings.email.whatsappApiVersionHint') || 'Graph API version (e.g., v21.0, v18.0, v19.0)'}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp-phone-number-id">
-                    {t('admin.settings.email.whatsappPhoneNumberId') || 'WhatsApp Phone Number ID'}
-                  </Label>
-                  <Input
-                    id="whatsapp-phone-number-id"
-                    value={emailConfig.whatsappPhoneNumberId}
-                    onChange={(e) => updateConfig('whatsappPhoneNumberId', e.target.value)}
-                    placeholder={t('admin.settings.email.whatsappPhoneNumberIdPlaceholder') || 'Enter your phone number ID'}
-                  />
-                  <p className="text-sm text-gray-500">
-                    {t('admin.settings.email.whatsappPhoneNumberIdHint') || 'Your WhatsApp Business phone number ID'}
-                  </p>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="whatsapp-document-url">
-                  {t('admin.settings.email.whatsappDocumentUrl') || 'WhatsApp Document URL'} ({t('common.optional')})
+                <Label htmlFor="whatsapp-api-version">
+                  {t('admin.settings.email.whatsappApiVersion') || 'WhatsApp API Version'}
                 </Label>
                 <Input
-                  id="whatsapp-document-url"
-                  value={emailConfig.whatsappDocumentUrl}
-                  onChange={(e) => updateConfig('whatsappDocumentUrl', e.target.value)}
-                  placeholder={t('admin.settings.email.whatsappDocumentUrlPlaceholder') || 'Path or URL to document PDF'}
+                  id="whatsapp-api-version"
+                  value={emailConfig.whatsappApiVersion}
+                  onChange={(e) => updateConfig('whatsappApiVersion', e.target.value)}
+                  placeholder={t('admin.settings.email.whatsappApiVersionPlaceholder') || 'e.g., v21.0, v18.0, v19.0'}
                 />
                 <p className="text-sm text-gray-500">
-                  {t('admin.settings.email.whatsappDocumentUrlHint') || 'Document attached in WhatsApp notifications (e.g. company profile PDF).'}
+                  {t('admin.settings.email.whatsappApiVersionHint') || 'Graph API version (e.g., v21.0, v18.0, v19.0)'}
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp-phone-number-id">
+                  {t('admin.settings.email.whatsappPhoneNumberId') || 'WhatsApp Phone Number ID'}
+                </Label>
+                <Input
+                  id="whatsapp-phone-number-id"
+                  value={emailConfig.whatsappPhoneNumberId}
+                  onChange={(e) => updateConfig('whatsappPhoneNumberId', e.target.value)}
+                  placeholder={t('admin.settings.email.whatsappPhoneNumberIdPlaceholder') || 'Enter your phone number ID'}
+                />
+                <p className="text-sm text-gray-500">
+                  {t('admin.settings.email.whatsappPhoneNumberIdHint') || 'Your WhatsApp Business phone number ID'}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp-document-url">
+                {t('admin.settings.email.whatsappDocumentUrl') || 'WhatsApp Document URL'} ({t('common.optional')})
+              </Label>
+              <Input
+                id="whatsapp-document-url"
+                value={emailConfig.whatsappDocumentUrl}
+                onChange={(e) => updateConfig('whatsappDocumentUrl', e.target.value)}
+                placeholder={t('admin.settings.email.whatsappDocumentUrlPlaceholder') || 'Path or URL to document PDF'}
+              />
+              <p className="text-sm text-gray-500">
+                {t('admin.settings.email.whatsappDocumentUrlHint') || 'Document attached in WhatsApp notifications (e.g. company profile PDF).'}
+              </p>
+            </div>
             
             <div className="flex justify-end pt-4">
               <Button 
-                onClick={async () => {
-                  // Note: NextAuth uses cookies for authentication, so token may be null
-                  const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null)
-                  const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {}
-                  
-                  setSavingWhatsApp(true)
-                  
-                  try {
-                    // Fetch current settings first to ensure we have all required fields
-                    const currentResponse = await axios.get('/api/settings/email', {
-                      headers
-                    })
-                    
-                    const currentConfig = currentResponse.data?.data?.emailConfig || currentResponse.data?.emailConfig || emailConfig
-                    
-                    // Update WhatsApp configuration
-                    await axios.post('/api/settings/email', {
-                      ...currentConfig,
-                      whatsappAccessToken: emailConfig.whatsappAccessToken,
-                      whatsappApiVersion: emailConfig.whatsappApiVersion,
-                      whatsappPhoneNumberId: emailConfig.whatsappPhoneNumberId,
-                      whatsappDocumentUrl: emailConfig.whatsappDocumentUrl
-                    }, {
-                      headers
-                    })
-                    
-                    toast({
-                      title: t('common.success'),
-                      description: t('admin.settings.email.whatsappConfigSaved') || 'WhatsApp configuration saved successfully',
-                    })
-                  } catch (error: any) {
-                    console.error('Error saving WhatsApp configuration:', error)
-                    const errorDetails = error.response?.data?.details || error.response?.data?.error || t('admin.settings.email.whatsappConfigSaveFailed') || 'Failed to save WhatsApp configuration'
-                    toast({
-                      title: t('common.error'),
-                      description: errorDetails,
-                      variant: 'destructive'
-                    })
-                  } finally {
-                    setSavingWhatsApp(false)
-                  }
-                }}
+                onClick={handleSaveWhatsApp}
                 disabled={loading || savingWhatsApp}
               >
                 {savingWhatsApp ? (
