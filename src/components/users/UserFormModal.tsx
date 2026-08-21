@@ -130,7 +130,7 @@ export function UserFormModal({
     e.preventDefault()
     if (!canEdit) return
 
-    const finalName = encodeBilingualText(form.nameEn.trim(), form.nameAr.trim())
+    const finalName = encodeBilingualText(form.nameEn.trim(), form.nameEn.trim())
 
     setSaving(true)
     try {
@@ -272,26 +272,13 @@ export function UserFormModal({
             )}
 
             <div>
-              <Label htmlFor="nameEn">{t('auth.fullNameEn')} *</Label>
+              <Label htmlFor="nameEn">Full Name *</Label>
               <Input
                 id="nameEn"
                 value={form.nameEn}
                 onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
-                placeholder={t('auth.fullNameEnPlaceholder')}
+                placeholder="Enter full name"
                 required
-                disabled={isCoreAdmin && isEdit}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="nameAr">{t('auth.fullNameAr')}</Label>
-              <Input
-                id="nameAr"
-                value={form.nameAr}
-                onChange={(e) => setForm((f) => ({ ...f, nameAr: e.target.value }))}
-                placeholder={t('auth.fullNameArPlaceholder')}
-                dir="rtl"
-                className="text-right"
                 disabled={isCoreAdmin && isEdit}
               />
             </div>

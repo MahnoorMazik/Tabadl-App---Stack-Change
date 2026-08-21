@@ -14,27 +14,28 @@ export const MAIN_ROLE_NAMES = {
 
 // Define system modules
 export enum Module {
-  DASHBOARD = "dashboard",
-  CLIENTS = "clients",
-  LEADS = "leads",
-  APPLICATIONS = "applications",
-  DOCUMENTS = "documents",
-  TEAM = "team",
-  FINANCIAL = "financial",
-  MESSAGES = "messages",
-  REPORTS = "reports",
-  SETTINGS = "settings",
-  HELP = "help",
-  USER_MANAGEMENT = "user_management",
-  ROLE_MANAGEMENT = "role_management",
-  SUPPORT = "support",
-  TASKS = "tasks",
-  INVOICES = "invoices",
-  PAYMENTS = "payments",
-  EXPENSES = "expenses",
-  ANALYTICS = "analytics",
-  AUDIT = "audit",
-  SERVICES = "services",
+  DASHBOARD = 'dashboard',
+  CLIENTS = 'clients',
+  LEADS = 'leads',
+  APPLICATIONS = 'applications',
+  DOCUMENTS = 'documents',
+  TEAM = 'team',
+  COLLABORATORS = 'collaborators', // ✅ ADDED
+  FINANCIAL = 'financial',
+  MESSAGES = 'messages',
+  REPORTS = 'reports',
+  SETTINGS = 'settings',
+  HELP = 'help',
+  USER_MANAGEMENT = 'user_management',
+  ROLE_MANAGEMENT = 'role_management',
+  SUPPORT = 'support',
+  TASKS = 'tasks',
+  INVOICES = 'invoices',
+  PAYMENTS = 'payments',
+  EXPENSES = 'expenses',
+  ANALYTICS = 'analytics',
+  AUDIT = 'audit',
+  SERVICES = 'services',
 }
 
 // Define actions within modules
@@ -285,92 +286,30 @@ export function getAllPermissions(): Permission[] {
 // Get module display info
 export function getModuleInfo(module: Module) {
   const moduleInfo = {
-    [Module.DASHBOARD]: {
-      name: "Dashboard",
-      description: "Overview and analytics",
-    },
-    [Module.CLIENTS]: {
-      name: "Client Management",
-      description: "Manage client information and profiles",
-    },
-    [Module.LEADS]: {
-      name: "Lead Management",
-      description: "Track and manage potential clients",
-    },
-    [Module.APPLICATIONS]: {
-      name: "Applications",
-      description: "Manage client applications",
-    },
-    [Module.DOCUMENTS]: {
-      name: "Documents",
-      description: "Document management and approval",
-    },
-    [Module.TEAM]: {
-      name: "Team Management",
-      description: "Manage staff and team members",
-    },
-    [Module.FINANCIAL]: {
-      name: "Financial",
-      description: "Financial overview and management",
-    },
-    [Module.MESSAGES]: {
-      name: "Messages",
-      description: "Internal and client communications",
-    },
-    [Module.REPORTS]: {
-      name: "Reports",
-      description: "Generate and view reports",
-    },
-    [Module.SETTINGS]: {
-      name: "Settings",
-      description: "System configuration and settings",
-    },
-    [Module.HELP]: {
-      name: "Help & Support",
-      description: "Help documentation and support",
-    },
-    [Module.USER_MANAGEMENT]: {
-      name: "User Management",
-      description: "Manage user accounts and access",
-    },
-    [Module.ROLE_MANAGEMENT]: {
-      name: "Role Management",
-      description: "Manage roles and permissions",
-    },
-    [Module.SUPPORT]: {
-      name: "Support",
-      description: "Customer support and ticketing",
-    },
-    [Module.TASKS]: {
-      name: "Tasks",
-      description: "Task management and assignment",
-    },
-    [Module.INVOICES]: {
-      name: "Invoices",
-      description: "Invoice creation and management",
-    },
-    [Module.PAYMENTS]: {
-      name: "Payments",
-      description: "Payment processing and tracking",
-    },
-    [Module.EXPENSES]: {
-      name: "Expenses",
-      description: "Expense tracking and approval",
-    },
-    [Module.ANALYTICS]: {
-      name: "Analytics",
-      description: "Business analytics and insights",
-    },
-    [Module.AUDIT]: {
-      name: "Audit Logs",
-      description: "System audit trails and user activity",
-    },
-    [Module.SERVICES]: {
-      name: "Services Catalog",
-      description: "Business services, packages, and pricing",
-    },
-  };
-  return moduleInfo[module];
+    [Module.DASHBOARD]: { name: 'Dashboard', description: 'Overview and analytics' },
+    [Module.CLIENTS]: { name: 'Client Management', description: 'Manage client information and profiles' },
+    [Module.LEADS]: { name: 'Lead Management', description: 'Track and manage potential clients' },
+    [Module.APPLICATIONS]: { name: 'Applications', description: 'Manage client applications' },
+    [Module.DOCUMENTS]: { name: 'Documents', description: 'Document management and approval' },
+    [Module.TEAM]: { name: 'Team Management', description: 'Manage staff and team members' },
+    [Module.COLLABORATORS]: { name: 'Collaborators', description: 'Manage collaborator invitations and access' }, // ✅ ADDED
+    [Module.FINANCIAL]: { name: 'Financial', description: 'Financial overview and management' },
+    [Module.MESSAGES]: { name: 'Messages', description: 'Internal and client communications' },
+    [Module.REPORTS]: { name: 'Reports', description: 'Generate and view reports' },
+    [Module.SETTINGS]: { name: 'Settings', description: 'System configuration and settings' },
+    [Module.HELP]: { name: 'Help & Support', description: 'Help documentation and support' },
+    [Module.USER_MANAGEMENT]: { name: 'User Management', description: 'Manage user accounts and access' },
+    [Module.ROLE_MANAGEMENT]: { name: 'Role Management', description: 'Manage roles and permissions' },
+    [Module.SUPPORT]: { name: 'Support', description: 'Customer support and ticketing' },
+    [Module.TASKS]: { name: 'Tasks', description: 'Task management and assignment' },
+    [Module.INVOICES]: { name: 'Invoices', description: 'Invoice creation and management' },
+    [Module.PAYMENTS]: { name: 'Payments', description: 'Payment processing and tracking' },
+    [Module.EXPENSES]: { name: 'Expenses', description: 'Expense tracking and approval' },
+    [Module.ANALYTICS]: { name: 'Analytics', description: 'Business analytics and insights' },
+    [Module.AUDIT]: { name: 'Audit Logs', description: 'System audit trails and user activity' },
+    [Module.SERVICES]: { name: 'Services Catalog', description: 'Business services, packages, and pricing' },
+  }
+  return moduleInfo[module]
 }
 
 // Get action display info

@@ -975,22 +975,18 @@ export default function CategoriesPage() {
 
                           <TableCell className="text-right">
                             <div
-                              className="flex justify-end gap-1"
+                              className="flex items-center justify-end gap-3"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={`h-8 w-8 p-0 ${isInactive ? "text-emerald-600 hover:text-emerald-700" : "text-gray-500 hover:text-red-500"}`}
-                                onClick={() => toggleActiveStatus(category)}
-                                title={isInactive ? "Activate" : "Deactivate"}
-                              >
-                                {isInactive ? (
-                                  <Eye className="h-4 w-4" />
-                                ) : (
-                                  <EyeOff className="h-4 w-4" />
-                                )}
-                              </Button>
+                              <Switch
+                                checked={category.isActive}
+                                onCheckedChange={() => toggleActiveStatus(category)}
+                                title={
+                                  category.isActive
+                                    ? "Click to deactivate"
+                                    : "Click to activate"
+                                }
+                              />
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

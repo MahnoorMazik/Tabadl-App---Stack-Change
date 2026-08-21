@@ -55,7 +55,7 @@ export default function ClientResetPasswordPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to reset password')
+        throw new Error(data.error?.message || data.error || 'Failed to reset password')
       }
 
       setSuccess(true)
@@ -66,7 +66,7 @@ export default function ClientResetPasswordPage() {
 
       // Redirect to login after 3 seconds
       setTimeout(() => {
-        router.push('/client/login')
+        router.push('/login')
       }, 3000)
     } catch (error: any) {
       setError(error.message || 'Something went wrong. Please try again.')
@@ -100,7 +100,7 @@ export default function ClientResetPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => router.push('/client/login')}
+                onClick={() => router.push('/login')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Go to Login
@@ -180,7 +180,7 @@ export default function ClientResetPasswordPage() {
 
               <div className="text-center text-sm">
                 <Link
-                  href="/client/login"
+                  href="/login"
                   className="text-emerald-600 hover:underline"
                 >
                   <ArrowLeft className="h-4 w-4 inline mr-1" />

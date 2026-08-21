@@ -1187,24 +1187,24 @@ model PushSubscription {
 model EmailSettings {
   id                             String   @id @default(cuid())
   mailDriver                     String   @default("SMTP")
-  host                           String
-  port                           Int
-  username                       String
-  password                       String
+  host                           String   @default("smtp.gmail.com")
+  port                           Int      @default(587)
+  username                       String   @default("")
+  password                       String   @default("")
   encryption                     String   @default("tls")
-  fromAddress                    String
-  fromName                       String
+  fromAddress                    String   @default("")
+  fromName                       String   @default("Tabadl Alkon CRM")
   tlsServername                  String?
   allowBusinessEmailConfig       Boolean  @default(true)
   enableNewBusinessEmail         Boolean  @default(true)
   enableNewSubscriptionEmail     Boolean  @default(true)
   enableWelcomeEmail             Boolean  @default(true)
-  welcomeEmailSubject            String
-  welcomeEmailBody               String
+  welcomeEmailSubject            String   @default("Welcome to Tabadl Alkon CRM")
+  welcomeEmailBody               String   @default("<p>Welcome to Tabadl Alkon CRM</p>")
   contactEmail                   String?
   contactPhone                   String?
-  businessConsultationRecipients String?
-  staffWhatsAppNumbers           String?
+  businessConsultationRecipients String?   // JSON string array
+  staffWhatsAppNumbers           String?   // JSON string array
   enableWhatsAppNotifications    Boolean  @default(true)
   whatsappAccessToken            String?
   whatsappApiVersion             String?

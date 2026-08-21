@@ -24,6 +24,7 @@ import { FieldHelpTooltip } from '@/components/forms/FieldHelpTooltip'
 import { isWizardFileUrl } from '@/lib/wizards/wizard-file-utils'
 import { useLocale } from '@/contexts/LocaleContext'
 import { getLocalizedText } from '@/lib/multilingual-text'
+import { LocalizedText } from '@/components/forms/LocalizedText'
 
 export interface StepField {
   id?: string
@@ -140,13 +141,11 @@ const StepFieldRow = memo(function StepFieldRow({
             i
           </span>
           <div className="min-w-0 space-y-1">
-            {displayLabel?.trim() && (
-              <p className="text-sm font-semibold text-sky-950">{displayLabel}</p>
+            {field.label?.trim() && (
+              <LocalizedText raw={field.label} as="p" className="text-sm font-semibold text-sky-950" />
             )}
-            {displayHelpText?.trim() ? (
-              <p className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed">
-                {displayHelpText}
-              </p>
+            {field.helpText?.trim() ? (
+              <LocalizedText raw={field.helpText} as="p" className="text-sm text-sky-900/90 whitespace-pre-wrap leading-relaxed" />
             ) : null}
           </div>
         </div>
@@ -170,7 +169,7 @@ const StepFieldRow = memo(function StepFieldRow({
         )}
       >
         <span className="text-muted-foreground/70 text-xs font-normal">{index + 1}.</span>
-        <span>{displayLabel}</span>
+        <LocalizedText raw={field.label} />
         {field.isRequired && <span className="text-destructive">*</span>}
         <FieldHelpTooltip text={displayHelpText} />
       </Label>
@@ -205,7 +204,7 @@ const StepFieldRow = memo(function StepFieldRow({
           <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
             {(field.options ?? []).map((opt) => (
               <SelectItem key={opt} value={opt}>
-                {opt}
+                <LocalizedText raw={opt} />
               </SelectItem>
             ))}
           </SelectContent>
@@ -228,11 +227,9 @@ const StepFieldRow = memo(function StepFieldRow({
               onRemove={!readOnly ? () => onRemoveFile(field.fieldId) : undefined}
             />
           ) : (
-            <Input
-              type="file"
+            <FileInput
               disabled={readOnly || uploading}
               onChange={(e) => void onFileUpload(field.fieldId, e.target.files?.[0])}
-              className="h-10 cursor-pointer text-sm"
             />
           )}
           {uploading && (
@@ -455,17 +452,36 @@ export function ApplicationStepForm({
       try {
         const formData = new FormData()
         formData.append('file', file)
+        // Do not set Content-Type manually — browser must add the multipart boundary.
         const res = await axios.post(
           `${fileUploadBasePath}/${applicationId}/files`,
           formData
         )
-        const url = res.data?.data?.fileUrl
-        const originalName = res.data?.data?.originalName || file.name
+        const uploaded = res.data?.data?.file as
+          | { url?: string; originalName?: string }
+          | undefined
+        const url =
+          uploaded?.url ||
+          res.data?.data?.fileUrl ||
+          res.data?.data?.url
+        const originalName =
+          uploaded?.originalName ||
+          res.data?.data?.originalName ||
+          file.name
         if (!url) throw new Error('File URL missing')
         setValue(fieldId, url)
         setFileName(fieldId, originalName)
+        setErrors((prev) => {
+          if (!prev[fieldId]) return prev
+          const next = { ...prev }
+          delete next[fieldId]
+          return next
+        })
       } catch (error: any) {
-        const message = error.response?.data?.error?.message || 'File upload failed'
+        const message =
+          error.response?.data?.error?.message ||
+          error.message ||
+          'File upload failed'
         setErrors((prev) => ({ ...prev, [fieldId]: message }))
       } finally {
         setUploadingFieldId(null)
@@ -536,7 +552,7 @@ export function ApplicationStepForm({
               )}
             >
               <h2 className="text-xl font-semibold tracking-tight text-foreground truncate">
-                {localizedFormName}
+                <LocalizedText raw={formName} />
               </h2>
               <p className="text-xs text-muted-foreground">
                 {t('client.fill.stepOf')

@@ -40,7 +40,7 @@ export default function ClientForgotPasswordPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send reset link')
+        throw new Error(data.error?.message || data.error || 'Failed to send reset link')
       }
 
       setSubmitted(true)
@@ -80,7 +80,7 @@ export default function ClientForgotPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => router.push('/client/login')}
+                onClick={() => router.push('/login')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Login
@@ -129,7 +129,7 @@ export default function ClientForgotPasswordPage() {
 
               <div className="text-center text-sm">
                 <Link
-                  href="/client/login"
+                  href="/login"
                   className="text-emerald-600 hover:underline"
                 >
                   <ArrowLeft className="h-4 w-4 inline mr-1" />

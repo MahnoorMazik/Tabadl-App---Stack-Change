@@ -52,34 +52,35 @@ export function FileInput({ id, disabled, onChange, className, accept }: FileInp
       <div
         onClick={() => !disabled && inputRef.current?.click()}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors hover:bg-accent/50 cursor-pointer",
+          "flex h-10 w-full items-center gap-3 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors hover:bg-accent/50 cursor-pointer",
           disabled && "cursor-not-allowed opacity-50",
-          isRTL ? "flex-row-reverse" : "flex-row"
+          isRTL ? "flex-row-reverse justify-between" : "flex-row"
         )}
       >
-        <span className={cn("truncate text-muted-foreground", selectedFileName && "text-foreground font-medium")}>
-          {selectedFileName || (isRTL ? 'لم يتم اختيار ملف' : 'No file chosen')}
-        </span>
-        <div className={cn("flex items-center gap-2 shrink-0", isRTL && "flex-row-reverse")}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={disabled}
+          className="h-7 text-xs font-medium gap-1.5 pointer-events-none shrink-0"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          {isRTL ? 'اختر ملف' : 'Choose File'}
+        </Button>
+
+        <div className={cn("flex items-center gap-2 min-w-0 flex-1", isRTL ? "justify-start flex-row-reverse" : "justify-between flex-row")}>
+          <span className={cn("truncate text-muted-foreground", selectedFileName && "text-foreground font-medium")}>
+            {selectedFileName || (isRTL ? 'لم يتم اختيار ملف' : 'No file chosen')}
+          </span>
           {selectedFileName && (
             <button
               type="button"
               onClick={handleClear}
-              className="text-muted-foreground hover:text-destructive transition-colors p-1"
+              className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0"
             >
               <X className="h-4 w-4" />
             </button>
           )}
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={disabled}
-            className="h-7 text-xs font-medium gap-1.5 pointer-events-none"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {isRTL ? 'اختر ملف' : 'Choose File'}
-          </Button>
         </div>
       </div>
     </div>

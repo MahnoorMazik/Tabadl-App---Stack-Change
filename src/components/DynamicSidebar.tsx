@@ -43,6 +43,7 @@ const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   [Module.APPLICATIONS]: FileText,
   [Module.DOCUMENTS]: FolderOpen,
   [Module.TEAM]: Users,
+  [Module.COLLABORATORS]: Users,
   [Module.FINANCIAL]: DollarSign,
   [Module.MESSAGES]: MessageSquare,
   [Module.REPORTS]: BarChart3,
@@ -68,6 +69,7 @@ const MODULE_NAMES: Record<string, string> = {
   [Module.APPLICATIONS]: 'Applications',
   [Module.DOCUMENTS]: 'Documents',
   [Module.TEAM]: 'Team Management',
+  [Module.COLLABORATORS]: 'Collaborators',
   [Module.FINANCIAL]: 'Financial',
   [Module.MESSAGES]: 'Messages',
   [Module.REPORTS]: 'Reports',
@@ -93,6 +95,7 @@ const MODULE_PRIORITIES: Record<string, number> = {
   [Module.APPLICATIONS]: 4,
   [Module.DOCUMENTS]: 5,
   [Module.TEAM]: 6,
+  [Module.COLLABORATORS]: 6.5,
   [Module.FINANCIAL]: 7,
   [Module.MESSAGES]: 8,
   [Module.REPORTS]: 9,
@@ -118,7 +121,6 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
   [Module.APPLICATIONS]: [
     { title: 'Create Application', icon: Layers, href: '/admin/services/wizards', permission: `${Module.SERVICES}.${Action.VIEW}` },
     { title: 'All Applications', icon: FileText, href: '/admin/applications', permission: `${Module.APPLICATIONS}.${Action.VIEW}` },
-    
   ],
   [Module.SERVICES]: [
     { title: 'Services Catalog', icon: Briefcase, href: '/admin/services', permission: `${Module.SERVICES}.${Action.VIEW}` },
@@ -135,6 +137,7 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
   [Module.TEAM]: [
     { title: 'Users', icon: Users, href: '/admin/users', permission: `${Module.USER_MANAGEMENT}.${Action.VIEW}` },
     { title: 'Team Members', icon: Users, href: '/admin/team', permission: `${Module.USER_MANAGEMENT}.${Action.VIEW}` },
+    { title: 'Collaborators', icon: Users, href: '/admin/collaborators', permission: `${Module.COLLABORATORS}.${Action.VIEW}` },
     { title: 'Roles & Permissions', icon: Shield, href: '/admin/team/roles', permission: `${Module.ROLE_MANAGEMENT}.${Action.VIEW}` },
     { title: 'Performance', icon: BarChart3, href: '/admin/team/performance', permission: `${Module.TEAM}.${Action.VIEW}` }
   ],
@@ -262,7 +265,16 @@ export function DynamicSidebar({ className, isCollapsed = false, onToggle }: Dyn
   const generateSidebarItems = useCallback((): SidebarItem[] => {
     if (!permissionChecker) return []
 
-    const accessibleModules = permissionChecker.getAccessibleModules()
+    // Get accessible modules from permission checker
+    let accessibleModules = permissionChecker.getAccessibleModules()
+    
+    // ✅ FORCE ADD COLLABORATORS for admin/staff users
+    // This ensures the Collaborators module appears in the sidebar
+    const isAdminStaff = user?.role === 'STAFF' || user?.role === 'ADMIN'
+    if (isAdminStaff && !accessibleModules.includes(Module.COLLABORATORS)) {
+      console.log('🔧 Force adding COLLABORATORS module for admin/staff user')
+      accessibleModules = [...accessibleModules, Module.COLLABORATORS]
+    }
     
     // Hide financials, reports, and documents modules (Applications is visible)
     const hiddenModules = [Module.FINANCIAL, Module.REPORTS, Module.DOCUMENTS]
@@ -318,7 +330,7 @@ export function DynamicSidebar({ className, isCollapsed = false, onToggle }: Dyn
         
         return !isDuplicate
       })
-  }, [permissionChecker])
+  }, [permissionChecker, user])
 
   // Get default href for a module
   const getModuleDefaultHref = (module: string): string => {
@@ -329,6 +341,7 @@ export function DynamicSidebar({ className, isCollapsed = false, onToggle }: Dyn
       [Module.APPLICATIONS]: '/admin/applications',
       [Module.DOCUMENTS]: '/admin/documents',
       [Module.TEAM]: '/admin/team',
+      [Module.COLLABORATORS]: '/admin/collaborators',
       [Module.FINANCIAL]: '/admin/financial/revenue',
       [Module.MESSAGES]: '/admin/messages/inbox',
       [Module.REPORTS]: '/admin/reports/clients',

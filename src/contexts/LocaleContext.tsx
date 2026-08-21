@@ -631,7 +631,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "auth.verificationFailedTitle": "Verification failed",
     "auth.invalidVerificationLink": "Invalid verification link.",
     "auth.pleaseWait": "Please wait while we verify your email.",
-    
+
     // Admin Sidebar
     "admin.sidebar.dashboard": "Dashboard",
     "admin.sidebar.clientManagement": "Client Management",
@@ -646,7 +646,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.packages": "Packages",
     "admin.sidebar.addOnServices": "Add-on Services",
     "admin.sidebar.applications": "Manage Applications",
-    "admin.sidebar.allApplications": "User's Applications",
+    "admin.sidebar.allApplications": "User Applications",
     "admin.sidebar.createApplication": "Create Application",
     "admin.sidebar.tasks": "Tasks",
     "admin.sidebar.documents": "Documents",
@@ -669,7 +669,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.supportMessaging": "Support Messaging",
     "admin.sidebar.supportTickets": "Support Tickets",
     "admin.sidebar.Categories": "Categories",
-    "admin.sidebar.Assigned": "Assigne",
+    "admin.sidebar.Assigned": "Assignee",
     "admin.sidebar.templates": "Templates",
     "admin.sidebar.reports": "Reports",
     "admin.sidebar.clientReports": "Client Reports",
@@ -693,7 +693,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.faq": "FAQ",
     "admin.sidebar.contactSupport": "Contact Support",
     "admin.sidebar.notifications": "Notifications",
-    "admin.sidebar,supportTickets": "Support Tickets",
+    "admin.sidebar.collaboratorManagement": "Collaborator Management",
 
     // Admin Dashboard
     "admin.dashboard.title": "Dashboard",
@@ -1323,7 +1323,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.applications.status.completed": "Completed",
     "admin.applications.badge.review": "Review",
     "admin.applications.badge.pending": "pending",
-    
+
     // Admin Documents
     "admin.documents.title": "Documents",
     "admin.documents.description": "Manage all documents",
@@ -2320,7 +2320,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.sidebar.support": "Support",
     "client.sidebar.needHelp": "Need Help?",
     "client.sidebar.contactManager": "Contact your application manager",
-    "client.sidebar.collaboration": "Collaboration",
+    "client.sidebar.collaboratorManagement": "Collaborator Management",
     "client.collaboration.pageTitle": "Collaboration",
     "client.collaboration.pageDescription": "Invite people to fill and manage applications on your behalf",
     "client.collaboration.addTitle": "Add collaborator",
@@ -2344,7 +2344,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.collaboration.revoked": "Access revoked",
     "client.collaboration.revokeFailed": "Revoke failed",
     "client.collaboration.actingBanner": "You are collaborating on behalf of {name}",
-    
+
     // Client Dashboard
     "client.dashboard.title": "Dashboard",
     "client.dashboard.welcome": "Welcome",
@@ -2365,7 +2365,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.dashboard.quickActions": "Quick Actions",
     "client.dashboard.addApplication": "Add Application",
     "client.dashboard.applyForApplication": "Apply for Application",
-    
+
     // Client Applications
     "client.applications.title": "My Applications",
     "client.applications.startApplication": "Start Application",
@@ -2592,7 +2592,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.fill.stepApproved": "Step approved",
     "client.fill.stepApprovedDesc": "This step was approved by admin. Fields stay locked so approved data cannot be changed.",
     "client.fill.changesRequestedDesc": "Admin rejected this step. Update the fields and save again for review.",
-    
+
     // Client Documents
     "client.documents.title": "My Documents",
     "client.documents.uploadDocument": "Upload Document",
@@ -3266,7 +3266,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "auth.verificationFailedTitle": "فشل التحقق",
     "auth.invalidVerificationLink": "رابط التحقق غير صالح.",
     "auth.pleaseWait": "يرجى الانتظار أثناء التحقق من بريدك الإلكتروني.",
-    
+
     // Admin Sidebar
     "admin.sidebar.dashboard": "لوحة التحكم",
     "admin.sidebar.clientManagement": "إدارة العملاء",
@@ -3281,7 +3281,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.packages": "الباقات",
     "admin.sidebar.addOnServices": "الخدمات الإضافية",
     "admin.sidebar.applications": "الطلبات",
-    "admin.sidebar.allApplications": "جميع الطلبات",
+    "admin.sidebar.allApplications": "طلب المستخدم",
     "admin.sidebar.createApplication": "إنشاء طلب",
     "admin.sidebar.tasks": "المهام",
     "admin.sidebar.documents": "المستندات",
@@ -3326,6 +3326,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.faq": "الأسئلة الشائعة",
     "admin.sidebar.contactSupport": "اتصل بالدعم",
     "admin.sidebar.notifications": "الإشعارات",
+    "admin.sidebar.collaboratorManagement": "إدارة المتعاونين",
 
     // Admin Dashboard
     "admin.dashboard.title": "لوحة التحكم",
@@ -3877,7 +3878,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.applications.status.completed": "مكتمل",
     "admin.applications.badge.review": "مراجعة",
     "admin.applications.badge.pending": "معلق",
-    
+
     // Admin Documents
     "admin.documents.title": "المستندات",
     "admin.documents.description": "إدارة جميع المستندات",
@@ -4864,7 +4865,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.collaboration.revoked": "تم إلغاء الوصول",
     "client.collaboration.revokeFailed": "فشل الإلغاء",
     "client.collaboration.actingBanner": "أنت تتعاون نيابةً عن {name}",
-    
+
     // Client Dashboard
     "client.dashboard.title": "لوحة التحكم",
     "client.dashboard.welcome": "مرحباً",
@@ -4886,7 +4887,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.dashboard.addApplication": "إضافة طلب",
 
     "client.dashboard.applyForApplication": "التقديم على طلب",
-    
+
     // Client Applications
     "client.applications.title": "طلباتي",
     "client.applications.startApplication": "بدء طلب",
@@ -5105,7 +5106,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.fill.stepApproved": "تمت الموافقة على الخطوة",
     "client.fill.stepApprovedDesc": "تمت الموافقة على هذه الخطوة من قبل الإدارة. تظل الحقول مقفلة حتى لا يمكن تغيير البيانات المعتمدة.",
     "client.fill.changesRequestedDesc": "رفضت الإدارة هذه الخطوة. يرجى تحديث الحقول والحفظ مرة أخرى للمراجعة.",
-    
+
     // Client Documents
     "client.documents.title": "مستنداتي",
     "client.documents.uploadDocument": "رفع مستند",

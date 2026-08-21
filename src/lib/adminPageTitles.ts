@@ -22,6 +22,7 @@ export function resolveAdminPageTitle(pathname: string): string {
     '^/admin/payments$': 'Payments',
     '^/admin/expenses$': 'Expenses',
     '^/admin/messages$': 'Inbox',
+    '^/admin/messages/inbox$': 'WhatsApp Inbox',
     '^/admin/messages/support$': 'Support Messaging',
     '^/admin/messages/templates$': 'Message Templates',
     '^/admin/reports$': 'Reports',

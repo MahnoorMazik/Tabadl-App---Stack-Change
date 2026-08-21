@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { getLocalizedText } from '@/lib/multilingual-text'
+import { LocalizedText } from '@/components/forms/LocalizedText'
 
 import { useLocale } from '@/contexts/LocaleContext'
 
@@ -229,7 +230,7 @@ export function ApplicationStepsNav({
                           : 'font-medium text-foreground'
                     )}
                   >
-                    {getLocalizedText(step.formName, locale)}
+                    <LocalizedText raw={step.formName} />
                   </span>
                   
                 </span>

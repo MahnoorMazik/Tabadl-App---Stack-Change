@@ -45,6 +45,7 @@ import { ApplicationLaunchOverlay } from '@/components/client/ApplicationLaunchO
 import { writeApplicationLaunchLoadingDocument } from '@/lib/client/write-application-launch-loading'
 import { useLocale } from '@/contexts/LocaleContext'
 import { getLocalizedText } from '@/lib/multilingual-text'
+import { LocalizedText } from '@/components/forms/LocalizedText'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 type ApplicationItem = {
@@ -589,7 +590,7 @@ export default function ClientApplicationsPage() {
                               <TableRow key={app.id} className="hover:bg-muted/30">
                                 <TableCell className="font-medium max-w-52">
                                   <div className="flex flex-col gap-1 min-w-0">
-                                    <span className="truncate block">{getLocalizedText(app.wizard.name, locale)}</span>
+                                    <span className="truncate block"><LocalizedText raw={app.wizard.name} /></span>
                                     <span className="text-xs text-muted-foreground font-normal">
                                       {app.applicationNumber}
                                     </span>

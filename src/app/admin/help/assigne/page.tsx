@@ -577,6 +577,12 @@ export default function AssigneesPage() {
   };
 
   const toggleActiveStatus = async (assignee: Assignee) => {
+    const authToken =
+      token ||
+      (typeof window !== "undefined"
+        ? localStorage.getItem("auth-token")
+        : null);
+
     try {
       await axios.put(
         `/api/support-tickets/assignees/${assignee.id}`,
@@ -587,7 +593,8 @@ export default function AssigneesPage() {
           isActive: !assignee.isActive,
         },
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          withCredentials: true,
         },
       );
 
@@ -1030,24 +1037,18 @@ export default function AssigneesPage() {
 
                           <TableCell className="text-right">
                             <div
-                              className="flex justify-end gap-1"
+                              className="flex items-center justify-end gap-3"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={`h-8 w-8 p-0 ${assignee.isActive ? "text-gray-500 hover:text-red-500" : "text-emerald-600 hover:text-emerald-700"}`}
-                                onClick={() => toggleActiveStatus(assignee)}
+                              <Switch
+                                checked={assignee.isActive}
+                                onCheckedChange={() => toggleActiveStatus(assignee)}
                                 title={
-                                  assignee.isActive ? "Deactivate" : "Activate"
+                                  assignee.isActive
+                                    ? "Click to deactivate"
+                                    : "Click to activate"
                                 }
-                              >
-                                {assignee.isActive ? (
-                                  <EyeOff className="h-4 w-4" />
-                                ) : (
-                                  <Eye className="h-4 w-4" />
-                                )}
-                              </Button>
+                              />
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

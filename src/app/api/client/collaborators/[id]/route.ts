@@ -41,7 +41,10 @@ async function requireOwnedInvite(request: NextRequest, id: string) {
   return { user: authResult.user, client, invite }
 }
 
-/** DELETE /api/client/collaborators/[id] — revoke invite or remove collaborator */
+/**
+ * DELETE /api/client/collaborators/[id]?action=revoke  → Soft delete (REVOKED)
+ * DELETE /api/client/collaborators/[id]?action=delete → Permanent delete
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -49,31 +52,74 @@ export async function DELETE(
   const requestId = getRequestId(request)
   try {
     const { id } = await context.params
+    const url = new URL(request.url)
+    const action = url.searchParams.get('action') || 'revoke'
+
     const owned = await requireOwnedInvite(request, id)
     if ('error' in owned) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, String(owned.error), owned.status ?? 400, {
-          requestId,
-        })
+        createErrorResponse(
+          ErrorCodes.AUTHORIZATION_ERROR,
+          owned.error || 'Authorization failed',
+          owned.status || 403,
+          { requestId }
+        )
       )
     }
 
-    const updated = await db.clientCollaborator.update({
-      where: { id: owned.invite.id },
-      data: {
-        status: CollaborationInviteStatus.REVOKED,
-        revokedAt: new Date(),
-        collaboratorUserId: null,
-        acceptedAt: null,
-      },
-    })
+    // ✅ REVOKE ACTION - Soft delete (default)
+    if (action === 'revoke') {
+      const updated = await db.clientCollaborator.update({
+        where: { id: owned.invite.id },
+        data: {
+          status: CollaborationInviteStatus.REVOKED,
+          revokedAt: new Date(),
+          collaboratorUserId: null,
+          acceptedAt: null,
+        },
+      })
+
+      return addCorsHeaders(
+        createSuccessResponse(
+          {
+            collaborator: updated,
+            action: 'revoked',
+            message: 'Collaborator access revoked successfully',
+          },
+          200,
+          { requestId }
+        )
+      )
+    }
+
+    // ✅ DELETE ACTION - Permanent delete
+    if (action === 'delete') {
+      // Permanently delete the collaborator relationship
+      await db.clientCollaborator.delete({
+        where: { id: owned.invite.id },
+      })
+
+      return addCorsHeaders(
+        createSuccessResponse(
+          {
+            action: 'permanently_deleted',
+            message: 'Collaborator permanently deleted',
+          },
+          200,
+          { requestId }
+        )
+      )
+    }
 
     return addCorsHeaders(
-      createSuccessResponse({ collaborator: updated }, 200, {
-        requestId,
-        message: 'Collaborator access revoked',
-      })
+      createErrorResponse(
+        ErrorCodes.VALIDATION_ERROR,
+        'Invalid action. Use "revoke" or "delete"',
+        400,
+        { requestId }
+      )
     )
+
   } catch (error) {
     logError(error instanceof Error ? error : new Error(String(error)), {
       code: ErrorCodes.INTERNAL_ERROR,
@@ -82,7 +128,7 @@ export async function DELETE(
       method: 'DELETE',
     })
     return addCorsHeaders(
-      createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to revoke collaborator', 500, {
+      createErrorResponse(ErrorCodes.INTERNAL_ERROR, 'Failed to process request', 500, {
         requestId,
       })
     )
@@ -100,9 +146,12 @@ export async function POST(
     const owned = await requireOwnedInvite(request, id)
     if ('error' in owned) {
       return addCorsHeaders(
-        createErrorResponse(ErrorCodes.AUTHORIZATION_ERROR, String(owned.error), owned.status ?? 400, {
-          requestId,
-        })
+        createErrorResponse(
+          ErrorCodes.AUTHORIZATION_ERROR,
+          owned.error || 'Authorization failed',
+          owned.status || 403,
+          { requestId }
+        )
       )
     }
 

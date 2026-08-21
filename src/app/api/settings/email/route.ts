@@ -100,8 +100,8 @@ export const GET = withAuth(async (request) => {
         enableNewBusinessEmail: emailSettings.enableNewBusinessEmail,
         enableNewSubscriptionEmail: emailSettings.enableNewSubscriptionEmail,
         enableWelcomeEmail: emailSettings.enableWelcomeEmail,
-        welcomeEmailSubject: emailSettings.welcomeEmailSubject,
-        welcomeEmailBody: emailSettings.welcomeEmailBody,
+        welcomeEmailSubject: emailSettings.welcomeEmailSubject || 'Welcome to Tabadl Alkon CRM',
+        welcomeEmailBody: emailSettings.welcomeEmailBody || '<p>Welcome to Tabadl Alkon CRM</p>',
         contactEmail: emailSettings.contactEmail || '',
         contactPhone: emailSettings.contactPhone || '',
         businessConsultationRecipients: emailSettings.businessConsultationRecipients ? JSON.parse(emailSettings.businessConsultationRecipients) : [],
@@ -195,7 +195,6 @@ export const POST = withAuth(async (request) => {
           }
         })
 
-
     return NextResponse.json({ 
       message: 'Email configuration saved successfully',
       emailConfig: {
@@ -203,7 +202,7 @@ export const POST = withAuth(async (request) => {
         host: savedSettings.host,
         port: savedSettings.port,
         username: savedSettings.username,
-        password: savedSettings.password, // Return actual password
+        password: savedSettings.password,
         encryption: savedSettings.encryption,
         fromAddress: savedSettings.fromAddress,
         fromName: savedSettings.fromName,
@@ -212,8 +211,8 @@ export const POST = withAuth(async (request) => {
         enableNewBusinessEmail: savedSettings.enableNewBusinessEmail,
         enableNewSubscriptionEmail: savedSettings.enableNewSubscriptionEmail,
         enableWelcomeEmail: savedSettings.enableWelcomeEmail,
-        welcomeEmailSubject: savedSettings.welcomeEmailSubject,
-        welcomeEmailBody: savedSettings.welcomeEmailBody,
+        welcomeEmailSubject: savedSettings.welcomeEmailSubject || 'Welcome to Tabadl Alkon CRM',
+        welcomeEmailBody: savedSettings.welcomeEmailBody || '<p>Welcome to Tabadl Alkon CRM</p>',
         contactEmail: savedSettings.contactEmail || '',
         contactPhone: savedSettings.contactPhone || '',
         businessConsultationRecipients: savedSettings.businessConsultationRecipients ? JSON.parse(savedSettings.businessConsultationRecipients) : [],
