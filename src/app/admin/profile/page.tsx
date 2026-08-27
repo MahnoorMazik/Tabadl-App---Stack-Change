@@ -342,7 +342,7 @@ export default function AdminProfilePage() {
       return
     }
 
-    const finalName = encodeBilingualText(nameEn.trim(), nameAr.trim())
+    const finalName = nameEn.trim()
 
     // Simple email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

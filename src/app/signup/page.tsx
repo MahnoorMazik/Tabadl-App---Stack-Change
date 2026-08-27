@@ -350,7 +350,7 @@ export default function ClientSignupPage() {
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                {t('auth.fullNameEn')} <span className="text-destructive">*</span>
+                {t('auth.fullName')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
@@ -360,24 +360,6 @@ export default function ClientSignupPage() {
                 onChange={handleChange}
                 required
                 disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="nameAr" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                {t('auth.fullNameAr')} <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="nameAr"
-                type="text"
-                placeholder={t('auth.fullNameArPlaceholder')}
-                value={formData.nameAr}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                dir="rtl"
-                className="text-right"
               />
             </div>
 

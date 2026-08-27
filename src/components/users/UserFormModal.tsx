@@ -130,7 +130,7 @@ export function UserFormModal({
     e.preventDefault()
     if (!canEdit) return
 
-    const finalName = encodeBilingualText(form.nameEn.trim(), form.nameEn.trim())
+    const finalName = form.nameEn.trim()
 
     setSaving(true)
     try {

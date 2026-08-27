@@ -4005,6 +4005,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.sidebar.support": "الدعم",
     "client.sidebar.needHelp": "تحتاج مساعدة؟",
     "client.sidebar.contactManager": "اتصل بمدير الطلبات الخاص بك",
+    "client.sidebar.collaboratorManagement": "إدارة المتعاونين",
     "client.sidebar.collaboration": "التعاون",
     "client.collaboration.pageTitle": "التعاون",
     "client.collaboration.pageDescription": "ادعُ أشخاصًا لتعبئة وإدارة الطلبات نيابةً عنك",
