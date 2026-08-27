@@ -1,0 +1,1179 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/sqlite"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("SQLITE_DATABASE_URL")
+}
+
+model User {
+  id                         String                        @id @default(cuid())
+  email                      String
+  name                       String?
+  passwordHash               String
+  role                       UserRole                      @default(CLIENT)
+  staffType                  StaffType?
+  isActive                   Boolean                       @default(true)
+  isDeleted                  Boolean                       @default(false)
+  deletedAt                  DateTime?
+  lastLoginAt                DateTime?
+  tokenVersion               Int                           @default(0)
+  phone                      String?
+  avatar                     String?
+  customRoleId               String?
+  resetPasswordToken         String?                       @unique
+  resetPasswordExpiry        DateTime?
+  emailVerified              DateTime?
+  emailVerificationToken     String?                       @unique
+  emailVerificationExpiry    DateTime?
+  createdAt                  DateTime                      @default(now())
+  updatedAt                  DateTime                      @updatedAt
+  accounts                   Account[]
+  applicationWizards         ApplicationWizard[]           @relation("ApplicationWizardCreatedBy")
+  assignedApplications       Application[]                 @relation("ApplicationAssignedTo")
+  approvedApplications       Application[]                 @relation("ApplicationApprovedBy")
+  auditLogs                  AuditLog[]
+  clientProfile              Client?
+  uploadedDocs               Document[]                    @relation("DocumentUploader")
+  reviewedDocs               Document[]                    @relation("DocumentReviewer")
+  createdExpenses            Expense[]                     @relation("ExpenseCreator")
+  approvedExpenses           Expense[]                     @relation("ExpenseApprover")
+  formTemplates              FormTemplate[]                @relation("FormTemplateCreatedBy")
+  leadFollowUps              LeadFollowUp[]
+  leadNotes                  LeadNote[]
+  createdLeads               Lead[]                        @relation("LeadCreator")
+  assignedLeads              Lead[]
+  sentMessages               Message[]                     @relation("MessageSender")
+  notificationPreferences    NotificationPreference[]
+  notificationSettings       NotificationSettings?
+  notifications              Notification[]
+  pageAccessLogs             PageAccessLog[]
+  pushSubscriptions          PushSubscription[]
+  sessions                   Session[]
+  assignedTasks              Task[]
+  customRole                 Role?                         @relation(fields: [customRoleId], references: [id])
+  wizardAnswerUpdates        WizardApplicationAnswer[]     @relation("WizardAnswerUpdatedBy")
+  wizardStepReviews          WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
+  assignedWizardApplications WizardApplication[]           @relation("WizardApplicationAssignedTo")
+  collaborations             ClientCollaborator[]          @relation("CollaboratorUser")
+
+  @@index([email, isDeleted])
+  @@index([isDeleted])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Role {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  permissions String?
+  isDefault   Boolean   @default(false)
+  isProtected Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  users       User[]
+
+  @@index([isDeleted])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  module      String
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@unique([module, action], name: "module_action")
+  @@map("permissions")
+}
+
+model Application {
+  id                String            @id @default(cuid())
+  applicationNumber String            @unique
+  title             String
+  description       String?
+  type              String
+  status            ApplicationStatus @default(PENDING)
+  clientId          String
+  assignedToId      String?
+  approvedById      String?
+  companyName       String?
+  licenseType       String?
+  visaType          String?
+  bankName          String?
+  serviceDetails    String?
+  notes             String?
+  isDeleted         Boolean           @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  client            Client            @relation(fields: [clientId], references: [id])
+  assignedTo        User?             @relation("ApplicationAssignedTo", fields: [assignedToId], references: [id])
+  approvedBy        User?             @relation("ApplicationApprovedBy", fields: [approvedById], references: [id])
+  documents         Document[]
+  messages          Message[]
+  tasks             Task[]
+
+  @@index([isDeleted])
+  @@index([clientId, isDeleted])
+  @@map("applications")
+}
+
+model Client {
+  id                      String                  @id @default(cuid())
+  clientNumber            String                  @unique
+  name                    String
+  email                   String
+  phone                   String?
+  company                 String?
+  companyType             String?
+  designation             String?
+  natureOfBusiness        String?
+  country                 String?
+  city                    String?
+  howDidYouHear           String?
+  userId                  String                  @unique
+  groupId                 String?
+  isDeleted               Boolean                 @default(false)
+  deletedAt               DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  servicePackageId        String?
+  profileCompletionStatus ProfileCompletionStatus @default(INCOMPLETE)
+  profileCompletedAt      DateTime?
+  applications            Application[]
+  profileDocuments        ClientProfileDocument[]
+  servicePackage          ServicePackage?         @relation(fields: [servicePackageId], references: [id])
+  user                    User                    @relation(fields: [userId], references: [id])
+  group                   ClientGroup?            @relation(fields: [groupId], references: [id])
+  documents               Document[]
+  invoices                Invoice[]
+  leads                   Lead[]
+  paymentIntents          PaymentIntent[]
+  payments                Payment[]
+  wizardApplications      WizardApplication[]
+  collaborators           ClientCollaborator[]
+
+  @@index([email, isDeleted])
+  @@index([isDeleted])
+  @@index([profileCompletionStatus])
+  @@map("clients")
+}
+
+model ClientCollaborator {
+  id                 String                    @id @default(cuid())
+  clientId           String
+  collaboratorUserId String?
+  inviteEmail        String
+  inviteToken        String                    @unique
+  status             CollaborationInviteStatus @default(PENDING)
+  invitedAt          DateTime                  @default(now())
+  acceptedAt         DateTime?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  client             Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  collaboratorUser   User?                     @relation("CollaboratorUser", fields: [collaboratorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, inviteEmail])
+  @@index([inviteEmail, status])
+  @@index([collaboratorUserId, status])
+  @@index([status])
+  @@map("client_collaborators")
+}
+
+model Document {
+  id                   String                      @id @default(cuid())
+  filename             String
+  originalName         String
+  path                 String
+  size                 Int
+  mimeType             String
+  status               DocumentStatus              @default(PENDING)
+  reviewNotes          String?
+  name                 String?
+  description          String?
+  uploadedById         String
+  reviewedById         String?
+  applicationId        String?
+  leadId               String?
+  clientId             String?
+  profileRequirementId String?
+  isDeleted            Boolean                     @default(false)
+  deletedAt            DateTime?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  uploadedBy           User                        @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  reviewedBy           User?                       @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  profileRequirement   ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
+  client               Client?                     @relation(fields: [clientId], references: [id])
+  lead                 Lead?                       @relation(fields: [leadId], references: [id])
+  application          Application?                @relation(fields: [applicationId], references: [id])
+
+  @@index([isDeleted])
+  @@index([leadId, isDeleted])
+  @@index([applicationId, isDeleted])
+  @@index([clientId, isDeleted])
+  @@map("documents")
+}
+
+model ServiceCategory {
+  id          String            @id @default(cuid())
+  name        String
+  slug        String            @unique
+  description String?
+  sortOrder   Int               @default(0)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  services    BusinessService[]
+
+  @@map("service_categories")
+}
+
+model BusinessService {
+  id                  String                     @id @default(cuid())
+  categoryId          String
+  name                String
+  slug                String                     @unique
+  description         String?
+  sortOrder           Int                        @default(0)
+  isActive            Boolean                    @default(true)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  addOns              AdditionalService[]
+  wizardServices      ApplicationWizardService[]
+  category            ServiceCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  formTemplateService FormTemplateService?
+  packages            PackageService[]
+
+  @@index([categoryId, sortOrder])
+  @@map("business_services")
+}
+
+model ServicePackage {
+  id           String           @id @default(cuid())
+  name         String
+  slug         String           @unique
+  description  String?
+  basePriceUsd Float
+  basePriceSar Float
+  isActive     Boolean          @default(true)
+  isFeatured   Boolean          @default(false)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  clients      Client[]
+  services     PackageService[]
+
+  @@map("service_packages")
+}
+
+model PackageService {
+  id        String          @id @default(cuid())
+  packageId String
+  serviceId String
+  service   BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  package   ServicePackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, serviceId])
+  @@map("package_services")
+}
+
+model AdditionalService {
+  id          String           @id @default(cuid())
+  serviceId   String?
+  name        String
+  slug        String           @unique
+  description String?
+  priceUsd    Float
+  priceSar    Float
+  isActive    Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  service     BusinessService? @relation(fields: [serviceId], references: [id])
+
+  @@map("additional_services")
+}
+
+model FormField {
+  id             String                    @id @default(cuid())
+  label          String
+  type           FormFieldType
+  options        String?
+  helpText       String?
+  placeholder    String?
+  isActive       Boolean                   @default(true)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  templateFields FormTemplateField[]
+  wizardAnswers  WizardApplicationAnswer[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("form_fields")
+}
+
+model FormTemplate {
+  id             String                  @id @default(cuid())
+  name           String
+  description    String?
+  isActive       Boolean                 @default(true)
+  isDeleted      Boolean                 @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  areaOfInterest AreaOfInterest?
+  wizardSteps    ApplicationWizardStep[]
+  fields         FormTemplateField[]
+  services       FormTemplateService[]
+  createdBy      User                    @relation("FormTemplateCreatedBy", fields: [createdById], references: [id])
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("form_templates")
+}
+
+model FormTemplateField {
+  id            String       @id @default(cuid())
+  templateId    String
+  fieldId       String
+  sortOrder     Int          @default(0)
+  isRequired    Boolean      @default(false)
+  labelOverride String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  field         FormField    @relation(fields: [fieldId], references: [id])
+  template      FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, fieldId])
+  @@index([templateId, sortOrder])
+  @@index([fieldId])
+  @@map("form_template_fields")
+}
+
+model FormTemplateService {
+  id         String          @id @default(cuid())
+  templateId String
+  serviceId  String          @unique
+  createdAt  DateTime        @default(now())
+  service    BusinessService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  template   FormTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, serviceId])
+  @@index([templateId])
+  @@map("form_template_services")
+}
+
+model ApplicationWizard {
+  id             String                     @id @default(cuid())
+  name           String
+  areaOfInterest AreaOfInterest
+  isActive       Boolean                    @default(true)
+  isDeleted      Boolean                    @default(false)
+  deletedAt      DateTime?
+  createdById    String
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  services       ApplicationWizardService[]
+  steps          ApplicationWizardStep[]
+  createdBy      User                       @relation("ApplicationWizardCreatedBy", fields: [createdById], references: [id])
+  applications   WizardApplication[]
+
+  @@index([isDeleted])
+  @@index([isDeleted, updatedAt])
+  @@index([createdById])
+  @@index([areaOfInterest])
+  @@map("application_wizards")
+}
+
+model ApplicationWizardStep {
+  id               String                        @id @default(cuid())
+  wizardId         String
+  formTemplateId   String
+  sortOrder        Int                           @default(0)
+  paymentRequired  Boolean                       @default(false)
+  approvalRequired Boolean                       @default(false)
+  adminUseOnly     Boolean                       @default(false)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  wizard           ApplicationWizard             @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate                  @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+  answers          WizardApplicationAnswer[]
+  stepReviews      WizardApplicationStepReview[]
+
+  @@unique([wizardId, formTemplateId])
+  @@index([wizardId, sortOrder])
+  @@index([formTemplateId])
+  @@map("application_wizard_steps")
+}
+
+model WizardApplication {
+  id                String                        @id @default(cuid())
+  applicationNumber String                        @unique
+  clientId          String
+  wizardId          String
+  areaOfInterest    AreaOfInterest
+  status            WizardApplicationStatus       @default(DRAFT)
+  currentStepIndex  Int                           @default(0)
+  adminNotes        String?
+  submittedAt       DateTime?
+  assignedToId      String?
+  isDeleted         Boolean                       @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+  answers           WizardApplicationAnswer[]
+  stepReviews       WizardApplicationStepReview[]
+  assignedTo        User?                         @relation("WizardApplicationAssignedTo", fields: [assignedToId], references: [id])
+  wizard            ApplicationWizard             @relation(fields: [wizardId], references: [id])
+  client            Client                        @relation(fields: [clientId], references: [id])
+
+  @@index([isDeleted])
+  @@index([wizardId])
+  @@index([status])
+  @@index([areaOfInterest])
+  @@index([clientId])
+  @@map("wizard_applications")
+}
+
+model WizardApplicationAnswer {
+  id            String                @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  fieldId       String
+  value         String?
+  fileUrl       String?
+  updatedById   String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  updatedBy     User                  @relation("WizardAnswerUpdatedBy", fields: [updatedById], references: [id])
+  field         FormField             @relation(fields: [fieldId], references: [id])
+  wizardStep    ApplicationWizardStep @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  application   WizardApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, wizardStepId, fieldId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@map("wizard_application_answers")
+}
+
+model WizardApplicationStepReview {
+  id            String                   @id @default(cuid())
+  applicationId String
+  wizardStepId  String
+  status        WizardStepApprovalStatus @default(PENDING)
+  rejectionNote String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  reviewedBy    User?                    @relation("WizardStepReviewedBy", fields: [reviewedById], references: [id])
+  wizardStep    ApplicationWizardStep    @relation(fields: [wizardStepId], references: [id], onDelete: Cascade)
+  application   WizardApplication        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, wizardStepId])
+  @@index([applicationId])
+  @@index([wizardStepId])
+  @@index([status])
+  @@map("wizard_application_step_reviews")
+}
+
+model ApplicationWizardService {
+  id        String            @id @default(cuid())
+  wizardId  String
+  serviceId String
+  createdAt DateTime          @default(now())
+  service   BusinessService   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  wizard    ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+
+  @@unique([wizardId, serviceId])
+  @@index([wizardId])
+  @@index([serviceId])
+  @@map("application_wizard_services")
+}
+
+model PaymentPhaseTemplate {
+  id          String   @id @default(cuid())
+  phaseNumber Int      @unique
+  name        String
+  description String?
+  percentage  Float
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payment_phase_templates")
+}
+
+model ProfileDocumentRequirement {
+  id          String                  @id @default(cuid())
+  code        String                  @unique
+  name        String
+  description String?
+  inputType   ProfileRequirementType  @default(DOCUMENT)
+  isRequired  Boolean                 @default(true)
+  sortOrder   Int                     @default(0)
+  isActive    Boolean                 @default(true)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  submissions ClientProfileDocument[]
+  documents   Document[]
+
+  @@map("profile_document_requirements")
+}
+
+model ClientProfileDocument {
+  id            String                     @id @default(cuid())
+  clientId      String
+  requirementId String
+  documentId    String?
+  status        ProfileDocumentStatus      @default(MISSING)
+  notes         String?
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  requirement   ProfileDocumentRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  client        Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, requirementId])
+  @@index([clientId])
+  @@map("client_profile_documents")
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  title         String
+  description   String?
+  status        TaskStatus   @default(PENDING)
+  priority      TaskPriority @default(MEDIUM)
+  assignedToId  String?
+  applicationId String
+  dueDate       DateTime?
+  completedAt   DateTime?
+  isDeleted     Boolean      @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  assignedTo    User?        @relation(fields: [assignedToId], references: [id])
+  application   Application  @relation(fields: [applicationId], references: [id])
+
+  @@index([isDeleted])
+  @@index([applicationId, isDeleted])
+  @@map("tasks")
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  description  String
+  amount       Float
+  category     ExpenseCategory
+  vendor       String?
+  expenseDate  DateTime
+  notes        String?
+  approvedById String?
+  createdById  String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  createdBy    User            @relation("ExpenseCreator", fields: [createdById], references: [id])
+  approvedBy   User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
+
+  @@map("expenses")
+}
+
+model Invoice {
+  id             String          @id @default(cuid())
+  invoiceNumber  String          @unique
+  clientId       String
+  amount         Float
+  status         InvoiceStatus   @default(DRAFT)
+  dueDate        DateTime?
+  paidAt         DateTime?
+  isDeleted      Boolean         @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  client         Client          @relation(fields: [clientId], references: [id])
+  paymentIntents PaymentIntent[]
+  payments       Payment[]
+
+  @@index([isDeleted])
+  @@index([clientId, isDeleted])
+  @@map("invoices")
+}
+
+model Payment {
+  id                   String        @id @default(cuid())
+  amount               Float
+  method               PaymentMethod
+  reference            String?
+  clientId             String
+  invoiceId            String?
+  status               String        @default("Success")
+  gateway              String?
+  edfaPayOrderId       String?
+  edfaPayTransactionId String?
+  edfaPayResponse      String?
+  failureReason        String?
+  paymentDate          DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  client               Client        @relation(fields: [clientId], references: [id])
+  invoice              Invoice?      @relation(fields: [invoiceId], references: [id])
+
+  @@index([edfaPayOrderId])
+  @@index([edfaPayTransactionId])
+  @@index([status])
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+model PaymentIntent {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  invoiceId String
+  clientId  String
+  userId    String
+  amount    Float
+  gateway   String   @default("EdfaPay")
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([clientId])
+  @@index([userId])
+  @@map("payment_intents")
+}
+
+model PaymentGatewaySettings {
+  id          String   @id @default(cuid())
+  merchantId  String
+  password    String
+  apiKey      String?
+  environment String   @default("sandbox")
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payment_gateway_settings")
+}
+
+model Lead {
+  id               String         @id @default(cuid())
+  leadNumber       String         @unique
+  fullName         String
+  email            String
+  phone            String?
+  normalizedPhone  String?
+  companyName      String?
+  companyType      String?
+  natureOfBusiness String?
+  designation      String?
+  country          String?
+  city             String?
+  howDidYouHear    String?
+  businessTypes    String?
+  statusId         String?
+  source           String?
+  notes            String?
+  assignedToId     String?
+  createdById      String?
+  clientId         String?
+  duplicateGroupId String?
+  isDuplicate      Boolean        @default(false)
+  duplicateCount   Int            @default(1)
+  isDeleted        Boolean        @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  documents        Document[]
+  leadFollowUps    LeadFollowUp[]
+  leadNotes        LeadNote[]
+  status           LeadStatus?    @relation("LeadStatusToLead", fields: [statusId], references: [id])
+  createdBy        User?          @relation("LeadCreator", fields: [createdById], references: [id])
+  assignedTo       User?          @relation(fields: [assignedToId], references: [id])
+  client           Client?        @relation(fields: [clientId], references: [id])
+
+  @@index([normalizedPhone])
+  @@index([isDeleted])
+  @@index([email, isDeleted])
+  @@index([createdById])
+  @@map("leads")
+}
+
+model LeadStatus {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  color     String
+  type      LeadStatusType @default(OPEN)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  leads     Lead[]         @relation("LeadStatusToLead")
+}
+
+model LeadNote {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  leadId      String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  lead        Lead     @relation(fields: [leadId], references: [id])
+
+  @@map("lead_notes")
+}
+
+model LeadFollowUp {
+  id             String    @id @default(cuid())
+  title          String
+  description    String
+  scheduledAt    DateTime
+  leadId         String
+  createdById    String
+  reminderSentAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdBy      User      @relation(fields: [createdById], references: [id])
+  lead           Lead      @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([scheduledAt])
+  @@map("lead_follow_ups")
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  applicationId String
+  senderId      String
+  content       String
+  status        String      @default("SENT")
+  isRead        Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  sender        User        @relation("MessageSender", fields: [senderId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  @@map("messages")
+}
+
+model SupportMessage {
+  id            String    @id @default(cuid())
+  visitorId     String
+  content       String
+  visitorName   String?
+  visitorEmail  String?
+  isFromVisitor Boolean   @default(true)
+  status        String    @default("SENT")
+  staffId       String?
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  isBot         Boolean   @default(false)
+
+  @@index([isDeleted])
+  @@index([staffId, isDeleted])
+  @@index([visitorId, createdAt])
+  @@map("support_messages")
+}
+
+model SupportConversation {
+  id            String    @id @default(cuid())
+  visitorId     String    @unique
+  status        String    @default("bot")
+  channel       String    @default("website")
+  visitorName   String?
+  visitorEmail  String?
+  handedOffAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastMessageAt DateTime  @default(now())
+
+  @@index([status, lastMessageAt])
+  @@map("support_conversations")
+}
+
+model ChatbotSettings {
+  id                 String   @id @default(cuid())
+  enabled            Boolean  @default(false)
+  enabledWebsiteChat Boolean  @default(false)
+  enabledWhatsApp    Boolean  @default(false)
+  enabledEmail       Boolean  @default(false)
+  botName            String   @default("TK Assistant")
+  ollamaApiKey       String?
+  ollamaHost         String   @default("https://ollama.com")
+  ollamaModel        String   @default("qwen3:8b-cloud")
+  temperature        Float    @default(0.7)
+  systemPrompt       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("chatbot_settings")
+}
+
+model ClientGroup {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  clients     Client[]
+
+  @@index([isDeleted])
+  @@map("client_groups")
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  title      String
+  message    String
+  type       String    @default("info")
+  isRead     Boolean   @default(false)
+  isPinned   Boolean   @default(false)
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  entityType String?
+  entityId   String?
+  updatedAt  DateTime  @default(now()) @updatedAt
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([isDeleted])
+  @@index([userId, isDeleted])
+  @@index([userId, isPinned])
+  @@index([entityType, entityId])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  entityName String?
+  action     String
+  userId     String
+  oldValues  String?
+  newValues  String?
+  changes    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model PageAccessLog {
+  id        String   @id @default(cuid())
+  userId    String
+  path      String
+  pageTitle String?
+  ipAddress String?
+  userAgent String?
+  referer   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([path])
+  @@index([createdAt])
+  @@map("page_access_logs")
+}
+
+model NotificationEventSetting {
+  id             String   @id @default(cuid())
+  eventType      String   @unique
+  sendEmail      Boolean  @default(true)
+  sendInApp      Boolean  @default(true)
+  sendPush       Boolean  @default(false)
+  recipients     String   @default("assigned")
+  scheduleHour   Int?
+  scheduleMinute Int?
+  updatedAt      DateTime @updatedAt
+
+  @@map("notification_event_settings")
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  eventType String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventType])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model NotificationSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  reminderMinutesBefore Int      @default(15)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([endpoint])
+  @@map("push_subscriptions")
+}
+
+model EmailSettings {
+  id                             String   @id @default(cuid())
+  mailDriver                     String   @default("SMTP")
+  host                           String
+  port                           Int
+  username                       String
+  password                       String
+  encryption                     String   @default("tls")
+  fromAddress                    String
+  fromName                       String
+  tlsServername                  String?
+  allowBusinessEmailConfig       Boolean  @default(true)
+  enableNewBusinessEmail         Boolean  @default(true)
+  enableNewSubscriptionEmail     Boolean  @default(true)
+  enableWelcomeEmail             Boolean  @default(true)
+  welcomeEmailSubject            String
+  welcomeEmailBody               String
+  contactEmail                   String?
+  contactPhone                   String?
+  businessConsultationRecipients String?
+  staffWhatsAppNumbers           String?
+  enableWhatsAppNotifications    Boolean  @default(true)
+  whatsappAccessToken            String?
+  whatsappApiVersion             String?
+  whatsappPhoneNumberId          String?
+  whatsappDocumentUrl            String?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@map("email_settings")
+}
+
+/// Singleton-style system preferences (one active row).
+model GeneralSettings {
+  id                          String   @id @default(cuid())
+  clientEmailNotifications    Boolean  @default(true)
+  clientWhatsAppNotifications Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@map("general_settings")
+}
+
+enum ProfileCompletionStatus {
+  INCOMPLETE
+  PENDING_REVIEW
+  COMPLETE
+}
+
+enum ProfileRequirementType {
+  DOCUMENT
+  CONTACT_FIELD
+}
+
+enum ProfileDocumentStatus {
+  MISSING
+  UPLOADED
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  CLIENT
+  STAFF
+  ADMIN
+  COLLABORATOR
+}
+
+enum CollaborationInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum StaffType {
+  ADMIN
+  CASE_MANAGER
+  SALES
+  ACCOUNTANT
+}
+
+enum ApplicationStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum WizardStepApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WizardApplicationStatus {
+  DRAFT
+  PENDING
+  IN_PROGRESS
+  HARD_COPY_REQUIRED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ExpenseCategory {
+  OFFICE_SUPPLIES
+  TRAVEL
+  MEALS
+  SOFTWARE
+  MARKETING
+  UTILITIES
+  RENT
+  OTHER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  CHECK
+  OTHER
+}
+
+enum LeadStatusType {
+  OPEN
+  WON
+  LOST
+  OTHER
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  EMAIL
+  PHONE
+  DATE
+  SELECT
+  CHECKBOX
+  RADIO
+  FILE
+  INSTRUCTION
+}
+
+enum AreaOfInterest {
+  CR
+  PR
+  GR
+}

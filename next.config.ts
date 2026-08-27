@@ -163,7 +163,7 @@ const nextConfig: NextConfig = {
   },
   // Optimize for mobile performance
   experimental: {
-    optimizeCss: true, // Optimize CSS for production
+    optimizeCss: false,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'], // Tree-shake icon libraries
   },
   // Compress output for better mobile performance

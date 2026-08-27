@@ -9,7 +9,7 @@ import { PermissionChecker, Module, Action } from '@/lib/rbac'
 import { 
   BarChart3, Users, UserPlus, FolderOpen, FileText, CheckCircle,
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
-  Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard, CreditCard, Bot,
+  Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard, CreditCard, Bot, Database,
   ChevronDown, ChevronRight, Menu, Calculator, Receipt, 
   PieChart, TrendingDown, Building, Bell, Calendar, Eye, Upload,
   AlertCircle, Clock, ListTodo, UserCircle, LogOut, Globe, Briefcase, Package, PlusCircle, Layers
@@ -165,6 +165,7 @@ const MODULE_SUBITEMS: Record<string, SidebarItem[]> = {
     { title: 'Email Settings', icon: Mail, href: '/admin/settings/email', permission: `${Module.SETTINGS}.${Action.VIEW}` },
     { title: 'Payment Gateway', icon: CreditCard, href: '/admin/settings/payment-gateway', permission: `${Module.SETTINGS}.${Action.MANAGE}` },
     { title: 'AI Chatbot', icon: Bot, href: '/admin/settings/chatbot', permission: `${Module.SETTINGS}.${Action.MANAGE}` },
+    { title: 'Database Connection', icon: Database, href: '/admin/settings/database', permission: `${Module.SETTINGS}.${Action.MANAGE}` },
     { title: 'Backup & Restore', icon: Archive, href: '/admin/settings/backup', permission: `${Module.SETTINGS}.${Action.MANAGE}` }
   ],
   [Module.HELP]: [

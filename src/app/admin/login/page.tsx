@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { validateEmail } from '@/lib/email-validation'
 import { Shield, Lock, Eye, EyeOff, Mail } from 'lucide-react'
+import { resolveLoginErrorCode } from '@/lib/auth/login-errors'
 
 const EMAIL_ERR_USER_NOT_FOUND = 'No account found with this email'
 const PASSWORD_ERR_WRONG = 'Incorrect password'
@@ -70,7 +71,17 @@ export default function AdminLoginPage() {
       await login(email.trim(), password, 'staff')
       router.replace('/admin/dashboard')
     } catch (err: unknown) {
-      setPasswordError(err instanceof Error ? err.message : 'Invalid email or password')
+      const message = err instanceof Error ? err.message : ''
+      const code = resolveLoginErrorCode({ error: message })
+      if (code === 'USER_NOT_FOUND') {
+        setEmailError("This user doesn't exist")
+      } else if (code === 'INCORRECT_PASSWORD') {
+        setPasswordError('Incorrect password')
+      } else if (code === 'ACCOUNT_INACTIVE') {
+        setPasswordError('Account is inactive. Contact an administrator.')
+      } else {
+        setPasswordError(message && message !== 'Configuration' ? message : 'Invalid email or password')
+      }
     } finally {
       setLoading(false)
     }

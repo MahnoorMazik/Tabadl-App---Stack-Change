@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { validateEmail } from '@/lib/email-validation'
 import Link from 'next/link'
 import { Building2, Lock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { useLocale } from '@/contexts/LocaleContext'
+import { LOGIN_ERROR_LOCALE_KEY, resolveLoginErrorCode, type LoginErrorCode } from '@/lib/auth/login-errors'
 
 function ClientLoginForm() {
   const [email, setEmail] = useState('')
@@ -28,6 +29,27 @@ function ClientLoginForm() {
   const justVerified = searchParams.get('verified') === '1'
   const { login } = useAuth()
   const { t } = useLocale()
+
+  const messageForLoginError = (code: LoginErrorCode) => t(LOGIN_ERROR_LOCALE_KEY[code])
+
+  useEffect(() => {
+    const urlError = searchParams.get('error')
+    const urlCode = searchParams.get('code')
+    if (!urlError && !urlCode) return
+
+    const code = resolveLoginErrorCode({ error: urlError, code: urlCode })
+    if (code === 'EMAIL_NOT_VERIFIED') {
+      setNeedsVerification(true)
+    }
+    setError(messageForLoginError(code))
+
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('error')
+    params.delete('code')
+    const next = params.toString()
+    router.replace(next ? `/login?${next}` : '/login', { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const handleResend = async () => {
     if (!email) return
@@ -70,12 +92,11 @@ function ClientLoginForm() {
       await login(email, password, 'client')
       router.push('/dashboard')
     } catch (err: any) {
-      if (err.message === 'EMAIL_NOT_VERIFIED') {
+      const code = resolveLoginErrorCode({ error: err?.message })
+      if (code === 'EMAIL_NOT_VERIFIED') {
         setNeedsVerification(true)
-        setError(t('auth.emailNotVerified'))
-      } else {
-        setError(err.message || t('auth.invalidCredentials'))
       }
+      setError(messageForLoginError(code))
     } finally {
       setLoading(false)
     }

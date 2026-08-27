@@ -48,6 +48,13 @@ export default function SettingsPage() {
       color: 'bg-indigo-50 border-indigo-200'
     },
     {
+      title: 'Database connection',
+      description: 'Switch the active configured PostgreSQL database for this server instance',
+      icon: <Database className="h-8 w-8 text-cyan-600" />,
+      href: '/admin/settings/database',
+      color: 'bg-cyan-50 border-cyan-200'
+    },
+    {
       title: t('admin.settings.system'),
       description: t('admin.settings.systemDesc') || 'Advanced system configuration and maintenance',
       icon: <Server className="h-8 w-8 text-purple-600" />,

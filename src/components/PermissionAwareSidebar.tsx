@@ -11,7 +11,7 @@ import {
   DollarSign, TrendingUp, MessageSquare, Mail, HelpCircle, FileCheck,
   Archive, Settings, Shield, Phone, ClipboardList, LayoutDashboard,
   ChevronDown, ChevronRight, Menu, X, Globe, Tag, History, Activity, Bell, CreditCard, Bot,
-  Briefcase, Package, PlusCircle, Layers, UserCog
+  Briefcase, Package, PlusCircle, Layers, UserCog, Database
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -323,6 +323,12 @@ const createSidebarItems = (t: (key: string) => string): SidebarItem[] => [
         title: t('admin.sidebar.aiChatbot'),
         icon: Bot,
         href: '/admin/settings/chatbot',
+        permission: `${Module.SETTINGS}.${Action.MANAGE}`
+      },
+      {
+        title: t('admin.sidebar.databaseConnection'),
+        icon: Database,
+        href: '/admin/settings/database',
         permission: `${Module.SETTINGS}.${Action.MANAGE}`
       },
       {

@@ -5,6 +5,7 @@ import { useSession, signIn, signOut } from 'next-auth/react'
 import { setupAxiosAuthInterceptor } from '@/lib/axios-auth'
 import { UserRole, StaffType } from '@prisma/client'
 import { Permission } from '@/lib/rbac'
+import { resolveLoginErrorCode } from '@/lib/auth/login-errors'
 
 interface User {
   id: string
@@ -144,14 +145,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     if (result?.error) {
-      const code = String((result as { code?: string }).code || result.error || '')
-      if (
-        code === 'EMAIL_NOT_VERIFIED' ||
-        code.includes('EMAIL_NOT_VERIFIED')
-      ) {
-        throw new Error('EMAIL_NOT_VERIFIED')
-      }
-      throw new Error(result.error === 'CredentialsSignin' ? 'Invalid credentials' : result.error)
+      throw new Error(
+        resolveLoginErrorCode({
+          error: result.error,
+          code: (result as { code?: string }).code,
+        }),
+      )
     }
 
     if (!result?.ok) {

@@ -1,14 +1,17 @@
-import NextAuth, { User, CredentialsSignin } from "next-auth"
+import NextAuth, { User } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { UserRole, StaffType } from "@prisma/client"
 import { Permission } from "@/lib/rbac"
-
-class EmailNotVerifiedError extends CredentialsSignin {
-  code = "EMAIL_NOT_VERIFIED"
-}
+import {
+  AccountInactiveError,
+  EmailNotVerifiedError,
+  IncorrectPasswordError,
+  InvalidCredentialsError,
+  UserNotFoundError,
+} from "@/lib/auth/login-errors"
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -71,7 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required")
+          throw new InvalidCredentialsError()
         }
 
         const email = credentials.email as string
@@ -92,27 +95,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user) {
           console.error(`[Auth] User not found: ${email}`)
-          throw new Error("No account found with this email")
+          throw new UserNotFoundError()
         }
 
         if (!user.isActive) {
           console.error(`[Auth] User account is inactive: ${email}`)
-          throw new Error("Account is inactive. Contact an administrator.")
+          throw new AccountInactiveError()
         }
 
         if (userType === "client" && user.role !== UserRole.CLIENT && user.role !== UserRole.COLLABORATOR) {
           console.error(`[Auth] User type mismatch - expected CLIENT/COLLABORATOR, got ${user.role}: ${email}`)
-          throw new Error("Invalid credentials")
+          throw new InvalidCredentialsError()
         }
-        if (userType === "staff" && user.role !== UserRole.STAFF) {
-          console.error(`[Auth] User type mismatch - expected STAFF, got ${user.role}: ${email}`)
-          throw new Error("Invalid credentials")
+        if (userType === "staff" && user.role !== UserRole.STAFF && user.role !== UserRole.ADMIN) {
+          console.error(`[Auth] User type mismatch - expected STAFF/ADMIN, got ${user.role}: ${email}`)
+          throw new InvalidCredentialsError()
         }
 
         const isValidPassword = await bcrypt.compare(password, user.passwordHash)
         if (!isValidPassword) {
           console.error(`[Auth] Invalid password for user: ${email}`)
-          throw new Error("Incorrect password")
+          throw new IncorrectPasswordError()
         }
 
         // Client self-signup must verify email before login (collaborators verified via invite)
