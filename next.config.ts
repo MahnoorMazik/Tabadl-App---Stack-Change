@@ -125,6 +125,15 @@ const nextConfig: NextConfig = {
     
     // Optimize bundle splitting for mobile
     if (!isServer) {
+      // Node core modules used by server-only code (e.g. src/lib/database-provider.ts's
+      // custom-database-config persistence) get pulled into the client dependency graph
+      // transitively through shared modules like src/lib/db.ts. They're never actually
+      // called in the browser, so stub them out instead of failing the client build.
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+      }
       config.optimization = {
         ...config.optimization,
         splitChunks: {

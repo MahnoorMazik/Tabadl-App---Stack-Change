@@ -1,5 +1,7 @@
 services:
   tabadl-alkon-crm:
+    # networks:
+    #   - tabadl-network
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,7 +11,8 @@ services:
     container_name: tabadl-alkon-crm
     restart: unless-stopped
     ports:
-      - "2006:2006"
+      - "2006:2006" 
+      
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL:-file:./db/custom.db}
@@ -68,6 +71,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  postgres:
+      image: postgres:16
+      container_name: tabadl-postgres
+      restart: unless-stopped
+
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: tabadl
+      ports:
+        - "5432:5432"
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      networks:
+        - tabadl-network
+      
+
+
 networks:
   tabadl-network:
     driver: bridge
+
+# File ke bilkul bottom
+volumes:
+  postgres_data:

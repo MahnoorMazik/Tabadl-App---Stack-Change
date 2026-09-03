@@ -1,15 +1,21 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaClient as SqlitePrismaClient } from '../.generated/sqlite'
 import bcrypt from 'bcryptjs'
 import { seedRBAC, removeOldRoles, assignDefaultRoles } from '@/lib/seed-rbac'
 import { seedBusinessWorkflow } from '@/lib/business-workflow/seed'
 
-const prisma = new PrismaClient()
+// SEED_ENGINE lets this script target an arbitrary database (set by the admin "auto-seed on an
+// empty database" / "Initialize Schema" flow) instead of always using the app's own DATABASE_URL.
+// Unset (the normal `npm run seed` case) behaves exactly as before: plain Postgres client.
+const prisma: any = process.env.SEED_ENGINE === 'sqlite'
+  ? new SqlitePrismaClient({ datasources: { db: { url: process.env.SQLITE_DATABASE_URL } } })
+  : new PrismaClient()
 
 async function main() {
   console.log('🌱 Seeding database...')
 
-  await seedRBAC()
-  await removeOldRoles()
+  await seedRBAC(prisma)
+  await removeOldRoles(prisma)
 
   // ✅ Ensure admin role has collaborator permissions
   const adminRole = await prisma.role.findUnique({
@@ -70,8 +76,8 @@ async function main() {
     console.log('✅ Admin user already exists')
   }
 
-  await assignDefaultRoles()
-  await seedBusinessWorkflow()
+  await assignDefaultRoles(prisma)
+  await seedBusinessWorkflow(prisma)
 
   const systemLeadStatuses = [
     { name: 'New', color: '#2563eb', type: 'OPEN' as const },

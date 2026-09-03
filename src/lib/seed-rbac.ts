@@ -1,9 +1,11 @@
 import { PrismaClient } from '@prisma/client'
 import { DEFAULT_ROLES, getAllPermissions, Module, Action } from '@/lib/rbac'
 
-const prisma = new PrismaClient()
+const defaultPrismaClient = new PrismaClient()
 
-export async function seedRBAC() {
+/** `client` defaults to this module's own standalone Postgres client (unchanged behavior for
+ *  `npm run seed`). Pass an explicit client to target a different engine/URL — see prisma/seed.ts. */
+export async function seedRBAC(prisma: any = defaultPrismaClient) {
   console.log('🌱 Seeding RBAC system...')
 
   try {
@@ -168,7 +170,7 @@ export async function seedRBAC() {
 const OLD_ROLE_NAMES = ['admin', 'staff', 'client'] as const
 
 /** Remove legacy roles (admin, staff, client). Unassign users first, then soft-delete. */
-export async function removeOldRoles() {
+export async function removeOldRoles(prisma: any = defaultPrismaClient) {
   console.log('🧹 Removing old roles (admin, staff, client)...')
   try {
     for (const name of OLD_ROLE_NAMES) {
@@ -195,7 +197,7 @@ export async function removeOldRoles() {
 }
 
 /** Assign Admin role to admin@tk.sa and other staff with staffType ADMIN and no customRole. */
-export async function assignDefaultRoles() {
+export async function assignDefaultRoles(prisma: any = defaultPrismaClient) {
   console.log('🔧 Assigning default roles to existing users...')
 
   try {

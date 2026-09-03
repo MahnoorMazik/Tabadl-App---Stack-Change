@@ -8,22 +8,25 @@ import {
   PROFILE_REQUIREMENTS,
 } from '@/lib/business-workflow/catalog'
 
-export async function seedBusinessWorkflow() {
+/** `client` defaults to the app's own dynamic active-database proxy. Pass an explicit client
+ *  (e.g. from prisma/seed.ts targeting a specific engine/URL) to seed a database that isn't
+ *  necessarily the one currently active. */
+export async function seedBusinessWorkflow(client: any = db) {
   console.log('🌱 Seeding business workflow catalog...')
 
   for (const cat of SERVICE_CATEGORIES) {
-    await db.serviceCategory.upsert({
+    await client.serviceCategory.upsert({
       where: { slug: cat.slug },
       update: { name: cat.name, sortOrder: cat.sortOrder },
       create: { name: cat.name, slug: cat.slug, sortOrder: cat.sortOrder },
     })
   }
 
-  const categories = await db.serviceCategory.findMany()
-  const catBySlug = Object.fromEntries(categories.map((c) => [c.slug, c.id]))
+  const categories = await client.serviceCategory.findMany()
+  const catBySlug = Object.fromEntries(categories.map((c: any) => [c.slug, c.id]))
 
   for (const svc of BUSINESS_SERVICES) {
-    await db.businessService.upsert({
+    await client.businessService.upsert({
       where: { slug: svc.slug },
       update: {
         name: svc.name,
@@ -39,11 +42,11 @@ export async function seedBusinessWorkflow() {
     })
   }
 
-  const allServices = await db.businessService.findMany()
-  const svcBySlug = Object.fromEntries(allServices.map((s) => [s.slug, s.id]))
+  const allServices = await client.businessService.findMany()
+  const svcBySlug = Object.fromEntries(allServices.map((s: any) => [s.slug, s.id]))
 
   for (const pkg of SERVICE_PACKAGES) {
-    const saved = await db.servicePackage.upsert({
+    const saved = await client.servicePackage.upsert({
       where: { slug: pkg.slug },
       update: {
         name: pkg.name,
@@ -64,17 +67,17 @@ export async function seedBusinessWorkflow() {
       },
     })
 
-    await db.packageService.deleteMany({ where: { packageId: saved.id } })
+    await client.packageService.deleteMany({ where: { packageId: saved.id } })
     for (const slug of pkg.serviceSlugs) {
       const serviceId = svcBySlug[slug]
       if (serviceId) {
-        await db.packageService.create({ data: { packageId: saved.id, serviceId } })
+        await client.packageService.create({ data: { packageId: saved.id, serviceId } })
       }
     }
   }
 
   for (const [i, addOn] of ADDITIONAL_SERVICES.entries()) {
-    await db.additionalService.upsert({
+    await client.additionalService.upsert({
       where: { slug: addOn.slug },
       update: {
         name: addOn.name,
@@ -97,7 +100,7 @@ export async function seedBusinessWorkflow() {
   }
 
   for (const phase of PAYMENT_PHASES) {
-    await db.paymentPhaseTemplate.upsert({
+    await client.paymentPhaseTemplate.upsert({
       where: { phaseNumber: phase.phaseNumber },
       update: {
         name: phase.name,
@@ -116,7 +119,7 @@ export async function seedBusinessWorkflow() {
   }
 
   for (const req of PROFILE_REQUIREMENTS) {
-    await db.profileDocumentRequirement.upsert({
+    await client.profileDocumentRequirement.upsert({
       where: { code: req.code },
       update: {
         name: req.name,

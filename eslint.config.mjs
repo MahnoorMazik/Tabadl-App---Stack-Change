@@ -10,6 +10,10 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    // Auto-generated Prisma client runtime code — not source, must never be linted.
+    ignores: ["prisma/generated/**", ".generated/**", "src/generated/**"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
