@@ -48,7 +48,6 @@ function ClientLoginForm() {
     params.delete('code')
     const next = params.toString()
     router.replace(next ? `/login?${next}` : '/login', { scroll: false })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   const handleResend = async () => {
