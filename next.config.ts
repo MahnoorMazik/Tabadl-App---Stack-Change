@@ -74,12 +74,41 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   // Serve static files from uploads directory
+  // ✅ NEW: proxy ONLY migrated auth routes to .NET backend
   async rewrites() {
+    const backend = process.env.BACKEND_URL || 'http://localhost:5000';
     return [
+      // ✅ Only the 4 migrated auth routes → .NET
+      // (NextAuth routes like /api/auth/session and /api/auth/[...nextauth]
+      //  are NOT proxied and continue to be handled by Next.js)
+      {
+        source: '/api/auth/register',
+        destination: `${backend}/api/auth/register`,
+      },
+      {
+        source: '/api/auth/staff-login',
+        destination: `${backend}/api/auth/staff-login`,
+      },
+      {
+        source: '/api/auth/verify-email',
+        destination: `${backend}/api/auth/verify-email`,
+      },
+      {
+        source: '/api/auth/resend-verification',
+        destination: `${backend}/api/auth/resend-verification`,
+      },
+
+      // Existing — uploads
       {
         source: '/uploads/:path*',
         destination: '/api/static/:path*',
       },
+
+      // 🔮 Future modules (uncomment jab migrate karo):
+      // { source: '/api/leads/:path*',        destination: `${backend}/api/leads/:path*` },
+      // { source: '/api/clients/:path*',      destination: `${backend}/api/clients/:path*` },
+      // { source: '/api/applications/:path*', destination: `${backend}/api/applications/:path*` },
+      // { source: '/api/support/:path*',      destination: `${backend}/api/support/:path*` },
     ];
   },
   // Add public directory for static files

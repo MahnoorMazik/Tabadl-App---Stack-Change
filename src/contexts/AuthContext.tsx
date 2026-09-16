@@ -172,9 +172,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(payload.error || 'Registration failed')
     }
 
+    // ✅ Handle BOTH response shapes:
+    //   1. .NET backend:      { requiresEmailVerification: true, email: "..." }
+    //   2. Legacy Next.js:    { data: { requiresEmailVerification: true, email: "..." } }
+    const requiresEmailVerification = Boolean(
+      payload.requiresEmailVerification ??
+      payload.data?.requiresEmailVerification
+    )
+    const email = payload.email ?? payload.data?.email ?? data.email
+
     return {
-      requiresEmailVerification: Boolean(payload.data?.requiresEmailVerification),
-      email: payload.data?.email || data.email,
+      requiresEmailVerification,
+      email,
     }
   }
 
