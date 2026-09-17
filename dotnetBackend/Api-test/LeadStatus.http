@@ -1,0 +1,39 @@
+### Get all lead statuses
+GET http://localhost:5265/api/lead-statuses
+Accept: application/json
+
+### Get lead status by id
+GET http://localhost:5265/api/lead-statuses/{id}
+Accept: application/json
+
+### Create lead status
+POST http://localhost:5265/api/lead-statuses
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Qualified",
+  "color": "#2ECC71",
+  "isActive": true
+}
+
+### Update lead status
+PUT http://localhost:5265/api/lead-statuses/{id}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Qualified Lead",
+  "color": "#27AE60"
+}
+
+### Delete lead status
+DELETE http://localhost:5265/api/lead-statuses/{id}
+Accept: application/json
+
+### Restore lead status
+POST http://localhost:5265/api/lead-statuses/{id}/restore
+Accept: application/json
+
+### Password Hash check
+GET http://localhost:5265/api/roles/test-hash

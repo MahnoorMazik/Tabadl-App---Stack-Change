@@ -1,0 +1,47 @@
+POST http://localhost:5265/api/roles
+Content-Type: application/json
+
+{
+  "name": "SubhanMalikNew",
+  "description": "admin",
+  "isDefault": true,
+  "isProtected": true,
+  "isActive": true,
+  "isDeleted": false
+}
+
+###
+
+GET http://localhost:5265/api/roles
+
+###
+
+GET http://localhost:5265/api/roles/abc
+
+###
+
+PUT http://localhost:5265/api/roles/99679014-1673-4538-a998-17cdf02206e8
+Content-Type: application/json
+
+{
+  "name": "Super Admin",
+  "description": "Full access",
+  "isActive": true
+}
+
+###
+
+DELETE http://localhost:5265/api/roles/6e22b99e-e399-42c5-8747-3e39b27b8589
+
+###
+
+POST http://localhost:5265/api/roles/6e22b99e-e399-42c5-8747-3e39b27b8589/restore
+
+###
+
+GET http://localhost:5265/api/roles?page=1&pageSize=2
+
+###
+
+GET http://localhost:5265/api/roles?search=SubhanMalikNew
+

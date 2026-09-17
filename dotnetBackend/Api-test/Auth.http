@@ -1,0 +1,92 @@
+### Auth: Login
+POST http://localhost:5265/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "admin+1@example.com",
+  "password": "Admin@123"
+}
+
+### Auth: Register
+POST http://localhost:5265/api/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Admin User",
+  "email": "admin+1@example.com",
+  "password": "Admin@123",
+  "role": "Admin"
+}
+
+### Auth: Me
+GET http://localhost:5265/api/auth/me
+Authorization: Bearer {{"token"}}
+Accept: application/json
+
+### Lead Statuses: Get all
+GET http://localhost:5265/api/lead-statuses
+Accept: application/json
+
+### Lead Statuses: Get by id
+GET http://localhost:5265/api/lead-statuses/{id}
+Accept: application/json
+
+### Lead Statuses: Create
+POST http://localhost:5265/api/lead-statuses
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Qualified",
+  "color": "#2ECC71",
+  "isActive": true
+}
+
+### Lead Statuses: Update
+PUT http://localhost:5265/api/lead-statuses/{id}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Qualified Lead",
+  "color": "#27AE60"
+}
+
+### Lead Statuses: Delete
+DELETE http://localhost:5265/api/lead-statuses/{id}
+Accept: application/json
+
+### Lead Statuses: Restore
+POST http://localhost:5265/api/lead-statuses/{id}/restore
+Accept: application/json
+
+### Roles: Get all
+GET http://localhost:5265/api/roles
+Accept: application/json
+
+### Roles: Get by id
+GET http://localhost:5265/api/roles/{id}
+Accept: application/json
+
+### Roles: Create
+POST http://localhost:5265/api/roles
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Admin",
+  "description": "System administrator",
+  "isDefault": false,
+  "isProtected": true,
+  "isActive": true
+}
+
+### Roles: Delete
+DELETE http://localhost:5265/api/roles/{id}
+Accept: application/json
+
+### Roles: Restore
+POST http://localhost:5265/api/roles/{id}/restore
+Accept: application/json
