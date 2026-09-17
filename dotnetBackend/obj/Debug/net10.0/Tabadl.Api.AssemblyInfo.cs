@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Tabadl.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7d957ee109ce5a07a2d75706336f93d5add9200b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9733153722a9e8e8a6f8d2dac6b2afa089ce5f01")]
 [assembly: System.Reflection.AssemblyProductAttribute("Tabadl.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Tabadl.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
