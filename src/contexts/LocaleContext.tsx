@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 type Locale = "en" | "ar";
@@ -9,7 +15,10 @@ interface LocaleContextType {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: string) => string;
-  formatNumber: (value: number | string, options?: Intl.NumberFormatOptions) => string;
+  formatNumber: (
+    value: number | string,
+    options?: Intl.NumberFormatOptions,
+  ) => string;
 }
 
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
@@ -29,36 +38,42 @@ const messages: Record<Locale, Record<string, string>> = {
     "nav.menu": "Menu",
     "nav.language": "Language",
     "nav.theme": "Theme",
-    
+
     // Homepage - Hero
     "home.hero.title": "Revolutionizing Business Formation in",
-    "home.hero.subtitle": "Launch your business in Saudi Arabia with confidence. Our digital platform simplifies company registration, making it",
+    "home.hero.subtitle":
+      "Launch your business in Saudi Arabia with confidence. Our digital platform simplifies company registration, making it",
     "home.hero.transparent": "transparent, fast, and hassle-free.",
     "home.hero.registerNow": "Register Now",
     "home.hero.bookConsultation": "Book Free Consultation",
     "home.hero.companyProfile": "Company Profile",
     "home.hero.noHiddenFees": "No Hidden Fees",
     "home.hero.support24": "24/7 Support",
-    
+
     // Homepage - Why Saudi Arabia
     "home.whySaudi.title": "Why Saudi Arabia is Attractive for Business",
-    "home.whySaudi.founded": "Founded in 2024, TK.SA was established to revolutionize Saudi Arabia's economy by facilitating the foreign company setup in Saudi Arabia. We understand the challenges and excitement of starting a business. Our mission is to inspire, empower, and guide entrepreneurs to transform their visions into reality.",
+    "home.whySaudi.founded":
+      "Founded in 2024, TK.SA was established to revolutionize Saudi Arabia's economy by facilitating the foreign company setup in Saudi Arabia. We understand the challenges and excitement of starting a business. Our mission is to inspire, empower, and guide entrepreneurs to transform their visions into reality.",
     "home.whySaudi.point1": "A rapidly developing and diverse economy",
     "home.whySaudi.point2": "A skilled local and international workforce",
-    "home.whySaudi.point3": "A strategic location at the crossroads of Europe, Asia, and Africa",
-    "home.whySaudi.point4": "Government support for key sectors under Vision 2030",
+    "home.whySaudi.point3":
+      "A strategic location at the crossroads of Europe, Asia, and Africa",
+    "home.whySaudi.point4":
+      "Government support for key sectors under Vision 2030",
     "home.whySaudi.objective": "OUR OBJECTIVE",
-    "home.whySaudi.objectiveText": "To attract international companies that create a thriving ecosystem of growth, benefiting businesses, the Kingdom, and the global economy.",
-    
+    "home.whySaudi.objectiveText":
+      "To attract international companies that create a thriving ecosystem of growth, benefiting businesses, the Kingdom, and the global economy.",
+
     // Homepage - Stats
     "home.stats.companies": "Companies Registered",
     "home.stats.success": "Success Rate",
     "home.stats.processing": "Avg. Processing Time",
     "home.stats.satisfaction": "Customer Satisfaction",
-    
+
     // Homepage - Features
     "home.features.title": "Built for Modern Entrepreneurs",
-    "home.features.subtitle": "Experience the future of company registration with our cutting-edge platform",
+    "home.features.subtitle":
+      "Experience the future of company registration with our cutting-edge platform",
     "home.features.fast.title": "Fast Processing",
     "home.features.fast.desc": "40-day average turnaround time",
     "home.features.secure.title": "100% Secure",
@@ -67,12 +82,14 @@ const messages: Record<Locale, Record<string, string>> = {
     "home.features.expert.desc": "Certified professionals guiding you",
     "home.features.tracking.title": "Real-time Tracking",
     "home.features.tracking.desc": "Monitor progress 24/7",
-    
+
     // Homepage - Services
     "home.services.title": "Comprehensive Business Solutions",
-    "home.services.subtitle": "From registration to ongoing support, we provide everything you need",
+    "home.services.subtitle":
+      "From registration to ongoing support, we provide everything you need",
     "home.services.registration.title": "Company Registration",
-    "home.services.registration.desc": "Complete company formation with all legal requirements",
+    "home.services.registration.desc":
+      "Complete company formation with all legal requirements",
     "home.services.registration.feature1": "Trade License",
     "home.services.registration.feature2": "Commercial Registration",
     "home.services.registration.feature3": "Chamber of Commerce",
@@ -84,31 +101,39 @@ const messages: Record<Locale, Record<string, string>> = {
     "home.services.setup.feature3": "Visa Processing",
     "home.services.setup.feature4": "Labor Office",
     "home.services.support.title": "Ongoing Support",
-    "home.services.support.desc": "Continuous support for your business success",
+    "home.services.support.desc":
+      "Continuous support for your business success",
     "home.services.support.feature1": "Annual Renewals",
     "home.services.support.feature2": "Legal Compliance",
     "home.services.support.feature3": "Accounting",
     "home.services.support.feature4": "HR Solutions",
-    
+
     // Homepage - Our Services
     "home.ourServices.title": "Our Services",
-    "home.ourServices.subtitle": "Comprehensive Business & Industrial Setup Services",
+    "home.ourServices.subtitle":
+      "Comprehensive Business & Industrial Setup Services",
     "home.ourServices.incorporate.title": "Incorporate your Business",
-    "home.ourServices.incorporate.desc": "Secure all MISA licenses and permits.",
+    "home.ourServices.incorporate.desc":
+      "Secure all MISA licenses and permits.",
     "home.ourServices.compliance.title": "Ensure Legal Compliance",
-    "home.ourServices.compliance.desc": "Align with Saudi labor, safety, and industrial laws.",
+    "home.ourServices.compliance.desc":
+      "Align with Saudi labor, safety, and industrial laws.",
     "home.ourServices.operations.title": "Support Operations",
-    "home.ourServices.operations.desc": "Receive ongoing guidance for smooth compliance.",
+    "home.ourServices.operations.desc":
+      "Receive ongoing guidance for smooth compliance.",
     "home.ourServices.visas.title": "Obtain Visas & Work Permits",
-    "home.ourServices.visas.desc": "Manage employee visas, work permits, and Saudization.",
+    "home.ourServices.visas.desc":
+      "Manage employee visas, work permits, and Saudization.",
     "home.ourServices.tax.title": "Manage VAT & Tax Registration",
-    "home.ourServices.tax.desc": "Stay fully compliant with Saudi tax authority.",
+    "home.ourServices.tax.desc":
+      "Stay fully compliant with Saudi tax authority.",
     "home.ourServices.bank.title": "Open Business Bank Accounts",
     "home.ourServices.bank.desc": "Partner with trusted Saudi banks.",
-    
+
     // Homepage - Process
     "home.process.title": "Launch in 4 Easy Steps",
-    "home.process.subtitle": "Get your business up and running faster than you ever imagined",
+    "home.process.subtitle":
+      "Get your business up and running faster than you ever imagined",
     "home.process.step1.title": "Sign Up",
     "home.process.step1.desc": "Create your account in 2 minutes",
     "home.process.step2.title": "Upload Documents",
@@ -117,41 +142,53 @@ const messages: Record<Locale, Record<string, string>> = {
     "home.process.step3.desc": "Our team handles everything",
     "home.process.step4.title": "You Launch",
     "home.process.step4.desc": "Receive licenses & start business",
-    
+
     // Homepage - Testimonials
     "home.testimonials.title": "Loved by Entrepreneurs",
-    "home.testimonials.subtitle": "Join hundreds of satisfied clients who transformed their business dreams into reality",
-    
+    "home.testimonials.subtitle":
+      "Join hundreds of satisfied clients who transformed their business dreams into reality",
+
     // Homepage - Licenses
     "home.licenses.badge": "Licenses & Standards",
     "home.licenses.title": "Operating with Full Compliance",
-    "home.licenses.subtitle": "Trusted by Saudi Arabia's key government platforms, ensuring every company we launch is fully aligned with local regulations.",
+    "home.licenses.subtitle":
+      "Trusted by Saudi Arabia's key government platforms, ensuring every company we launch is fully aligned with local regulations.",
     "home.licenses.licensed": "Licensed & Integrated",
-    
+
     // Homepage - Why Choose
     "home.whyChoose.title": "Why Choose Us?",
-    "home.whyChoose.subtitle": "A partner with proven expertise and measurable results for businesses entering Saudi Arabia.",
-    "home.whyChoose.point1.title": "Among the First 10 Companies for MISA Licensing",
-    "home.whyChoose.point1.desc": "Pioneers in facilitating market entry since the license was first introduced.",
+    "home.whyChoose.subtitle":
+      "A partner with proven expertise and measurable results for businesses entering Saudi Arabia.",
+    "home.whyChoose.point1.title":
+      "Among the First 10 Companies for MISA Licensing",
+    "home.whyChoose.point1.desc":
+      "Pioneers in facilitating market entry since the license was first introduced.",
     "home.whyChoose.point2.title": "Diverse Industries Served",
-    "home.whyChoose.point2.desc": "Successfully supported ventures in textile, IT, technology, transport, EV, retail, healthcare, and consulting.",
+    "home.whyChoose.point2.desc":
+      "Successfully supported ventures in textile, IT, technology, transport, EV, retail, healthcare, and consulting.",
     "home.whyChoose.point3.title": "Strong Partnerships",
-    "home.whyChoose.point3.desc": "Collaborations with financial, legal, and government institutions ensure a smooth and reliable process.",
+    "home.whyChoose.point3.desc":
+      "Collaborations with financial, legal, and government institutions ensure a smooth and reliable process.",
     "home.whyChoose.point4.title": "Client Satisfaction Rate of 97%+",
-    "home.whyChoose.point4.desc": "Our clients value us for our efficiency, transparency, and results-driven approach.",
+    "home.whyChoose.point4.desc":
+      "Our clients value us for our efficiency, transparency, and results-driven approach.",
     "home.whyChoose.point5.title": "Comprehensive One-Stop Solution",
-    "home.whyChoose.point5.desc": "Business setup, licensing, finance, compliance, and staffing—everything under one roof.",
+    "home.whyChoose.point5.desc":
+      "Business setup, licensing, finance, compliance, and staffing—everything under one roof.",
     "home.whyChoose.point6.title": "Aligned with Vision 2030",
-    "home.whyChoose.point6.desc": "Helping businesses leverage Saudi Arabia's growth opportunities with confidence.",
-    
+    "home.whyChoose.point6.desc":
+      "Helping businesses leverage Saudi Arabia's growth opportunities with confidence.",
+
     // Homepage - CTA
     "home.cta.title": "Ready to Launch Your Business?",
-    "home.cta.subtitle": "Join hundreds of successful entrepreneurs who chose TABADL ALKON for their company registration",
+    "home.cta.subtitle":
+      "Join hundreds of successful entrepreneurs who chose TABADL ALKON for their company registration",
     "home.cta.getStarted": "Get Started Free",
     "home.cta.contactSales": "Contact Sales",
-    
+
     // Footer
-    "footer.tagline": "Your trusted partner for business formation and growth in Saudi Arabia.",
+    "footer.tagline":
+      "Your trusted partner for business formation and growth in Saudi Arabia.",
     "footer.services": "Services",
     "footer.misaLicensing": "MISA Licensing",
     "footer.company": "Company",
@@ -164,54 +201,71 @@ const messages: Record<Locale, Record<string, string>> = {
     "footer.copyright": "All rights reserved.",
     "footer.developedBy": "Developed by",
     "footer.cookiePolicy": "Cookie Policy",
-    
+
     // About Us
     "about.badge": "About Us",
     "about.title": "About TABADL ALKON",
-    "about.subtitle": "Your trusted partner in business formation and growth across Saudi Arabia. We're committed to making entrepreneurship accessible and successful for everyone.",
+    "about.subtitle":
+      "Your trusted partner in business formation and growth across Saudi Arabia. We're committed to making entrepreneurship accessible and successful for everyone.",
     "about.profile.title": "Explore the TABADL ALKON Company Profile",
-    "about.profile.desc": "Get a detailed look at our capabilities, sector expertise, and the proven methodology that helps international founders establish in the Kingdom with confidence.",
-    "about.profile.point1": "Full overview of registration & compliance services",
-    "about.profile.point2": "Industry experience across tech, retail, industrial & logistics",
-    "about.profile.point3": "Proven launch methodology mapped to Vision 2030 initiatives",
+    "about.profile.desc":
+      "Get a detailed look at our capabilities, sector expertise, and the proven methodology that helps international founders establish in the Kingdom with confidence.",
+    "about.profile.point1":
+      "Full overview of registration & compliance services",
+    "about.profile.point2":
+      "Industry experience across tech, retail, industrial & logistics",
+    "about.profile.point3":
+      "Proven launch methodology mapped to Vision 2030 initiatives",
     "about.profile.point4": "Dedicated account team and onboarding roadmap",
     "about.profile.download": "Download PDF",
     "about.profile.talkExpert": "Talk to an Expert",
     "about.profile.whatsInside": "What's inside",
-    "about.profile.whatsInsideDesc": "A concise, investor-ready dossier covering our credentials, case studies, and the compliance roadmap we use to move global companies from intent to operations in Saudi Arabia.",
+    "about.profile.whatsInsideDesc":
+      "A concise, investor-ready dossier covering our credentials, case studies, and the compliance roadmap we use to move global companies from intent to operations in Saudi Arabia.",
     "about.profile.industries": "Industries",
     "about.profile.coreServices": "Core Services",
     "about.profile.teamExperts": "Team Experts",
     "about.profile.caseStudies": "Case Studies",
-    
+
     // About Us - Mission & Vision
     "about.mission.title": "Our Mission",
-    "about.mission.paragraph1": "Our mission is to simplify and support the journey of businesses entering Saudi Arabia. We provide expert registration, compliance, and advisory services to ensure every client starts with confidence and clarity.",
-    "about.mission.paragraph2": "By acting as a reliable partner, we handle the complex processes so businesses can focus on growth. With professionalism and transparency, we empower organizations to build a strong and lasting foundation.",
+    "about.mission.paragraph1":
+      "Our mission is to simplify and support the journey of businesses entering Saudi Arabia. We provide expert registration, compliance, and advisory services to ensure every client starts with confidence and clarity.",
+    "about.mission.paragraph2":
+      "By acting as a reliable partner, we handle the complex processes so businesses can focus on growth. With professionalism and transparency, we empower organizations to build a strong and lasting foundation.",
     "about.vision.title": "Our Vision",
-    "about.vision.paragraph1": "Our vision is to be the leading partner for global businesses seeking opportunities in Saudi Arabia. We strive to set the benchmark for trust, innovation, and efficiency in business services.",
-    "about.vision.paragraph2": "Through collaboration and expertise, we aim to foster an inclusive environment where companies thrive and contribute to Saudi Arabia's role as a dynamic global hub.",
-    
+    "about.vision.paragraph1":
+      "Our vision is to be the leading partner for global businesses seeking opportunities in Saudi Arabia. We strive to set the benchmark for trust, innovation, and efficiency in business services.",
+    "about.vision.paragraph2":
+      "Through collaboration and expertise, we aim to foster an inclusive environment where companies thrive and contribute to Saudi Arabia's role as a dynamic global hub.",
+
     // About Us - Our Story
     "about.story.title": "Our Story",
-    "about.story.subtitle": "From vision to reality, building the future of business in Saudi Arabia",
+    "about.story.subtitle":
+      "From vision to reality, building the future of business in Saudi Arabia",
     "about.story.beginning.title": "The Beginning",
-    "about.story.beginning.content": "Founded in 2024, TABADL ALKON was born from a simple observation: starting a business in Saudi Arabia was unnecessarily complex and time-consuming. We saw an opportunity to revolutionize the business formation process.",
+    "about.story.beginning.content":
+      "Founded in 2024, TABADL ALKON was born from a simple observation: starting a business in Saudi Arabia was unnecessarily complex and time-consuming. We saw an opportunity to revolutionize the business formation process.",
     "about.story.innovation.title": "Digital Innovation",
-    "about.story.innovation.content": "We built a comprehensive digital platform that streamlines every aspect of business formation, from initial registration to ongoing compliance. Our technology-first approach eliminates paperwork and reduces processing times.",
+    "about.story.innovation.content":
+      "We built a comprehensive digital platform that streamlines every aspect of business formation, from initial registration to ongoing compliance. Our technology-first approach eliminates paperwork and reduces processing times.",
     "about.story.impact.title": "Growing Impact",
-    "about.story.impact.content": "Today, we've helped hundreds of entrepreneurs successfully launch their businesses, contributing to Saudi Arabia's economic diversification and supporting the Kingdom's Vision 2030 goals.",
-    
+    "about.story.impact.content":
+      "Today, we've helped hundreds of entrepreneurs successfully launch their businesses, contributing to Saudi Arabia's economic diversification and supporting the Kingdom's Vision 2030 goals.",
+
     // About Us - Our Values
     "about.values.title": "Our Values",
     "about.values.subtitle": "The principles that guide everything we do",
     "about.values.trust.title": "Trust & Integrity",
-    "about.values.trust.content": "We maintain the highest standards of honesty and transparency in all our interactions, building lasting relationships based on trust.",
+    "about.values.trust.content":
+      "We maintain the highest standards of honesty and transparency in all our interactions, building lasting relationships based on trust.",
     "about.values.innovation.title": "Innovation",
-    "about.values.innovation.content": "We continuously innovate and improve our services, leveraging cutting-edge technology to provide the best possible experience for our clients.",
+    "about.values.innovation.content":
+      "We continuously innovate and improve our services, leveraging cutting-edge technology to provide the best possible experience for our clients.",
     "about.values.clientSuccess.title": "Client Success",
-    "about.values.clientSuccess.content": "Our success is measured by our clients' success. We're committed to providing exceptional support and guidance throughout their entrepreneurial journey.",
-    
+    "about.values.clientSuccess.content":
+      "Our success is measured by our clients' success. We're committed to providing exceptional support and guidance throughout their entrepreneurial journey.",
+
     // About Us - Achievements
     "about.achievements.title": "Our Achievements",
     "about.achievements.subtitle": "Milestones that define our journey",
@@ -219,92 +273,141 @@ const messages: Record<Locale, Record<string, string>> = {
     "about.achievements.successRate": "Success Rate",
     "about.achievements.clientRating": "Client Rating",
     "about.achievements.averageProcessing": "Average Processing",
-    
+
     // About Us - CTA
     "about.cta.title": "Ready to Start Your Business Journey?",
-    "about.cta.subtitle": "Join hundreds of successful entrepreneurs who chose TABADL ALKON for their business formation needs.",
+    "about.cta.subtitle":
+      "Join hundreds of successful entrepreneurs who chose TABADL ALKON for their business formation needs.",
     "about.cta.getStarted": "Get Started Today",
     "about.cta.contactUs": "Contact Us",
-    
+
     // MISA Page
     "misa.badge": "MISA Licensing",
     "misa.hero.title": "MISA & Investment Licensing",
     "misa.hero.subtitle": "for foreign and local investors",
-    "misa.hero.benefit1": "MISA license strategy aligned with your ownership and sector goals",
-    "misa.hero.benefit2": "Support across tech, industrial, logistics, retail and services",
-    "misa.hero.benefit3": "End‑to‑end coordination with Saudi government platforms",
-    "misa.hero.benefit4": "Arabic & English documentation, submissions and follow‑up",
+    "misa.hero.benefit1":
+      "MISA license strategy aligned with your ownership and sector goals",
+    "misa.hero.benefit2":
+      "Support across tech, industrial, logistics, retail and services",
+    "misa.hero.benefit3":
+      "End‑to‑end coordination with Saudi government platforms",
+    "misa.hero.benefit4":
+      "Arabic & English documentation, submissions and follow‑up",
     "misa.section.title": "Why MISA Licensing Matters",
-    "misa.section.subtitle": "A strong MISA file unlocks faster approvals, cleaner banking, and a foundation that supports premium residency, visas, and future expansions across Saudi Arabia.",
+    "misa.section.subtitle":
+      "A strong MISA file unlocks faster approvals, cleaner banking, and a foundation that supports premium residency, visas, and future expansions across Saudi Arabia.",
     "misa.content.whatIs.title": "What is a MISA License?",
-    "misa.content.whatIs.body": "A MISA license is the core approval that allows foreign and local investors to establish and operate commercial entities in Saudi Arabia. It is the first step in unlocking your trade license, commercial registration and downstream approvals.",
+    "misa.content.whatIs.body":
+      "A MISA license is the core approval that allows foreign and local investors to establish and operate commercial entities in Saudi Arabia. It is the first step in unlocking your trade license, commercial registration and downstream approvals.",
     "misa.content.whoIsFor.title": "Who is it for?",
-    "misa.content.whoIsFor.body": "International founders, regional groups and Saudi partners who want a clear, compliant route into the Kingdom. From single‑shareholder ventures to complex corporate structures, we tailor the licensing pathway to your legal and tax setup.",
+    "misa.content.whoIsFor.body":
+      "International founders, regional groups and Saudi partners who want a clear, compliant route into the Kingdom. From single‑shareholder ventures to complex corporate structures, we tailor the licensing pathway to your legal and tax setup.",
     "misa.content.howWeHelp.title": "How TABADL ALKON helps",
-    "misa.content.howWeHelp.body": "We design the right licensing route, prepare your file to MISA standards, handle portal submissions, and manage clarifications—all while you focus on commercial planning, hiring and market entry.",
+    "misa.content.howWeHelp.body":
+      "We design the right licensing route, prepare your file to MISA standards, handle portal submissions, and manage clarifications—all while you focus on commercial planning, hiring and market entry.",
     "misa.cta.title": "Ready to Start Your MISA Licensing Journey?",
-    "misa.cta.subtitle": "Share your business idea, structure, and timeline—our team will map the right MISA license, outline document requirements, and guide you step‑by‑step until approval.",
+    "misa.cta.subtitle":
+      "Share your business idea, structure, and timeline—our team will map the right MISA license, outline document requirements, and guide you step‑by‑step until approval.",
     "misa.cta.requestConsultation": "Request MISA Consultation",
     "misa.cta.getStarted": "Get Started with TK.sa",
     "misa.image.alt": "MISA investment pavilion",
-    
+
     // Premium Residency Page
     "premiumResidency.badge": "Premium Residency Program",
     "premiumResidency.hero.title": "Premium Residency",
     "premiumResidency.hero.subtitle": "for investors, talent and entrepreneurs",
-    "premiumResidency.hero.benefit1": "Assessment of your eligibility across all 6 PR categories",
-    "premiumResidency.hero.benefit2": "Checklist of required financial and professional documents",
-    "premiumResidency.hero.benefit3": "Support with Arabic documentation and government portals",
-    "premiumResidency.hero.benefit4": "Options for investors, property owners and exceptional talent",
+    "premiumResidency.hero.benefit1":
+      "Assessment of your eligibility across all 6 PR categories",
+    "premiumResidency.hero.benefit2":
+      "Checklist of required financial and professional documents",
+    "premiumResidency.hero.benefit3":
+      "Support with Arabic documentation and government portals",
+    "premiumResidency.hero.benefit4":
+      "Options for investors, property owners and exceptional talent",
     "premiumResidency.section.title": "Who Is Eligible for Premium Residency?",
-    "premiumResidency.section.subtitle": "Premium Residency in Saudi Arabia is available to individuals who meet the criteria for one of the six main PR categories below. Each pathway has specific financial and professional requirements.",
+    "premiumResidency.section.subtitle":
+      "Premium Residency in Saudi Arabia is available to individuals who meet the criteria for one of the six main PR categories below. Each pathway has specific financial and professional requirements.",
     "premiumResidency.category.specialTalent.title": "Special Talent Residency",
-    "premiumResidency.category.specialTalent.bullet1": "Researchers, healthcare professionals, and executives with specialized skills",
-    "premiumResidency.category.specialTalent.bullet2": "Researchers: SAR 14K / month + 3 published researches",
-    "premiumResidency.category.specialTalent.bullet3": "Healthcare & Scientific Professionals: SAR 35K / month",
-    "premiumResidency.category.specialTalent.bullet4": "Executives: SAR 960K / year",
-    "premiumResidency.category.specialTalent.bullet5": "All require an approved employer, 3+ years experience, and a recommendation letter",
+    "premiumResidency.category.specialTalent.bullet1":
+      "Researchers, healthcare professionals, and executives with specialized skills",
+    "premiumResidency.category.specialTalent.bullet2":
+      "Researchers: SAR 14K / month + 3 published researches",
+    "premiumResidency.category.specialTalent.bullet3":
+      "Healthcare & Scientific Professionals: SAR 35K / month",
+    "premiumResidency.category.specialTalent.bullet4":
+      "Executives: SAR 960K / year",
+    "premiumResidency.category.specialTalent.bullet5":
+      "All require an approved employer, 3+ years experience, and a recommendation letter",
     "premiumResidency.category.gifted.title": "Gifted Residency",
-    "premiumResidency.category.gifted.bullet1": "Targets sports, cultural, and artistic talents",
-    "premiumResidency.category.gifted.bullet2": "Proven exceptional talent (award, nomination, or approved criteria)",
-    "premiumResidency.category.gifted.bullet3": "Portfolio + proposal on contribution to Saudi Arabia",
-    "premiumResidency.category.gifted.bullet4": "Recommendation from Ministry of Culture or Sports",
-    "premiumResidency.category.gifted.bullet5": "Financial solvency required (income or 12‑month bank statement)",
-    "premiumResidency.category.gifted.bullet6": "Under 18 applicants must have a guardian",
-    "premiumResidency.category.gifted.bullet7": "Category 1: Award recipient or nominee",
-    "premiumResidency.category.gifted.bullet8": "Category 2: Meets approved eligibility criteria",
+    "premiumResidency.category.gifted.bullet1":
+      "Targets sports, cultural, and artistic talents",
+    "premiumResidency.category.gifted.bullet2":
+      "Proven exceptional talent (award, nomination, or approved criteria)",
+    "premiumResidency.category.gifted.bullet3":
+      "Portfolio + proposal on contribution to Saudi Arabia",
+    "premiumResidency.category.gifted.bullet4":
+      "Recommendation from Ministry of Culture or Sports",
+    "premiumResidency.category.gifted.bullet5":
+      "Financial solvency required (income or 12‑month bank statement)",
+    "premiumResidency.category.gifted.bullet6":
+      "Under 18 applicants must have a guardian",
+    "premiumResidency.category.gifted.bullet7":
+      "Category 1: Award recipient or nominee",
+    "premiumResidency.category.gifted.bullet8":
+      "Category 2: Meets approved eligibility criteria",
     "premiumResidency.category.investor.title": "Investor Residency",
-    "premiumResidency.category.investor.bullet1": "High‑net‑worth individuals making significant investments (minimum SAR 7 million)",
+    "premiumResidency.category.investor.bullet1":
+      "High‑net‑worth individuals making significant investments (minimum SAR 7 million)",
     "premiumResidency.category.investor.bullet2": "MISA investment license",
-    "premiumResidency.category.investor.bullet3": "Minimum SAR 7M personal share in investments",
-    "premiumResidency.category.investor.bullet4": "Valid commercial registration",
-    "premiumResidency.category.investor.bullet5": "Memorandum of Association showing ownership shares",
+    "premiumResidency.category.investor.bullet3":
+      "Minimum SAR 7M personal share in investments",
+    "premiumResidency.category.investor.bullet4":
+      "Valid commercial registration",
+    "premiumResidency.category.investor.bullet5":
+      "Memorandum of Association showing ownership shares",
     "premiumResidency.category.entrepreneur.title": "Entrepreneur Residency",
-    "premiumResidency.category.entrepreneur.bullet1": "Startup founders and business owners with MISA entrepreneur license",
-    "premiumResidency.category.entrepreneur.bullet2": "Category 1: ≥ SAR 400K investment/funding, ≥ 20% ownership + recommendation letter",
-    "premiumResidency.category.entrepreneur.bullet3": "Category 2: ≥ SAR 15M investment/funding, ≥ 10% ownership + recommendation letter",
-    "premiumResidency.category.entrepreneur.bullet4": "Path to permanent residency after 30 months in KSA while maintaining eligibility",
-    "premiumResidency.category.entrepreneur.bullet5": "Job creation requirement: 10 jobs in year 1 + 10 more in year 2 for Category 2",
+    "premiumResidency.category.entrepreneur.bullet1":
+      "Startup founders and business owners with MISA entrepreneur license",
+    "premiumResidency.category.entrepreneur.bullet2":
+      "Category 1: ≥ SAR 400K investment/funding, ≥ 20% ownership + recommendation letter",
+    "premiumResidency.category.entrepreneur.bullet3":
+      "Category 2: ≥ SAR 15M investment/funding, ≥ 10% ownership + recommendation letter",
+    "premiumResidency.category.entrepreneur.bullet4":
+      "Path to permanent residency after 30 months in KSA while maintaining eligibility",
+    "premiumResidency.category.entrepreneur.bullet5":
+      "Job creation requirement: 10 jobs in year 1 + 10 more in year 2 for Category 2",
     "premiumResidency.category.realEstate.title": "Real Estate Owner Residency",
-    "premiumResidency.category.realEstate.bullet1": "Property owners with investments of SAR 4 million or more in Saudi Arabia",
-    "premiumResidency.category.realEstate.bullet2": "Ownership or usufruct of residential property valued at no less than SAR 4 million",
-    "premiumResidency.category.realEstate.bullet3": "Property must be fully paid and not mortgaged at the time of application or afterwards",
-    "premiumResidency.category.realEstate.bullet4": "Property must be fully constructed (not undeveloped land)",
-    "premiumResidency.category.realEstate.bullet5": "Certified valuation report from an accredited Saudi valuer is required",
-    "premiumResidency.category.limitedUnlimited.title": "Limited & Unlimited Duration Premium Residency",
-    "premiumResidency.category.limitedUnlimited.bullet1": "For individuals meeting specific salary or financial criteria (1–5 years or unlimited)",
-    "premiumResidency.category.limitedUnlimited.bullet2": "Designed for annual (limited) or permanent (unlimited) premium residency in Saudi Arabia",
-    "premiumResidency.category.limitedUnlimited.bullet3": "Applicants must provide proof of financial capability to support themselves in the Kingdom",
-    "premiumResidency.cta.title": "Unsure Which Premium Residency Path is Right for You?",
-    "premiumResidency.cta.subtitle": "Our team can review your profile and guide you to the most suitable category based on your investment, profession, or talent—so you can move forward with confidence.",
+    "premiumResidency.category.realEstate.bullet1":
+      "Property owners with investments of SAR 4 million or more in Saudi Arabia",
+    "premiumResidency.category.realEstate.bullet2":
+      "Ownership or usufruct of residential property valued at no less than SAR 4 million",
+    "premiumResidency.category.realEstate.bullet3":
+      "Property must be fully paid and not mortgaged at the time of application or afterwards",
+    "premiumResidency.category.realEstate.bullet4":
+      "Property must be fully constructed (not undeveloped land)",
+    "premiumResidency.category.realEstate.bullet5":
+      "Certified valuation report from an accredited Saudi valuer is required",
+    "premiumResidency.category.limitedUnlimited.title":
+      "Limited & Unlimited Duration Premium Residency",
+    "premiumResidency.category.limitedUnlimited.bullet1":
+      "For individuals meeting specific salary or financial criteria (1–5 years or unlimited)",
+    "premiumResidency.category.limitedUnlimited.bullet2":
+      "Designed for annual (limited) or permanent (unlimited) premium residency in Saudi Arabia",
+    "premiumResidency.category.limitedUnlimited.bullet3":
+      "Applicants must provide proof of financial capability to support themselves in the Kingdom",
+    "premiumResidency.cta.title":
+      "Unsure Which Premium Residency Path is Right for You?",
+    "premiumResidency.cta.subtitle":
+      "Our team can review your profile and guide you to the most suitable category based on your investment, profession, or talent—so you can move forward with confidence.",
     "premiumResidency.cta.requestConsultation": "Request Consultation",
     "premiumResidency.image.alt": "Premium Residency card illustration",
-    
+
     // Contact
     "contact.title": "Contact Us",
     "contact.subtitle": "Get in touch with our team",
     "contact.hero.title": "Business Consultation",
-    "contact.hero.subtitle": "Ready to start your business in Saudi Arabia? Get expert consultation and guidance for your company setup.",
+    "contact.hero.subtitle":
+      "Ready to start your business in Saudi Arabia? Get expert consultation and guidance for your company setup.",
     "contact.form.title": "Business Consultation Form",
     "contact.form.name": "Full Name",
     "contact.form.email": "Email Address",
@@ -334,13 +437,15 @@ const messages: Record<Locale, Record<string, string>> = {
     "contact.selectOption": "Select an option",
     "contact.phonePlaceholder": "Enter 10 digits (e.g., 501234567)",
     "contact.section.expert.title": "Expert Business Consultation",
-    "contact.section.expert.desc": "Our experienced consultants will help you navigate the Saudi business landscape and set up your company successfully.",
+    "contact.section.expert.desc":
+      "Our experienced consultants will help you navigate the Saudi business landscape and set up your company successfully.",
     "contact.info.email": "Email",
     "contact.info.phone": "Phone",
     "contact.info.address": "Address",
     "contact.info.addressValue": "Tabadl Alkon, Riyadh, Saudi Arabia",
     "contact.section.visit.title": "Visit Our Office",
-    "contact.section.visit.subtitle": "Find us at our location in Riyadh, Saudi Arabia",
+    "contact.section.visit.subtitle":
+      "Find us at our location in Riyadh, Saudi Arabia",
     "contact.section.visit.location": "Our Location",
     "contact.section.visit.getDirections": "Get Directions",
     "contact.howHear.google": "Google Search",
@@ -363,7 +468,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "contact.businessType.financial": "Financial Services",
     "contact.businessType.ecommerce": "E-commerce & Retail",
     "contact.businessType.logistics": "Logistics & Transportation",
-    
+
     // Common UI Elements
     "common.save": "Save",
     "common.cancel": "Cancel",
@@ -436,7 +541,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "common.accessDenied": "Access Denied",
     "common.noPermission": "You don't have permission to access this page.",
     "common.pageUnderConstruction": "Page Under Construction",
-    "common.featureComingSoon": "This feature is currently being developed and will be available soon.",
+    "common.featureComingSoon":
+      "This feature is currently being developed and will be available soon.",
     "common.comingSoon": "Coming Soon",
     "common.workingOnFeature": "We're working on bringing you this feature.",
     "common.backToDashboard": "Back to Dashboard",
@@ -449,11 +555,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "common.saveChanges": "Save Changes",
     "common.refreshing": "Refreshing...",
     "common.later": "Later",
-    
+
     // PWA
     "pwa.installTitle": "Install App",
-    "pwa.installDescription": "Install TK CRM for quick access and offline support.",
-    "pwa.installFallback": "Use your browser menu (⋮ or ⋯) and choose \"Install app\" or \"Add to Home Screen\".",
+    "pwa.installDescription":
+      "Install TK CRM for quick access and offline support.",
+    "pwa.installFallback":
+      'Use your browser menu (⋮ or ⋯) and choose "Install app" or "Add to Home Screen".',
     "pwa.installButton": "Install",
     "pwa.alreadyInstalled": "Installed",
     "pwa.notInstalled": "Not installed",
@@ -465,7 +573,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "pwa.installDismissedDesc": "You can install the app anytime from this page.",
     "pwa.installIosHint": "On iPhone/iPad: tap Share, then \"Add to Home Screen\".",
     "common.new": "New",
-    
+
     // Login & Signup
     "auth.login": "Login",
     "auth.signup": "Sign Up",
@@ -526,7 +634,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "auth.verificationFailedTitle": "Verification failed",
     "auth.invalidVerificationLink": "Invalid verification link.",
     "auth.pleaseWait": "Please wait while we verify your email.",
-    
+
     // Admin Sidebar
     "admin.sidebar.dashboard": "Dashboard",
     "admin.sidebar.clientManagement": "Client Management",
@@ -562,6 +670,9 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.messages": "Messages",
     "admin.sidebar.inbox": "Inbox",
     "admin.sidebar.supportMessaging": "Support Messaging",
+    "admin.sidebar.supportTickets": "Support Tickets",
+    "admin.sidebar.Categories": "Categories",
+    "admin.sidebar.Assigned": "Assignee",
     "admin.sidebar.templates": "Templates",
     "admin.sidebar.reports": "Reports",
     "admin.sidebar.clientReports": "Client Reports",
@@ -587,7 +698,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.contactSupport": "Contact Support",
     "admin.sidebar.notifications": "Notifications",
     "admin.sidebar.collaboratorManagement": "Collaborator Management",
-    
+
     // Admin Dashboard
     "admin.dashboard.title": "Dashboard",
     "admin.dashboard.description": "Overview of your CRM system",
@@ -597,7 +708,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.createApplication": "Create Application",
     "admin.dashboard.addClient": "Add Client",
     "admin.dashboard.addLead": "Add Lead",
-    "admin.dashboard.analyticsUnavailable": "Analytics data is currently unavailable. Displaying dashboard with default values.",
+    "admin.dashboard.analyticsUnavailable":
+      "Analytics data is currently unavailable. Displaying dashboard with default values.",
     "admin.dashboard.newThisMonth": "new this month",
     "admin.dashboard.pending": "pending",
     "admin.dashboard.pendingReview": "pending review",
@@ -616,40 +728,52 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.avgRevenueClient": "Avg Revenue/Client",
     "admin.dashboard.averageRevenuePerClient": "Average revenue per client",
     "admin.dashboard.taskCompletion": "Task Completion",
-    "admin.dashboard.tasksCompletedSuccessfully": "Tasks completed successfully",
+    "admin.dashboard.tasksCompletedSuccessfully":
+      "Tasks completed successfully",
     "admin.dashboard.clientGrowth": "Client Growth",
     "admin.dashboard.monthOverMonthGrowth": "Month-over-month growth",
     "admin.dashboard.revenueGrowth": "Revenue Growth",
-    "admin.dashboard.monthOverMonthRevenueGrowth": "Month-over-month revenue growth",
+    "admin.dashboard.monthOverMonthRevenueGrowth":
+      "Month-over-month revenue growth",
     "admin.dashboard.avgCaseDuration": "Avg Case Duration",
     "admin.dashboard.averageCaseCompletionTime": "Average case completion time",
     "admin.dashboard.days": "days",
     "admin.dashboard.analyticsTrends": "Analytics & Trends",
     "admin.dashboard.revenueTrend": "Revenue Trend",
-    "admin.dashboard.monthlyRevenueLast6Months": "Monthly revenue over the last 6 months",
+    "admin.dashboard.monthlyRevenueLast6Months":
+      "Monthly revenue over the last 6 months",
     "admin.dashboard.clientGrowthChart": "Client Growth",
-    "admin.dashboard.newClientsLast6Months": "New clients acquired over the last 6 months",
+    "admin.dashboard.newClientsLast6Months":
+      "New clients acquired over the last 6 months",
     "admin.dashboard.latestUpdates": "Latest Updates",
     "admin.dashboard.widgets.clientsOverview": "Client Overview",
-    "admin.dashboard.widgets.clientsOverviewDesc": "Manage your clients and leads",
+    "admin.dashboard.widgets.clientsOverviewDesc":
+      "Manage your clients and leads",
     "admin.dashboard.widgets.leadsOverview": "Lead Management",
-    "admin.dashboard.widgets.leadsOverviewDesc": "Track and manage potential clients",
+    "admin.dashboard.widgets.leadsOverviewDesc":
+      "Track and manage potential clients",
     "admin.dashboard.widgets.applicationsOverview": "Applications",
-    "admin.dashboard.widgets.applicationsOverviewDesc": "Track application progress",
+    "admin.dashboard.widgets.applicationsOverviewDesc":
+      "Track application progress",
     "admin.dashboard.widgets.financialOverview": "Financial Overview",
-    "admin.dashboard.widgets.financialOverviewDesc": "Revenue and financial metrics",
+    "admin.dashboard.widgets.financialOverviewDesc":
+      "Revenue and financial metrics",
     "admin.dashboard.widgets.invoicesOverview": "Invoices",
-    "admin.dashboard.widgets.invoicesOverviewDesc": "Invoice management and tracking",
+    "admin.dashboard.widgets.invoicesOverviewDesc":
+      "Invoice management and tracking",
     "admin.dashboard.widgets.paymentsOverview": "Payments",
-    "admin.dashboard.widgets.paymentsOverviewDesc": "Payment processing and tracking",
+    "admin.dashboard.widgets.paymentsOverviewDesc":
+      "Payment processing and tracking",
     "admin.dashboard.widgets.expensesOverview": "Expenses",
-    "admin.dashboard.widgets.expensesOverviewDesc": "Expense tracking and approval",
+    "admin.dashboard.widgets.expensesOverviewDesc":
+      "Expense tracking and approval",
     "admin.dashboard.widgets.documentsOverview": "Documents",
     "admin.dashboard.widgets.documentsOverviewDesc": "Document management",
     "admin.dashboard.widgets.teamOverview": "Team Management",
     "admin.dashboard.widgets.teamOverviewDesc": "Manage team members and roles",
     "admin.dashboard.widgets.messagesOverview": "Messages",
-    "admin.dashboard.widgets.messagesOverviewDesc": "Internal and client communications",
+    "admin.dashboard.widgets.messagesOverviewDesc":
+      "Internal and client communications",
     "admin.dashboard.widgets.reportsOverview": "Reports",
     "admin.dashboard.widgets.reportsOverviewDesc": "Generate and view reports",
     "admin.dashboard.widgets.settingsOverview": "Settings",
@@ -658,9 +782,11 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.chartNewClients": "New Clients",
     "admin.dashboard.chartMonth": "Month",
     "admin.dashboard.customizeDashboard": "Customize Dashboard",
-    "admin.dashboard.customizeDescription": "Toggle options for the dashboard view.",
+    "admin.dashboard.customizeDescription":
+      "Toggle options for the dashboard view.",
     "admin.dashboard.showGraphs": "Show graphs",
-    "admin.dashboard.showGraphsHint": "When on, overview and performance cards show charts. When off, only the numbers are shown.",
+    "admin.dashboard.showGraphsHint":
+      "When on, overview and performance cards show charts. When off, only the numbers are shown.",
 
     // Admin Clients
     "admin.clients.title": "Client Management",
@@ -690,14 +816,16 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.deleteFailed": "Failed to delete client",
     "admin.clients.profileUploaded": "Profile picture uploaded successfully",
     "admin.clients.uploadFailed": "Failed to upload profile picture",
-    "admin.clients.createDescription": "Create a new client account with company details",
+    "admin.clients.createDescription":
+      "Create a new client account with company details",
     "admin.clients.basicInfo": "Basic Information",
     "admin.clients.companyType": "Company Type",
     "admin.clients.placeholder.companyType": "e.g., LLC, Joint Stock Company",
     "admin.clients.designation": "Designation",
     "admin.clients.placeholder.designation": "Your Job Title/Position",
     "admin.clients.natureOfBusiness": "Nature of Business",
-    "admin.clients.placeholder.natureOfBusiness": "Describe your business activities",
+    "admin.clients.placeholder.natureOfBusiness":
+      "Describe your business activities",
     "admin.clients.howDidYouHear": "How did you hear about us?",
     "admin.clients.selectOption": "Select an option",
     "admin.clients.selectGroup": "Select group (optional)",
@@ -727,21 +855,25 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.noPhone": "No phone",
     "admin.clients.active": "Active",
     "admin.clients.inactive": "Inactive",
-    "admin.clients.import.description": "Bulk import client contacts from CSV file",
+    "admin.clients.import.description":
+      "Bulk import client contacts from CSV file",
     "admin.clients.import.howToImport": "How to Import Clients",
     "admin.clients.import.step1": "Download the CSV template",
-    "admin.clients.import.step2": "Fill in client information (name, email, phone, company)",
+    "admin.clients.import.step2":
+      "Fill in client information (name, email, phone, company)",
     "admin.clients.import.step3": "Upload the CSV file below",
     "admin.clients.import.downloadTemplate": "Download CSV Template",
     "admin.clients.import.uploadCsv": "Upload CSV File",
-    "admin.clients.import.uploadDesc": "Select a CSV file containing client information",
+    "admin.clients.import.uploadDesc":
+      "Select a CSV file containing client information",
     "admin.clients.import.csvFile": "CSV File",
     "admin.clients.import.selectedFile": "Selected file:",
     "admin.clients.import.importing": "Importing...",
     "admin.clients.import.importClients": "Import Clients",
     "admin.clients.import.preview": "Preview",
     "admin.clients.import.clients": "clients",
-    "admin.clients.import.showingRows": "Showing all {count} rows from CSV file",
+    "admin.clients.import.showingRows":
+      "Showing all {count} rows from CSV file",
     "admin.clients.import.name": "Name",
     "admin.clients.import.email": "Email",
     "admin.clients.import.phone": "Phone",
@@ -757,12 +889,15 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.import.totalRecords": "Total Records",
     "admin.clients.import.imported": "Imported",
     "admin.clients.import.failed": "Failed",
-    "admin.clients.import.successCount": "Successfully imported {count} client(s)",
-    "admin.clients.import.failedCount": "{count} contact(s) failed to import. They may already exist or have invalid data.",
+    "admin.clients.import.successCount":
+      "Successfully imported {count} client(s)",
+    "admin.clients.import.failedCount":
+      "{count} contact(s) failed to import. They may already exist or have invalid data.",
     "admin.clients.import.csvFormatTitle": "CSV Format Requirements",
     "admin.clients.import.csvHeader": "name,email,phone,company",
     "admin.clients.import.csvHeaderDisplay": "name,email,phone,company",
-    "admin.clients.import.csvHeaderNote": "Note: CSV file must use English headers: name,email,phone,company",
+    "admin.clients.import.csvHeaderNote":
+      "Note: CSV file must use English headers: name,email,phone,company",
     "admin.clients.import.csvExample": "{name},{email},{phone},{company}",
     "admin.clients.import.csvExampleName": "John Doe",
     "admin.clients.import.csvExampleEmail": "john@example.com",
@@ -774,14 +909,18 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.import.optionalColumns": "Optional columns:",
     "admin.clients.import.optionalColsList": "phone",
     "admin.clients.import.optionalColsListDisplay": "phone",
-    "admin.clients.import.noFileChosen": "No file chosen. Click to choose a CSV file.",
+    "admin.clients.import.noFileChosen":
+      "No file chosen. Click to choose a CSV file.",
     "admin.clients.import.defaultPassword": "Default password:",
-    "admin.clients.import.defaultPasswordNote": "client123 (clients should change on first login)",
+    "admin.clients.import.defaultPasswordNote":
+      "client123 (clients should change on first login)",
     "admin.clients.import.duplicatesNote": "Duplicates:",
-    "admin.clients.import.duplicatesDesc": "Contacts with existing emails will be skipped",
+    "admin.clients.import.duplicatesDesc":
+      "Contacts with existing emails will be skipped",
     "admin.clients.import.csvParseError": "CSV parsing error",
     "admin.clients.import.importCompleted": "Import completed",
-    "admin.clients.import.importSuccessToast": "Successfully imported {imported} clients. {failed} errors.",
+    "admin.clients.import.importSuccessToast":
+      "Successfully imported {imported} clients. {failed} errors.",
     "admin.clients.import.importFailed": "Import failed",
     "admin.clients.import.importFailedDesc": "An error occurred during import.",
     "admin.clients.import.nameRequired": "Name is required",
@@ -803,24 +942,29 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.noEmail": "No email",
     "admin.clients.updateClient": "Update Client",
     "admin.clients.updating": "Updating...",
-    "admin.clients.areYouSureDelete": "Are you sure you want to delete this client?",
+    "admin.clients.areYouSureDelete":
+      "Are you sure you want to delete this client?",
     "admin.clients.deleteConfirm": "This action cannot be undone.",
     "admin.clients.deleting": "Deleting...",
     "admin.clients.groups.title": "Group",
-    "admin.clients.emailCannotChange": "Email cannot be changed after account creation.",
-    "admin.clients.deletePermanent": "This action cannot be undone. This will permanently delete the client and all associated data.",
+    "admin.clients.emailCannotChange":
+      "Email cannot be changed after account creation.",
+    "admin.clients.deletePermanent":
+      "This action cannot be undone. This will permanently delete the client and all associated data.",
     "admin.clients.deleteCompany": "Are you sure you want to delete",
     "admin.clients.clientLabel": "Client",
     "common.id": "ID",
     "common.change": "Change",
-    
+
     // Admin Client Groups
     "admin.groups.title": "Client Groups",
-    "admin.groups.description": "Organize clients into groups for better management",
+    "admin.groups.description":
+      "Organize clients into groups for better management",
     "admin.groups.createGroup": "Create Group",
     "admin.groups.totalGroups": "Total Groups",
     "admin.groups.groupNamePlaceholder": "VIP Clients",
-    "admin.groups.descriptionPlaceholder": "High priority clients with premium services",
+    "admin.groups.descriptionPlaceholder":
+      "High priority clients with premium services",
     "admin.groups.groupName": "Group Name",
     "admin.groups.groupColor": "Group Color",
     "admin.groups.clients": "clients",
@@ -831,13 +975,14 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.groups.editGroup": "Edit Client Group",
     "admin.groups.updateGroup": "Update Group Information",
     "admin.groups.cannotDelete": "Cannot Delete",
-    "admin.groups.hasClients": "This group has {count} client(s). Please reassign or remove clients first.",
-    "admin.groups.deleteConfirm": "Are you sure you want to delete \"{name}\"?",
+    "admin.groups.hasClients":
+      "This group has {count} client(s). Please reassign or remove clients first.",
+    "admin.groups.deleteConfirm": 'Are you sure you want to delete "{name}"?',
     "admin.groups.created": "Client group created successfully",
     "admin.groups.updated": "Client group updated successfully",
     "admin.groups.deleted": "Client group deleted successfully",
     "admin.groups.failed": "Failed to {action} group",
-    
+
     // Admin Leads
     "admin.leads.title": "Lead Management",
     "admin.leads.description": "Manage and track your leads",
@@ -860,11 +1005,16 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.import.instructions": "Import Instructions",
     "admin.leads.import.requiredFields": "Required Fields",
     "admin.leads.import.optionalFields": "Optional Fields",
-    "admin.leads.import.requiredList": "fullName (or Full Name), email (or Email)",
-    "admin.leads.import.requiredListDisplay": "الاسم الكامل (fullName), البريد الإلكتروني (email)",
-    "admin.leads.import.optionalList": "phone, companyName, companyType, natureOfBusiness, designation, country (valid name), city, howDidYouHear, businessTypes, source, notes",
-    "admin.leads.import.optionalListDisplay": "الهاتف (phone), اسم الشركة (companyName), نوع الشركة (companyType), طبيعة العمل (natureOfBusiness), المنصب (designation), الدولة (country), المدينة (city), كيف سمعت عنا (howDidYouHear), أنواع الأعمال (businessTypes), المصدر (source), الملاحظات (notes)",
-    "admin.leads.import.columnNamesNote": "Note: Column names in CSV file must be in English (e.g., fullName, email) for database compatibility.",
+    "admin.leads.import.requiredList":
+      "fullName (or Full Name), email (or Email)",
+    "admin.leads.import.requiredListDisplay":
+      "الاسم الكامل (fullName), البريد الإلكتروني (email)",
+    "admin.leads.import.optionalList":
+      "phone, companyName, companyType, natureOfBusiness, designation, country (valid name), city, howDidYouHear, businessTypes, source, notes",
+    "admin.leads.import.optionalListDisplay":
+      "الهاتف (phone), اسم الشركة (companyName), نوع الشركة (companyType), طبيعة العمل (natureOfBusiness), المنصب (designation), الدولة (country), المدينة (city), كيف سمعت عنا (howDidYouHear), أنواع الأعمال (businessTypes), المصدر (source), الملاحظات (notes)",
+    "admin.leads.import.columnNamesNote":
+      "Note: Column names in CSV file must be in English (e.g., fullName, email) for database compatibility.",
     "admin.leads.import.downloadTemplate": "Download Template",
     "admin.leads.import.uploadCsv": "Upload CSV File",
     "admin.leads.import.selectCsv": "Select CSV File",
@@ -901,14 +1051,17 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.import.moreErrors": "and {count} more errors",
     "admin.leads.import.importMore": "Import More Leads",
     "admin.leads.import.viewAllLeads": "View All Leads",
-    "admin.leads.import.invalidCountryTooltip": "Invalid country: {country}. Please update to a valid country name.",
+    "admin.leads.import.invalidCountryTooltip":
+      "Invalid country: {country}. Please update to a valid country name.",
     "admin.leads.import.invalidFileType": "Invalid file type",
     "admin.leads.import.selectCsvFile": "Please select a CSV file.",
     "admin.leads.import.countryWarning": "Country Validation Warning",
-    "admin.leads.import.invalidCountryCount": "Found {count} invalid country name(s). Please check the preview table.",
+    "admin.leads.import.invalidCountryCount":
+      "Found {count} invalid country name(s). Please check the preview table.",
     "admin.leads.import.csvParseError": "CSV parsing error",
     "admin.leads.import.importCompleted": "Import completed",
-    "admin.leads.import.importSuccessToast": "Successfully imported {success} leads. {errors} errors, {duplicates} duplicates.",
+    "admin.leads.import.importSuccessToast":
+      "Successfully imported {success} leads. {errors} errors, {duplicates} duplicates.",
     "admin.leads.import.importFailed": "Import failed",
     "admin.leads.import.importFailedDesc": "An error occurred during import.",
     "admin.leads.import.fullNameRequired": "Full name is required",
@@ -919,7 +1072,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.import.rowServerError": "Row {row}: Server error",
     "admin.leads.import.rowNetworkError": "Row {row}: Network error",
     "admin.leads.import.rowValidation": "Row {row}: {details}",
-    "admin.leads.searchPlaceholder": "Search leads by name, email, or company... (min 3 chars)",
+    "admin.leads.searchPlaceholder":
+      "Search leads by name, email, or company... (min 3 chars)",
     "admin.leads.filterByStatus": "Filter by Status",
     "admin.leads.allStatuses": "All Statuses",
     "admin.leads.showActiveLeads": "Show Active Leads",
@@ -929,7 +1083,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.loadingLeads": "Loading leads...",
     "admin.leads.errorLoading": "Error loading leads",
     "admin.leads.noLeadsFound": "No leads found matching your search.",
-    "admin.leads.noLeadsCreateFirst": "No leads found. Create your first lead to get started.",
+    "admin.leads.noLeadsCreateFirst":
+      "No leads found. Create your first lead to get started.",
     "admin.leads.table.id": "ID",
     "admin.leads.table.name": "Name",
     "admin.leads.table.company": "Company",
@@ -992,7 +1147,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.updatingLead": "Updating...",
     "admin.leads.converting": "Converting...",
     "admin.leads.updateLead": "Update Lead",
-    "admin.leads.areYouSureDelete": "Are you sure you want to delete this lead?",
+    "admin.leads.areYouSureDelete":
+      "Are you sure you want to delete this lead?",
     "admin.leads.deleteConfirm": "This action cannot be undone.",
     "admin.leads.deleting": "Deleting...",
     "admin.leads.basicInformation": "Basic Information",
@@ -1018,7 +1174,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.noteUpdated": "Note updated successfully",
     "admin.leads.failedToUpdateNote": "Failed to update note",
     "admin.leads.deleteNote": "Delete Note",
-    "admin.leads.areYouSureDeleteNote": "Are you sure you want to delete this note?",
+    "admin.leads.areYouSureDeleteNote":
+      "Are you sure you want to delete this note?",
     "admin.leads.deletingNote": "Deleting...",
     "admin.leads.noteDeleted": "Note deleted successfully",
     "admin.leads.failedToDeleteNote": "Failed to delete note",
@@ -1053,8 +1210,10 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.companyInformation": "Company Information",
     "admin.leads.leadSource": "Lead Source",
     "admin.leads.duplicateInformation": "Duplicate Information",
-    "admin.leads.duplicateCount": "This lead has {count} duplicate submission(s).",
-    "admin.leads.duplicatesGrouped": "All duplicates are grouped together for easy management.",
+    "admin.leads.duplicateCount":
+      "This lead has {count} duplicate submission(s).",
+    "admin.leads.duplicatesGrouped":
+      "All duplicates are grouped together for easy management.",
     "admin.leads.createdAt": "Created At",
     "admin.leads.updatedAt": "Updated At",
     "admin.leads.leadNumber": "Lead Number",
@@ -1074,13 +1233,17 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.followUpCancelled": "Follow-up cancelled.",
     "admin.leads.failedToCancelFollowUp": "Failed to cancel follow-up.",
     "admin.leads.titleRequired": "Title and body are required",
-    "admin.leads.titleDescriptionRequired": "Title, description, date, and time are required",
-    "admin.leads.titleAndDateTimeRequired": "Please enter a title and select date and time.",
+    "admin.leads.titleDescriptionRequired":
+      "Title, description, date, and time are required",
+    "admin.leads.titleAndDateTimeRequired":
+      "Please enter a title and select date and time.",
     "admin.leads.setTime": "Set time",
-    "admin.leads.deleteLeadConfirm": "Are you sure you want to delete this lead?",
+    "admin.leads.deleteLeadConfirm":
+      "Are you sure you want to delete this lead?",
     "admin.leads.deleteLeadConfirmDesc": "This action cannot be undone.",
     "admin.leads.addToGoogleCalendar": "Add to Google Calendar",
-    "admin.leads.selectDateAndTimeForCalendar": "Please select date and time to add to calendar.",
+    "admin.leads.selectDateAndTimeForCalendar":
+      "Please select date and time to add to calendar.",
     "admin.leads.pickDate": "Pick a date",
     "admin.leads.now": "Now",
     "admin.leads.at": "at",
@@ -1106,9 +1269,10 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.documentDescriptionPlaceholder": "Document description",
     "admin.leads.clientEmailPlaceholder": "client@example.com",
     "admin.leads.unableToLoadPreview": "Unable to load PDF preview.",
-    "admin.leads.previewNotAvailable": "Preview not available for this file type",
+    "admin.leads.previewNotAvailable":
+      "Preview not available for this file type",
     "admin.leads.downloadToView": "Download to view",
-    
+
     // Admin Applications
     "admin.applications.title": "Applications",
     "admin.applications.subtitle": "Client wizard applications — drafts in progress and submitted forms waiting for review.",
@@ -1163,7 +1327,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.applications.status.completed": "Completed",
     "admin.applications.badge.review": "Review",
     "admin.applications.badge.pending": "pending",
-    
+
     // Admin Documents
     "admin.documents.title": "Documents",
     "admin.documents.description": "Manage all documents",
@@ -1177,7 +1341,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.documents.noDocuments": "No documents found",
     "admin.documents.document": "Document",
     "admin.documents.reviewFailed": "Failed to review document",
-    "admin.documents.underConstruction": "Document management for admins is under construction.",
+    "admin.documents.underConstruction":
+      "Document management for admins is under construction.",
     "admin.documents.totalDocuments": "Total Documents",
     "admin.documents.pendingReview": "Pending Review",
     "admin.documents.filterByStatus": "Filter by status",
@@ -1194,7 +1359,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.documents.markUnderReview": "Mark Under Review",
     "admin.documents.approve": "Approve",
     "admin.documents.reject": "Reject",
-    
+
     // Admin Financial
     "admin.financial.revenue": "Revenue Overview",
     "admin.financial.invoices": "Invoices",
@@ -1210,7 +1375,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.financial.paymentMethod": "Payment Method",
     "admin.financial.category": "Category",
     "admin.financial.invoicesDescription": "Manage client invoices",
-    "admin.financial.invoicesUnderConstruction": "Invoice management is under construction and will be available soon.",
+    "admin.financial.invoicesUnderConstruction":
+      "Invoice management is under construction and will be available soon.",
     "admin.financial.totalInvoices": "Total Invoices",
     "admin.financial.paid": "Paid",
     "admin.financial.totalRevenue": "Total Revenue",
@@ -1263,7 +1429,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.financial.loadingExpenses": "Loading expenses...",
     "admin.financial.noExpenses": "No expenses recorded",
     "admin.financial.revenueDescription": "Track revenue and income",
-    "admin.financial.revenueUnderConstruction": "This page is under construction and will be available soon.",
+    "admin.financial.revenueUnderConstruction":
+      "This page is under construction and will be available soon.",
     "admin.financial.pendingRevenue": "Pending Revenue",
     "admin.financial.netProfit": "Net Profit",
     "admin.financial.revenueMinusExpenses": "Revenue - Expenses",
@@ -1286,7 +1453,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.financial.marketing": "Marketing",
     "admin.financial.legal": "Legal",
     "admin.financial.other": "Other",
-    
+
     // Admin Team
     "admin.team.title": "Team Management",
     "admin.team.description": "View and manage team members",
@@ -1295,10 +1462,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.team.roleClients": "Clients",
     "admin.team.roleReports": "Reports",
     "admin.team.roleSupport": "Support",
-    "admin.roles.descriptionAdmin": "Super user. Access to every page and every option.",
-    "admin.roles.descriptionClients": "Client management only. Leads, clients, applications, documents.",
+    "admin.roles.descriptionAdmin":
+      "Super user. Access to every page and every option.",
+    "admin.roles.descriptionClients":
+      "Client management only. Leads, clients, applications, documents.",
     "admin.roles.descriptionReports": "Reports section only.",
-    "admin.roles.descriptionSupport": "Messages and sub-options only. Inbox, support messaging, templates.",
+    "admin.roles.descriptionSupport":
+      "Messages and sub-options only. Inbox, support messaging, templates.",
     "admin.permissions.action.view": "View",
     "admin.permissions.action.create": "Create",
     "admin.permissions.action.update": "Update",
@@ -1328,18 +1498,25 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.permissions.module.expenses": "Expenses",
     "admin.permissions.module.analytics": "Analytics",
     "admin.permissions.module.dashboardDesc": "Overview and analytics",
-    "admin.permissions.module.clientsDesc": "Manage client information and profiles",
+    "admin.permissions.module.clientsDesc":
+      "Manage client information and profiles",
     "admin.permissions.module.leadsDesc": "Track and manage potential clients",
     "admin.permissions.module.applicationsDesc": "Manage client applications",
-    "admin.permissions.module.documentsDesc": "Document management and approval",
+    "admin.permissions.module.documentsDesc":
+      "Document management and approval",
     "admin.permissions.module.teamDesc": "Manage staff and team members",
-    "admin.permissions.module.financialDesc": "Financial overview and management",
-    "admin.permissions.module.messagesDesc": "Internal and client communications",
+    "admin.permissions.module.financialDesc":
+      "Financial overview and management",
+    "admin.permissions.module.messagesDesc":
+      "Internal and client communications",
     "admin.permissions.module.reportsDesc": "Generate and view reports",
-    "admin.permissions.module.settingsDesc": "System configuration and settings",
+    "admin.permissions.module.settingsDesc":
+      "System configuration and settings",
     "admin.permissions.module.helpDesc": "Help documentation and support",
-    "admin.permissions.module.userManagementDesc": "Manage user accounts and access",
-    "admin.permissions.module.roleManagementDesc": "Manage roles and permissions",
+    "admin.permissions.module.userManagementDesc":
+      "Manage user accounts and access",
+    "admin.permissions.module.roleManagementDesc":
+      "Manage roles and permissions",
     "admin.permissions.module.supportDesc": "Customer support and ticketing",
     "admin.permissions.module.tasksDesc": "Task management and assignment",
     "admin.permissions.module.invoicesDesc": "Invoice creation and management",
@@ -1369,7 +1546,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.team.updateFailed": "Failed to update user",
     "admin.team.userDeleted": "User deleted successfully",
     "admin.team.deleteFailed": "Failed to delete user",
-    "admin.team.fillAllFields": "Please fill in all required fields including Role",
+    "admin.team.fillAllFields":
+      "Please fill in all required fields including Role",
     "admin.team.memberAdded": "Team member added successfully",
     "admin.team.createFailed": "Failed to create team member",
     "admin.team.selectRole": "Select role",
@@ -1377,7 +1555,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.team.editCoreAdmin": "Edit Core Admin",
     "admin.team.editTeamMember": "Edit Team Member",
     "admin.team.coreAdminProtection": "Core Admin Protection",
-    "admin.team.coreAdminNote": "Only email and password can be changed for the core admin account.",
+    "admin.team.coreAdminNote":
+      "Only email and password can be changed for the core admin account.",
     "admin.team.passwordKeepCurrent": "Password (leave blank to keep current)",
     "admin.team.enterNewPassword": "Enter new password",
     "admin.team.updateUser": "Update User",
@@ -1387,12 +1566,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.team.deleteConfirm": "Are you sure you want to delete",
     "admin.team.thisUser": "this user",
     "admin.team.warning": "Warning",
-    "admin.team.deleteWarning": "This will permanently delete all user data and profile, assigned tasks and applications, messages and notifications, and support conversations.",
+    "admin.team.deleteWarning":
+      "This will permanently delete all user data and profile, assigned tasks and applications, messages and notifications, and support conversations.",
     "admin.team.cannotUndo": "This action cannot be undone.",
     "admin.team.deletePermanently": "Delete Permanently",
     "admin.team.activate": "Activate",
     "admin.team.deactivate": "Deactivate",
-    
+
     // Admin Messages
     "admin.messages.inbox": "Inbox",
     "admin.messages.sent": "Sent",
@@ -1413,7 +1593,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.messages.errorLoading": "Error loading applications",
     "admin.messages.noMatching": "No matching applications",
     "admin.messages.noApplicationsYet": "No applications yet",
-    "admin.messages.applicationsWillAppear": "Applications will appear here when clients submit them",
+    "admin.messages.applicationsWillAppear":
+      "Applications will appear here when clients submit them",
     "admin.messages.selectApplication": "Select an application",
     "admin.messages.selectToView": "Select an application to view messages",
     "admin.messages.loadFailed": "Failed to load messages",
@@ -1430,7 +1611,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.notifications.markAllReadShort": "Mark all read",
     "admin.notifications.markAsRead": "Mark as read",
     "admin.notifications.removeAll": "Remove all",
-    "admin.notifications.removeAllConfirm": "Are you sure you want to remove all notifications? This cannot be undone.",
+    "admin.notifications.removeAllConfirm":
+      "Are you sure you want to remove all notifications? This cannot be undone.",
     "admin.notifications.remove": "Remove",
     "admin.notifications.pin": "Pin",
     "admin.notifications.unpin": "Unpin",
@@ -1442,18 +1624,24 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.notifications.filterUnread": "unread",
     "admin.notifications.filterPinned": "pinned",
     "admin.notifications.pushTitle": "Browser Push Notifications",
-    "admin.notifications.pushDescription": "Enable push notifications to receive alerts even when the app is in the background.",
+    "admin.notifications.pushDescription":
+      "Enable push notifications to receive alerts even when the app is in the background.",
     "admin.notifications.sendTestPush": "Send Test Notification",
     "admin.notifications.viewAll": "View All Notifications",
-    "admin.notifications.testSentHint": "Test notification sent. Check the bell panel.",
-    "admin.notifications.enablePushHint": "Enable push notifications first on the Notifications page",
+    "admin.notifications.testSentHint":
+      "Test notification sent. Check the bell panel.",
+    "admin.notifications.enablePushHint":
+      "Enable push notifications first on the Notifications page",
     "admin.notifications.testFailed": "Failed to send test",
     "admin.notifications.settings.title": "Notification settings",
-    "admin.notifications.settings.description": "Choose which events trigger notifications.",
+    "admin.notifications.settings.description":
+      "Choose which events trigger notifications.",
     "admin.notifications.settings.eventsByType": "Notify me on these events",
-    "admin.notifications.settings.eventsByTypeDesc": "If you disable an event, you will not receive in-app or push notifications for it.",
+    "admin.notifications.settings.eventsByTypeDesc":
+      "If you disable an event, you will not receive in-app or push notifications for it.",
     "admin.notifications.settings.remindBefore": "Remind me before follow-up",
-    "admin.notifications.settings.remindBeforeDesc": "Send a reminder this long before the scheduled follow-up time.",
+    "admin.notifications.settings.remindBeforeDesc":
+      "Send a reminder this long before the scheduled follow-up time.",
     "admin.notifications.settings.hours": "Hours",
     "admin.notifications.settings.minutes": "Minutes",
     "admin.notifications.settings.beforeFollowUp": "before follow-up time",
@@ -1463,42 +1651,54 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.notifications.settings.saved": "Notification preferences saved.",
     "admin.notifications.settings.saveFailed": "Failed to save preferences.",
     "admin.notifications.events.leadCreation": "Lead creation",
-    "admin.notifications.events.leadCreationDesc": "When a new lead is created and assigned to you",
+    "admin.notifications.events.leadCreationDesc":
+      "When a new lead is created and assigned to you",
     "admin.notifications.events.followUpCreation": "Follow-up creation",
-    "admin.notifications.events.followUpCreationDesc": "When a follow-up is scheduled",
+    "admin.notifications.events.followUpCreationDesc":
+      "When a follow-up is scheduled",
     "admin.notifications.events.leadFollowUp": "Lead follow-up & reminders",
-    "admin.notifications.events.leadFollowUpDesc": "When a follow-up is scheduled or a reminder is due",
+    "admin.notifications.events.leadFollowUpDesc":
+      "When a follow-up is scheduled or a reminder is due",
     "admin.notifications.events.reminder": "Reminder",
-    "admin.notifications.events.reminderDesc": "Send a reminder before the scheduled follow-up time",
+    "admin.notifications.events.reminderDesc":
+      "Send a reminder before the scheduled follow-up time",
     "admin.notifications.events.clientConversion": "Client conversion",
-    "admin.notifications.events.clientConversionDesc": "When a lead is converted to a client",
+    "admin.notifications.events.clientConversionDesc":
+      "When a lead is converted to a client",
     "admin.applications.pendingDescription": "Applications awaiting review",
     "admin.applications.noPending": "No pending applications",
     "admin.applications.startDate": "Start Date",
     "admin.applications.unassigned": "Unassigned",
-    "admin.applications.approvedDescription": "Successfully approved applications",
+    "admin.applications.approvedDescription":
+      "Successfully approved applications",
     "admin.applications.completed": "Completed Applications",
     "admin.applications.noCompleted": "No completed applications",
     "admin.applications.completedDate": "Completed Date",
     "admin.applications.rejectedDescription": "Applications that were rejected",
-    "admin.applications.noRejected": "No rejected applications. Rejection workflow can be implemented as needed.",
+    "admin.applications.noRejected":
+      "No rejected applications. Rejection workflow can be implemented as needed.",
     "admin.documents.uploadDocuments": "Upload Documents",
     "admin.documents.uploadDescription": "Upload new documents to applications",
-    "admin.documents.uploadUnderConstruction": "This feature is under construction and will be available soon.",
+    "admin.documents.uploadUnderConstruction":
+      "This feature is under construction and will be available soon.",
     "admin.documents.selectApplication": "Select Application",
     "admin.documents.selectApplicationPlaceholder": "Select an application...",
     "admin.documents.selectFile": "Select File",
-    "admin.documents.supportedFormats": "Supported formats: PDF, Word, Images. Max size: 10MB",
+    "admin.documents.supportedFormats":
+      "Supported formats: PDF, Word, Images. Max size: 10MB",
     "admin.documents.uploading": "Uploading...",
-    "admin.documents.selectApplicationAndFile": "Please select an application and file",
+    "admin.documents.selectApplicationAndFile":
+      "Please select an application and file",
     "admin.documents.uploadSuccess": "Document uploaded successfully",
     "admin.documents.uploadFailed": "Failed to upload document",
     "admin.documents.archived": "Archived Documents",
     "admin.documents.archivedDescription": "View archived documents",
-    "admin.documents.archivedUnderConstruction": "Archive browsing will be available soon.",
+    "admin.documents.archivedUnderConstruction":
+      "Archive browsing will be available soon.",
     "admin.documents.templates": "Document Templates",
     "admin.documents.templatesDescription": "Manage document templates",
-    "admin.documents.templatesUnderConstruction": "Template management tools are under development.",
+    "admin.documents.templatesUnderConstruction":
+      "Template management tools are under development.",
     "admin.roles.title": "Role Management",
     "admin.roles.description": "Manage user roles and permissions",
     "admin.roles.allRoles": "All Roles",
@@ -1520,7 +1720,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.roles.updateRole": "Update Role",
     "admin.roles.manageForStaff": "Manage roles for staff members",
     "admin.roles.createAndManage": "Create and manage custom roles",
-    "admin.roles.createNewRoleDesc": "Create a new role with specific permissions for staff members.",
+    "admin.roles.createNewRoleDesc":
+      "Create a new role with specific permissions for staff members.",
     "admin.roles.roleNamePlaceholder": "e.g., Senior Manager",
     "admin.roles.descriptionPlaceholder": "Brief description of the role",
     "admin.roles.selectAll": "Select All",
@@ -1534,7 +1735,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.roles.updateRoleDesc": "Update role permissions and settings.",
     "admin.roles.updating": "Updating...",
     "admin.roles.roleDetails": "Role Details",
-    "admin.roles.viewRoleDesc": "View detailed information about this role and its permissions",
+    "admin.roles.viewRoleDesc":
+      "View detailed information about this role and its permissions",
     "admin.roles.assignedUsers": "Assigned Users",
     "admin.roles.totalPermissions": "Total Permissions",
     "admin.roles.noDescriptionProvided": "No description provided",
@@ -1544,11 +1746,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.roles.removeUserFromRole": "Remove User from Role",
     "admin.roles.removeUserConfirm": "Are you sure you want to remove",
     "admin.roles.fromRole": "from the role",
-    "admin.roles.revokePermissions": "This will revoke all custom permissions assigned to this user.",
+    "admin.roles.revokePermissions":
+      "This will revoke all custom permissions assigned to this user.",
     "admin.roles.removing": "Removing...",
     "admin.roles.removeUser": "Remove User",
     "admin.roles.noUsersAssigned": "No users assigned to this role",
-    "admin.roles.assignFromTeamPage": "Users can be assigned to this role from the team management page",
+    "admin.roles.assignFromTeamPage":
+      "Users can be assigned to this role from the team management page",
     "admin.messages.sentDescription": "View messages you've sent",
     "admin.messages.yourSentMessages": "Your Sent Messages",
     "admin.messages.loadingMessages": "Loading messages...",
@@ -1560,12 +1764,15 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.messages.lastSynced": "Last synced",
     "admin.messages.conversations": "Conversations",
     "admin.messages.conversation": "conversation",
-    "admin.messages.searchConversations": "Search conversations... (min 3 chars)",
+    "admin.messages.searchConversations":
+      "Search conversations... (min 3 chars)",
     "admin.messages.noMatchingConversations": "No matching conversations",
     "admin.messages.noConversationsYet": "No conversations yet",
-    "admin.messages.visitorsWillAppear": "Visitors will appear here when they start a chat",
+    "admin.messages.visitorsWillAppear":
+      "Visitors will appear here when they start a chat",
     "admin.messages.selectConversation": "Select a conversation",
-    "admin.messages.chooseVisitor": "Choose a visitor from the left to view messages",
+    "admin.messages.chooseVisitor":
+      "Choose a visitor from the left to view messages",
     "admin.messages.online": "Online",
     "admin.messages.typing": "typing...",
     "admin.messages.typeResponse": "Type your response...",
@@ -1573,20 +1780,26 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.messages.offlineCheck": "⚫ Offline - Check connection",
     "admin.messages.pressEnterToSend": "Press Enter to send",
     "admin.messages.templates.title": "Message Templates",
-    "admin.messages.templates.description": "Pre-defined message templates for quick communication",
+    "admin.messages.templates.description":
+      "Pre-defined message templates for quick communication",
     "admin.messages.templates.createTemplate": "Create Template",
     "admin.messages.templates.useTemplate": "Use Template",
     "admin.messages.templates.welcome": "Welcome Message",
-    "admin.messages.templates.welcomeContent": "Welcome to Tabadl Alkon! We have started processing your case. Our team will keep you updated on the progress.",
+    "admin.messages.templates.welcomeContent":
+      "Welcome to Tabadl Alkon! We have started processing your case. Our team will keep you updated on the progress.",
     "admin.messages.templates.documentRequest": "Document Request",
-    "admin.messages.templates.documentRequestContent": "We need additional documents to proceed with your case. Please upload the required documents at your earliest convenience.",
+    "admin.messages.templates.documentRequestContent":
+      "We need additional documents to proceed with your case. Please upload the required documents at your earliest convenience.",
     "admin.messages.templates.statusUpdate": "Status Update",
-    "admin.messages.templates.statusUpdateContent": "Your case status has been updated. Please check your dashboard for the latest information.",
+    "admin.messages.templates.statusUpdateContent":
+      "Your case status has been updated. Please check your dashboard for the latest information.",
     "admin.messages.templates.approvalNotification": "Approval Notification",
-    "admin.messages.templates.approvalNotificationContent": "Congratulations! Your application has been approved. We will proceed with the next steps shortly.",
+    "admin.messages.templates.approvalNotificationContent":
+      "Congratulations! Your application has been approved. We will proceed with the next steps shortly.",
     "admin.team.performance": "Team Performance",
     "admin.team.performanceDescription": "View team performance metrics",
-    "admin.team.performanceUnderConstruction": "Team performance analytics are under construction.",
+    "admin.team.performanceUnderConstruction":
+      "Team performance analytics are under construction.",
     "admin.team.noDataAvailable": "No data available",
     "admin.team.applicationsManaged": "Applications Managed",
     "admin.team.completionRate": "completion rate",
@@ -1597,30 +1810,38 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.createNewClientAccount": "Create a new client account",
     "admin.clients.backToClients": "Back to Clients",
     "admin.clients.clientInformation": "Client Information",
-    "admin.clients.enterClientDetails": "Enter the details of the new client. An account will be created automatically.",
+    "admin.clients.enterClientDetails":
+      "Enter the details of the new client. An account will be created automatically.",
     "admin.clients.designationPlaceholder": "Your Job Title/Position",
-    "admin.clients.natureOfBusinessPlaceholder": "Describe your business activities",
+    "admin.clients.natureOfBusinessPlaceholder":
+      "Describe your business activities",
     "admin.clients.cityPlaceholder": "Your City",
     "admin.clients.creating": "Creating...",
     "admin.clients.clientCreated": "Client created successfully",
     "admin.clients.categories": "Client Categories",
     "admin.clients.categoriesDescription": "Manage client categorization",
-    "admin.clients.categoriesUnderConstruction": "Category management is on the roadmap.",
+    "admin.clients.categoriesUnderConstruction":
+      "Category management is on the roadmap.",
     "admin.leads.statuses.title": "Lead Statuses",
-    "admin.leads.statuses.description": "Configure lead statuses and colors for your pipeline",
-    "admin.leads.statuses.usedForLeads": "These statuses are used for all leads and analytics.",
+    "admin.leads.statuses.description":
+      "Configure lead statuses and colors for your pipeline",
+    "admin.leads.statuses.usedForLeads":
+      "These statuses are used for all leads and analytics.",
     "admin.leads.statuses.addStatus": "Add Status",
     "admin.leads.statuses.totalStatuses": "Total Statuses",
     "admin.leads.statuses.loading": "Loading statuses...",
-    "admin.leads.statuses.noStatuses": "No lead statuses defined yet. Click \"Add Status\" to create one.",
+    "admin.leads.statuses.noStatuses":
+      'No lead statuses defined yet. Click "Add Status" to create one.',
     "admin.leads.statuses.system": "System",
     "admin.leads.statuses.systemGenerated": "System generated",
     "admin.leads.statuses.editStatus": "Edit Lead Status",
     "admin.leads.statuses.namePlaceholder": "e.g. New, Contacted, Qualified",
     "admin.leads.statuses.color": "Color",
     "admin.leads.statuses.deleteStatus": "Delete Lead Status",
-    "admin.leads.statuses.deleteConfirm": "Are you sure you want to delete the status",
-    "admin.leads.statuses.deleteNote": "If this status is used by existing leads, you'll need to choose another status to move them to.",
+    "admin.leads.statuses.deleteConfirm":
+      "Are you sure you want to delete the status",
+    "admin.leads.statuses.deleteNote":
+      "If this status is used by existing leads, you'll need to choose another status to move them to.",
     "admin.leads.statuses.reassignLeads": "Reassign leads to",
     "admin.leads.statuses.selectTargetStatus": "Select target status",
     "admin.leads.statuses.reassignNote": "All leads currently using",
@@ -1631,12 +1852,14 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.statuses.statusCreated": "Status created",
     "admin.leads.statuses.saveFailed": "Failed to save lead status",
     "admin.leads.statuses.statusDeleted": "Status deleted",
-    "admin.leads.statuses.statusUsedByLeads": "This status is used by {count} leads. Please choose a status to move them to.",
+    "admin.leads.statuses.statusUsedByLeads":
+      "This status is used by {count} leads. Please choose a status to move them to.",
     "admin.leads.statuses.deleteFailed": "Failed to delete lead status",
     "admin.leads.statuses.createStatus": "Create Status",
     "admin.documents.leads.title": "Leads Documents",
     "admin.documents.leads.description": "All documents uploaded for leads",
-    "admin.documents.leads.underConstruction": "Lead document management is under construction.",
+    "admin.documents.leads.underConstruction":
+      "Lead document management is under construction.",
     "admin.documents.leads.fetchFailed": "Failed to fetch lead documents",
     "admin.documents.leads.allDocuments": "All Lead Documents",
     "admin.documents.pdfFiles": "PDF Files",
@@ -1645,23 +1868,29 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.documents.noDocumentsFound": "No documents found",
     "admin.documents.downloadFailed": "Failed to download document",
     "admin.supportChat.title": "Support Chat System",
-    "admin.supportChat.description": "Advanced customer support chat system with real-time messaging, ticket management, and team collaboration tools.",
-    "admin.settings.email.description": "Configure email settings for the CRM system",
+    "admin.supportChat.description":
+      "Advanced customer support chat system with real-time messaging, ticket management, and team collaboration tools.",
+    "admin.settings.email.description":
+      "Configure email settings for the CRM system",
     "admin.settings.email.loadFailed": "Failed to load email configuration",
     "admin.settings.email.saved": "Email configuration saved successfully",
     "admin.settings.email.saveFailed": "Failed to save email configuration",
     "admin.settings.email.testSent": "Test email sent successfully to {email}",
     "admin.settings.email.testSentSuccess": "Test email sent successfully!",
     "admin.settings.email.testFailed": "Test email failed",
-    "admin.settings.email.whatsappSaved": "Staff WhatsApp numbers saved successfully",
-    "admin.settings.email.whatsappSaveFailed": "Failed to save staff phone numbers",
-    "admin.settings.email.recipientsSaved": "Business consultation recipients saved successfully",
+    "admin.settings.email.whatsappSaved":
+      "Staff WhatsApp numbers saved successfully",
+    "admin.settings.email.whatsappSaveFailed":
+      "Failed to save staff phone numbers",
+    "admin.settings.email.recipientsSaved":
+      "Business consultation recipients saved successfully",
     "admin.settings.email.recipientsSaveFailed": "Failed to save recipients",
     "admin.settings.email.mailDriverHost": "Mail Driver & Host Configuration",
     "admin.settings.email.mailDriver": "Mail Driver",
     "admin.settings.email.smtpOnly": "Only SMTP is currently supported",
     "admin.settings.email.tlsServername": "TLS Servername (SNI)",
-    "admin.settings.email.tlsServernameHint": "Hostname on the SMTP certificate (set when using an IP)",
+    "admin.settings.email.tlsServernameHint":
+      "Hostname on the SMTP certificate (set when using an IP)",
     "admin.settings.email.host": "Host",
     "admin.settings.email.port": "Port",
     "admin.settings.email.username": "Username",
@@ -1675,44 +1904,220 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.settings.email.sendTest": "Send Test Email",
     "admin.settings.email.saveConfiguration": "Save Configuration",
     "admin.settings.email.companyContact": "Company Contact Information",
-    "admin.settings.email.companyContactDesc": "This information will be used in confirmation emails and other customer-facing communications",
+    "admin.settings.email.companyContactDesc":
+      "This information will be used in confirmation emails and other customer-facing communications",
     "admin.settings.email.contactEmail": "Contact Email",
-    "admin.settings.email.contactEmailHint": "Email address displayed in confirmation emails",
+    "admin.settings.email.contactEmailHint":
+      "Email address displayed in confirmation emails",
     "admin.settings.email.contactPhone": "Contact Phone",
-    "admin.settings.email.contactPhoneHint": "Phone number displayed in confirmation emails",
+    "admin.settings.email.contactPhoneHint":
+      "Phone number displayed in confirmation emails",
     "admin.settings.email.saveContactInfo": "Save Contact Information",
-    "admin.settings.email.businessRecipients": "Business Consultation Form Email Recipients",
-    "admin.settings.email.businessRecipientsDesc": "Email addresses that will receive notifications when business consultation forms are submitted",
+    "admin.settings.email.businessRecipients":
+      "Business Consultation Form Email Recipients",
+    "admin.settings.email.businessRecipientsDesc":
+      "Email addresses that will receive notifications when business consultation forms are submitted",
     "admin.settings.email.enterEmail": "Enter email address",
     "admin.settings.email.addRecipient": "Add Recipient",
     "admin.settings.email.currentRecipients": "Current Recipients",
     "admin.settings.email.noRecipients": "No recipients added yet",
     "admin.settings.email.saveRecipients": "Save Recipients",
     "admin.settings.email.staffWhatsApp": "Staff WhatsApp Notification Numbers",
-    "admin.settings.email.staffWhatsAppDesc": "WhatsApp phone numbers that will receive notifications when business consultation forms are submitted (e.g., 923189108310)",
-    "admin.settings.email.enterPhone": "Enter phone number (e.g., 923189108310)",
+    "admin.settings.email.staffWhatsAppDesc":
+      "WhatsApp phone numbers that will receive notifications when business consultation forms are submitted (e.g., 923189108310)",
+    "admin.settings.email.enterPhone":
+      "Enter phone number (e.g., 923189108310)",
     "admin.settings.email.addPhone": "Add Phone",
     "admin.settings.email.currentStaffPhones": "Current Staff Phone Numbers",
     "admin.settings.email.noStaffPhones": "No staff phone numbers added yet",
     "admin.settings.email.saveStaffPhones": "Save Staff Phone Numbers",
-    "admin.settings.email.whatsappConfig": "WhatsApp Notifications Configuration",
-    "admin.settings.email.whatsappConfigDesc": "Configure WhatsApp Business API settings. WhatsApp notifications will be automatically enabled when all required fields are set.",
+    "admin.settings.email.whatsappConfig":
+      "WhatsApp Notifications Configuration",
+    "admin.settings.email.whatsappConfigDesc":
+      "Configure WhatsApp Business API settings. WhatsApp notifications will be automatically enabled when all required fields are set.",
     "admin.settings.email.whatsappAccessToken": "WhatsApp Access Token",
-    "admin.settings.email.whatsappAccessTokenPlaceholder": "Enter your WhatsApp Business API access token",
-    "admin.settings.email.whatsappAccessTokenHint": "Your WhatsApp Business API access token from Meta Business Suite",
+    "admin.settings.email.whatsappAccessTokenPlaceholder":
+      "Enter your WhatsApp Business API access token",
+    "admin.settings.email.whatsappAccessTokenHint":
+      "Your WhatsApp Business API access token from Meta Business Suite",
     "admin.settings.email.whatsappApiVersion": "WhatsApp API Version",
-    "admin.settings.email.whatsappApiVersionPlaceholder": "e.g., v21.0, v18.0, v19.0",
-    "admin.settings.email.whatsappApiVersionHint": "Graph API version (e.g., v21.0, v18.0, v19.0)",
+    "admin.settings.email.whatsappApiVersionPlaceholder":
+      "e.g., v21.0, v18.0, v19.0",
+    "admin.settings.email.whatsappApiVersionHint":
+      "Graph API version (e.g., v21.0, v18.0, v19.0)",
     "admin.settings.email.whatsappPhoneNumberId": "WhatsApp Phone Number ID",
-    "admin.settings.email.whatsappPhoneNumberIdPlaceholder": "Enter your phone number ID",
-    "admin.settings.email.whatsappPhoneNumberIdHint": "Your WhatsApp Business phone number ID",
+    "admin.settings.email.whatsappPhoneNumberIdPlaceholder":
+      "Enter your phone number ID",
+    "admin.settings.email.whatsappPhoneNumberIdHint":
+      "Your WhatsApp Business phone number ID",
     "admin.settings.email.whatsappDocumentUrl": "WhatsApp Document URL",
-    "admin.settings.email.whatsappDocumentUrlHint": "Full URL of the document to attach in WhatsApp notifications (e.g., your company profile PDF).",
-    "admin.settings.email.whatsappConfigSaved": "WhatsApp configuration saved successfully",
-    "admin.settings.email.whatsappConfigSaveFailed": "Failed to save WhatsApp configuration",
+    "admin.settings.email.whatsappDocumentUrlHint":
+      "Full URL of the document to attach in WhatsApp notifications (e.g., your company profile PDF).",
+    "admin.settings.email.whatsappConfigSaved":
+      "WhatsApp configuration saved successfully",
+    "admin.settings.email.whatsappConfigSaveFailed":
+      "Failed to save WhatsApp configuration",
     "admin.settings.email.saveWhatsAppConfig": "Save WhatsApp Configuration",
     "common.saving": "Saving...",
-    
+    "admin.supportTickets.title": "Support Tickets",
+    "admin.supportTickets.titleBox": "Title",
+    "admin.supportTickets.description":
+      "Manage all support tickets and their statuses",
+    "admin.supportTickets.desc": "Description",
+    "admin.supportTickets.deleted": "Deleted successfully",
+    "admin.supportTickets.newTicket": "New Ticket",
+    "admin.supportTickets.newCategories": " New Categories",
+    "admin.supportTickets.createDescription":
+      "Create a new support ticket for a client",
+    "admin.supportTickets.ticketInfo": "Ticket Information",
+    "admin.supportTickets.category": "Category",
+    "admin.supportTickets.selectCategory": "Select category",
+    "admin.supportTickets.describeIssue": "Describe the issue in detail",
+    "admin.supportTickets.client": "Client",
+    "admin.supportTickets.selectClient": "Select client",
+    "admin.supportTickets.priority": "Priority",
+    "admin.supportTickets.selectPriority": "Select priority",
+    "admin.supportTickets.assignedTo": "Assigned To",
+    "admin.supportTickets.selectAssignee": "Select assignee (optional)",
+    "admin.supportTickets.unassigned": "Unassigned",
+    "admin.supportTickets.createTicket": "Create Ticket",
+    "admin.supportTickets.totalTickets": "Total Tickets",
+    "admin.supportTickets.new": "New",
+    "admin.supportTickets.in_Progress": "In_Progress",
+    "admin.supportTickets.resolved": "Resolved",
+    "admin.supportTickets.searchPlaceholder": "Search tickets...",
+    "admin.supportTickets.noResults": "No tickets found matching your search.",
+    "admin.supportTickets.noTickets": "No tickets found",
+    "admin.supportTickets.ticket": "Ticket",
+    "admin.supportTickets.status": "Status",
+    "admin.supportTickets.statuses.new": "NEW",
+    "admin.supportTickets.statuses.in_progress": "In_Progress",
+    "admin.supportTickets.statuses.resolved": "Resolved",
+    "admin.supportTickets.statuses.closed": "Closed",
+    "admin.supportTickets.statuses.pending": "Pending",
+    "admin.supportTickets.priorities.low": "Low",
+    "admin.supportTickets.priorities.medium": "Medium",
+    "admin.supportTickets.priorities.high": "High",
+    "admin.supportTickets.priorities.urgent": "Urgent",
+    "admin.supportTickets.updating": "Updating...",
+    "admin.supportTickets.ticketDetails": "Ticket Details",
+    "admin.supportTickets.created": "Created",
+    "admin.supportTickets.updated": "Updated",
+    "admin.supportTickets.messages": "Messages",
+    "admin.supportTickets.resolution": "Resolution",
+    "admin.supportTickets.resolvedOn": "Resolved on",
+    "admin.supportTickets.editTicket": "Edit Ticket",
+    "admin.supportTickets.updateTicket": "Update ticket details and status",
+    "admin.supportTickets.clientCannotChange":
+      "Client cannot be changed after ticket creation",
+    "admin.supportTickets.deleteTicket": "Delete Ticket",
+    "admin.supportTickets.deletePermanent":
+      "This action cannot be undone. This will permanently delete the ticket and all associated data.",
+    "admin.supportTickets.deleteTicketQuestion": "Delete ticket",
+    "admin.supportTickets.ticketId": "Ticket ID",
+    "admin.supportTickets.deleting": "Deleting...",
+    "admin.supportTickets.showing": "Showing",
+    "admin.supportTickets.to": "to",
+    "admin.supportTickets.of": "of",
+    "admin.supportTickets.tickets": "tickets",
+    "admin.supportTickets.showingAll": "Showing all",
+    "admin.supportTickets.closed": "Closed",
+    "admin.supportTickets.newAssigned": "New Assigned",
+    "admin.supportTickets.searchResults": "Search Results",
+    "admin.supportTickets.comment": "Comment",
+    "admin.supportTickets.commentHelp": "Add a comment to this ticket",
+    "admin.supportTickets.commentPlaceholder": "Write your comment here...",
+    "admin.supportTickets.emptyComment": "Comment cannot be empty",
+    "admin.supportTickets.commentBoxes": "Comment Boxes",
+    "admin.supportTickets.addCommentBox": "Add Comment Box",
+    "admin.supportTickets.noCommentBoxes": "No comment boxes available",
+    "admin.supportTickets.descriptionBox": "Description",
+    "admin.categories.parentCategories": "Parent Categories",
+    "admin.assignees.deleteAssignee": "Delete Assignee",
+    "admin.assignees.deletePermanent": "Delete Permanently",
+    "admin.assignees.deleteAssigneeQuestion":
+      "Are you sure you want to permanently delete this assignee?",
+    "admin.assignees.deleting": "Deleting...",
+    "admin.assignees.createSuccess": "Assignee created successfully",
+    "admin.assignees.createAssignee": "Create Assignee",
+    "admin.assignees.updating": "Updating...",
+
+    // "admin.assignees.createDescription":
+    //   "Add a new person who can be assigned to support tickets",
+    // "admin.assignees.title": "Support Ticket Assignees",
+    "admin.assignees.title": "Assignees",
+    "admin.assignees.description":
+      "Manage users assigned to support tickets and tasks.",
+    "admin.assignees.newAssignee": "New Assignee",
+    "admin.assignees.totalAssignees": "Total Assignees",
+    "admin.assignees.active": "Active",
+    "admin.assignees.inactive": "Inactive",
+    "admin.assignees.totalTickets": "Total Tickets",
+    "admin.assignees.avgTickets": "Average Tickets",
+    "admin.assignees.searchPlaceholder": "Search assignees...",
+    "admin.assignees.name": "Name",
+    "admin.assignees.email": "Email",
+    "admin.assignees.role": "Role",
+    "admin.assignees.tickets": "Tickets",
+    "admin.assignees.created": "Created",
+    "admin.assignees.createDescription":
+      "Create a new assignee for managing support tickets and tasks",
+    "admin.assignees.assigneeInfo": "Assignee Information",
+    "admin.assignees.assigneeDetails": "Assignee Details",
+    "admin.assignees.updated": "Updated",
+    // "admin.assignees.email": "Email",
+    "admin.assignees.totalTicketsAssigned": "Tickets Assigned",
+    // "admin.assignees.created": "Created",
+    "admin.assignees.editAssignee": "Edit Assignee",
+    "admin.assignees.updateAssignee": "Update Assignee",
+    "admin.assignees.enterName": "Enter Name",
+    "admin.assignees.enterEmail": "Enter Email",
+    "admin.assignees.enterRole": "Enter Role",
+    "admin.assignees.noResults": "No Results Found",
+    "admin.supportTickets.ticketTitle": "Title",
+    "admin.supportTickets.attachments": "Attachments",
+    "admin.categories.parentCategory": "Parent Category",
+    "admin.assignees.assignedTickets": "Assigned Tickets",
+    "admin.assignees.updateSuccess": "Assignee updated successfully",
+
+    // Categories
+    "admin.categories.title": "Categories",
+    "admin.categories.description": "Manage support ticket categories",
+    "admin.categories.newCategory": "New Category",
+    "admin.categories.createDescription":
+      "Create a new support ticket category",
+    "admin.categories.categoryInfo": "Category Information",
+    "admin.categories.name": "Category Name",
+    "admin.categories.enterName": "Enter category name",
+    "admin.categories.createCategory": "Create Category",
+    "admin.categories.totalCategories": "Total Categories",
+    "admin.categories.active": "Active",
+    "admin.categories.inactive": "Inactive",
+    "admin.categories.totalTickets": "Total Tickets",
+    "admin.categories.searchPlaceholder": "Search categories...",
+    "admin.categories.noResults": "No categories found matching your search.",
+    "admin.categories.noCategories": "No categories found",
+    "admin.categories.status": "Status",
+    "admin.categories.categoryDetails": "Category Details",
+    "admin.categories.editCategory": "Edit Category",
+    "admin.categories.updateCategory": "Update category information",
+    "admin.categories.updating": "Updating...",
+    "admin.categories.deleteCategory": "Delete Category",
+    "admin.categories.deletePermanent":
+      "This action cannot be undone. This will permanently delete the category.",
+    "admin.categories.deleteCategoryQuestion": "Delete category",
+    "admin.categories.deleting": "Deleting...",
+    "admin.categories.showing": "Showing",
+    "admin.categories.to": "to",
+    "admin.categories.of": "of",
+    "admin.categories.categories": "categories",
+    "admin.categories.showingAll": "Showing all",
+    "admin.categories.nameRequired": "Category name is required",
+    "admin.categories.createSuccess": "Category created successfully",
+    "admin.categories.updateSuccess": "Category updated successfully",
+    "admin.categories.deleteSuccess": "Category deleted successfully",
+    "common.updating": "Updating...",
+
     // Admin Reports
     "admin.reports.title": "Reports",
     "admin.reports.clients": "Client Reports",
@@ -1723,17 +2128,24 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.reports.dateRange": "Date Range",
     "admin.reports.generate": "Generate Report",
     "admin.reports.clientsDescription": "Client statistics and analytics",
-    "admin.reports.clientsConstructionDesc": "Detailed client analytics are on the way.",
+    "admin.reports.clientsConstructionDesc":
+      "Detailed client analytics are on the way.",
     "admin.reports.applicationsDescription": "Application analytics",
-    "admin.reports.applicationsConstructionDesc": "This report is currently being built.",
+    "admin.reports.applicationsConstructionDesc":
+      "This report is currently being built.",
     "admin.reports.financialDescription": "Financial analytics and reports",
-    "admin.reports.financialConstructionDesc": "This report is under development and will be available soon.",
-    "admin.reports.performanceDescription": "System and team performance metrics",
-    "admin.reports.performanceConstructionDesc": "Detailed performance analytics will arrive soon.",
+    "admin.reports.financialConstructionDesc":
+      "This report is under development and will be available soon.",
+    "admin.reports.performanceDescription":
+      "System and team performance metrics",
+    "admin.reports.performanceConstructionDesc":
+      "Detailed performance analytics will arrive soon.",
     "admin.reports.leadsByCountry.title": "Leads by Country Analytics",
-    "admin.reports.leadsByCountry.description": "Analyze leads distribution by country",
+    "admin.reports.leadsByCountry.description":
+      "Analyze leads distribution by country",
     "admin.reports.leadsByCountry.filters": "Filters",
-    "admin.reports.leadsByCountry.filtersDesc": "Filter leads by date range and status",
+    "admin.reports.leadsByCountry.filtersDesc":
+      "Filter leads by date range and status",
     "admin.reports.leadsByCountry.startDate": "Start Date",
     "admin.reports.leadsByCountry.endDate": "End Date",
     "admin.reports.leadsByCountry.last7Days": "Last 7 days",
@@ -1760,20 +2172,26 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.reports.leadsByCountry.totalCountries": "Total Countries",
     "admin.reports.leadsByCountry.countriesWithLeads": "Countries with Leads",
     "admin.reports.leadsByCountry.topCountry": "Top Country",
-    "admin.reports.leadsByCountry.leadDistributionByCountry": "Lead Distribution by Country",
-    "admin.reports.leadsByCountry.leadDistributionDesc": "Visual representation of leads by country",
-    "admin.reports.leadsByCountry.topCountriesDesc": "Detailed breakdown by country",
+    "admin.reports.leadsByCountry.leadDistributionByCountry":
+      "Lead Distribution by Country",
+    "admin.reports.leadsByCountry.leadDistributionDesc":
+      "Visual representation of leads by country",
+    "admin.reports.leadsByCountry.topCountriesDesc":
+      "Detailed breakdown by country",
     "admin.reports.leadsByCountry.country": "Country",
     "admin.reports.leadsByCountry.count": "Count",
     "admin.reports.leadsByCountry.percentage": "Percentage",
-    "admin.reports.leadsByCountry.statusBreakdownByCountry": "Status Breakdown by Country",
-    "admin.reports.leadsByCountry.statusBreakdownDesc": "Detailed status distribution for each country",
+    "admin.reports.leadsByCountry.statusBreakdownByCountry":
+      "Status Breakdown by Country",
+    "admin.reports.leadsByCountry.statusBreakdownDesc":
+      "Detailed status distribution for each country",
     "admin.reports.leadsByCountry.total": "Total",
-    "admin.reports.leadsByCountry.noLeadsFound": "No leads found for the specified criteria",
+    "admin.reports.leadsByCountry.noLeadsFound":
+      "No leads found for the specified criteria",
     "admin.reports.leadsByCountry.fetchError": "Failed to fetch analytics data",
     "admin.reports.leadsByCountry.exportSuccess": "Data exported successfully",
     "admin.reports.leadsByCountry.statusBreakdown": "Status Breakdown",
-    
+
     // Admin Settings
     "admin.settings.title": "Settings",
     "admin.settings.general": "General Settings",
@@ -1795,49 +2213,65 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.settings.general.saveFailed": "Failed to save settings",
     "admin.settings.general.loadFailed": "Failed to load general settings",
     "admin.settings.emailDesc": "Configure SMTP, IMAP, and POP3 email settings",
-    "admin.settings.systemDesc": "Advanced system configuration and maintenance",
+    "admin.settings.systemDesc":
+      "Advanced system configuration and maintenance",
     "admin.settings.backupDesc": "Manage data backup and recovery settings",
     "admin.settings.systemDescription": "Advanced system settings",
-    "admin.settings.systemConstructionDesc": "We're preparing advanced configuration options.",
+    "admin.settings.systemConstructionDesc":
+      "We're preparing advanced configuration options.",
     "admin.settings.backupDescription": "Database backup and restore",
-    "admin.settings.backupConstructionDesc": "Automated backup tools are in progress.",
+    "admin.settings.backupConstructionDesc":
+      "Automated backup tools are in progress.",
     "admin.settings.security": "Security Settings",
-    "admin.settings.securityDesc": "Configure security policies and access controls",
+    "admin.settings.securityDesc":
+      "Configure security policies and access controls",
     "admin.settings.configure": "Configure",
     "admin.settings.quickActions": "Quick Actions",
     "admin.settings.testEmail": "Test Email",
     "admin.settings.backupNow": "Backup Now",
     "admin.settings.systemStatus": "System Status",
-    "admin.applications.tasksDescription": "Advanced task management system for tracking application progress, deadlines, and team assignments.",
-    
+    "admin.applications.tasksDescription":
+      "Advanced task management system for tracking application progress, deadlines, and team assignments.",
+
     // Admin Help
     "admin.help.title": "Help & Support",
     "admin.help.description": "Get help and support",
     "admin.help.docs": "Documentation",
     "admin.help.docsDescription": "System documentation",
     "admin.help.docsConstructionTitle": "Documentation",
-    "admin.help.docsConstructionDesc": "We're writing up the docs for this section.",
+    "admin.help.docsConstructionDesc":
+      "We're writing up the docs for this section.",
     "admin.help.faq": "FAQ",
     "admin.help.faqDescription": "Frequently asked questions",
     "admin.help.faqCardTitle": "Frequently Asked Questions",
     "admin.help.contact": "Contact Support",
     "admin.help.contactDescription": "Get technical support",
     "admin.help.contactConstructionTitle": "Contact Support",
-    "admin.help.contactConstructionDesc": "Support contact details will appear here soon.",
-    "admin.help.constructionResources": "We're preparing resources for this section.",
+    "admin.help.contactConstructionDesc":
+      "Support contact details will appear here soon.",
+    "admin.help.constructionResources":
+      "We're preparing resources for this section.",
     "admin.help.faqQ1": "How do I create a new case?",
-    "admin.help.faqA1": "Go to Applications page, click \"Create Case\" button, select a client, assign a manager, and provide a description.",
+    "admin.help.faqA1":
+      'Go to Applications page, click "Create Case" button, select a client, assign a manager, and provide a description.',
     "admin.help.faqQ2": "How do I convert a lead to a client?",
-    "admin.help.faqA2": "In the Leads section, find the qualified lead and click the \"Convert\" button. You will need to provide a password for the new client account.",
+    "admin.help.faqA2":
+      'In the Leads section, find the qualified lead and click the "Convert" button. You will need to provide a password for the new client account.',
     "admin.help.faqQ3": "How do I generate an invoice?",
-    "admin.help.faqA3": "Navigate to Financial > Invoices, click \"Create Invoice\", select the client, add line items, and set the due date. The system will auto-calculate taxes and total.",
+    "admin.help.faqA3":
+      'Navigate to Financial > Invoices, click "Create Invoice", select the client, add line items, and set the due date. The system will auto-calculate taxes and total.',
     "admin.help.faqQ4": "How do I approve documents?",
-    "admin.help.faqA4": "Go to Documents page, click \"Review\" on any document, add review notes, and click either \"Approve\" or \"Reject\".",
+    "admin.help.faqA4":
+      'Go to Documents page, click "Review" on any document, add review notes, and click either "Approve" or "Reject".',
     "admin.help.faqQ5": "What are the different service types?",
-    "admin.help.faqA5": "We support Company Registration (MOCI), MOMRA (Municipal licenses), Chamber of Commerce registration, Business Setup, Trademark registration, and License Renewal services.",
+    "admin.help.faqA5":
+      "We support Company Registration (MOCI), MOMRA (Municipal licenses), Chamber of Commerce registration, Business Setup, Trademark registration, and License Renewal services.",
     "admin.help.faqQ6": "How do I track staff performance?",
-    "admin.help.faqA6": "Visit Team > Performance to see metrics for each staff member including case completion rates, task completion rates, and lead conversion rates.",
-    
+    "admin.help.faqA6":
+      "Visit Team > Performance to see metrics for each staff member including case completion rates, task completion rates, and lead conversion rates.",
+    "admin.help.support": "Support",
+    "admin.help.supportDescription": "Contact support for assistance",
+
     // Profile (dropdown & page)
     "profile.myProfile": "My Profile",
     "profile.manageAccount": "Manage your account information",
@@ -1857,7 +2291,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "profile.joined": "Joined",
     "profile.lastLogin": "Last login",
     "profile.changePassword": "Change Password",
-    "profile.changePasswordDesc": "Change your password to keep your account secure.",
+    "profile.changePasswordDesc":
+      "Change your password to keep your account secure.",
     "profile.currentPassword": "Current Password",
     "profile.newPassword": "New Password",
     "profile.confirmPassword": "Confirm New Password",
@@ -1870,7 +2305,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "profile.placeholder.currentPassword": "Enter your current password",
     "profile.placeholder.newPassword": "Enter new password (min 6 characters)",
     "profile.placeholder.confirmPassword": "Confirm your new password",
-    
+
     // Client Sidebar
     "client.sidebar.dashboard": "Dashboard",
     "client.sidebar.completeProfile": "Complete Profile",
@@ -1913,7 +2348,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.collaboration.revoked": "Access revoked",
     "client.collaboration.revokeFailed": "Revoke failed",
     "client.collaboration.actingBanner": "You are collaborating on behalf of {name}",
-    
+
     // Client Dashboard
     "client.dashboard.title": "Dashboard",
     "client.dashboard.welcome": "Welcome",
@@ -1934,7 +2369,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.dashboard.quickActions": "Quick Actions",
     "client.dashboard.addApplication": "Add Application",
     "client.dashboard.applyForApplication": "Apply for Application",
-    
+
     // Client Applications
     "client.applications.title": "My Applications",
     "client.applications.startApplication": "Start Application",
@@ -1944,7 +2379,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.applications.loadFailed": "Failed to load applications",
     "client.applications.selectType": "Please select an application type",
     "client.applications.submitted": "Application submitted successfully!",
-    "client.applications.loginRequired": "Please log in to view your applications.",
+    "client.applications.loginRequired":
+      "Please log in to view your applications.",
     "client.applications.description": "Track and manage your applications",
     "client.applications.newApplication": "New Application",
     "client.applications.submitNew": "Submit New Application",
@@ -2110,6 +2546,10 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.applications.enterNotes": "Any additional notes or requirements",
     "client.applications.submitting": "Submitting...",
     "client.applications.submitApplication": "Submit Application",
+    "client.applications.totalApplications": "Total Applications",
+    "client.applications.noApplicationsMessage": "You haven't submitted any applications yet.",
+    "client.applications.applicationId": "Application ID",
+
     "client.applications.toast.couldNotLoadTitle": "Could not load applications",
     "client.applications.toast.couldNotLoadDesc": "Please sign in as a client and try again.",
     "client.applications.toast.noAppTitle": "No application available",
@@ -2156,7 +2596,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.fill.stepApproved": "Step approved",
     "client.fill.stepApprovedDesc": "This step was approved by admin. Fields stay locked so approved data cannot be changed.",
     "client.fill.changesRequestedDesc": "Admin rejected this step. Update the fields and save again for review.",
-    
+
     // Client Documents
     "client.documents.title": "My Documents",
     "client.documents.uploadDocument": "Upload Document",
@@ -2166,12 +2606,12 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.documents.pendingUpload": "Pending Upload",
     "client.documents.unknown": "Unknown",
     "client.documents.uploaded": "Uploaded",
-    
+
     // Client Messages
     "client.messages.title": "Messages",
     "client.messages.newMessage": "New Message",
     "client.messages.noMessages": "No messages found",
-    
+
     // Client Help
     "client.help.title": "Help Center",
     "client.help.description": "Get assistance and support",
@@ -2185,7 +2625,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.help.getInTouch": "Get in touch with our team",
     "client.help.submitTicket": "Submit Ticket",
     "client.help.constructionTitle": "Help Center",
-    "client.help.constructionDesc": "This feature is currently being developed and will be available soon.",
+    "client.help.constructionDesc":
+      "This feature is currently being developed and will be available soon.",
     "client.help.quickHelp": "Quick Help",
     "client.help.phoneSupport": "Phone Support",
     "client.help.emailSupport": "Email Support",
@@ -2200,31 +2641,37 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.help.subject": "Subject",
     "client.help.subjectPlaceholder": "What do you need help with?",
     "client.help.message": "Message",
-    "client.help.messagePlaceholder": "Describe your issue or question in detail...",
+    "client.help.messagePlaceholder":
+      "Describe your issue or question in detail...",
     "client.help.sendMessageButton": "Send Message",
     "client.help.faqQ1": "How long does the company registration process take?",
-    "client.help.faqA1": "The average processing time is 7-10 business days from the date of complete document submission. However, this can vary based on government processing times and document completeness.",
+    "client.help.faqA1":
+      "The average processing time is 7-10 business days from the date of complete document submission. However, this can vary based on government processing times and document completeness.",
     "client.help.faqQ2": "What documents do I need to upload?",
-    "client.help.faqA2": "Required documents include: Valid passport copy, proof of address, business plan, bank statements (last 6 months), and any relevant licenses or certifications.",
+    "client.help.faqA2":
+      "Required documents include: Valid passport copy, proof of address, business plan, bank statements (last 6 months), and any relevant licenses or certifications.",
     "client.help.faqQ3": "Can I track my application status?",
-    "client.help.faqA3": "Yes! You can track your application status in real-time through your dashboard. We also send email notifications for any status updates.",
+    "client.help.faqA3":
+      "Yes! You can track your application status in real-time through your dashboard. We also send email notifications for any status updates.",
     "client.help.faqQ4": "What happens if my document is rejected?",
-    "client.help.faqA4": "If a document is rejected, you will receive detailed feedback about the issue and can re-upload a corrected version. Our team is available to help if you have questions.",
+    "client.help.faqA4":
+      "If a document is rejected, you will receive detailed feedback about the issue and can re-upload a corrected version. Our team is available to help if you have questions.",
     "client.help.faqQ5": "How do I contact my case manager?",
-    "client.help.faqA5": "You can message your case manager directly through the chat widget (bottom right) or the Messages section. Response time is typically within 2-4 business hours.",
-    
+    "client.help.faqA5":
+      "You can message your case manager directly through the chat widget (bottom right) or the Messages section. Response time is typically within 2-4 business hours.",
+
     // Client Profile
     "client.profile.title": "Profile",
     "client.profile.updateProfile": "Update Profile",
     "client.profile.changePassword": "Change Password",
     "client.profile.personalInfo": "Personal Information",
     "client.profile.companyInfo": "Company Information",
-    
+
     // Client Settings
     "client.settings.title": "Settings",
     "client.settings.general": "General Settings",
     "client.settings.saveSettings": "Save Settings",
-    
+
     // Legal Pages
     "legal.privacyPolicy": "Privacy Policy",
     "legal.termsOfService": "Terms of Service",
@@ -2243,33 +2690,37 @@ const messages: Record<Locale, Record<string, string>> = {
     "nav.menu": "القائمة",
     "nav.language": "اللغة",
     "nav.theme": "المظهر",
-    
+
     // Homepage - Hero
     "home.hero.title": "ثورة في تأسيس الأعمال في",
-    "home.hero.subtitle": "أطلق عملك في المملكة العربية السعودية بثقة. منصتنا الرقمية تبسط تسجيل الشركات، مما يجعلها",
+    "home.hero.subtitle":
+      "أطلق عملك في المملكة العربية السعودية بثقة. منصتنا الرقمية تبسط تسجيل الشركات، مما يجعلها",
     "home.hero.transparent": "شفافة وسريعة وخالية من المتاعب.",
     "home.hero.registerNow": "سجل الآن",
     "home.hero.bookConsultation": "احجز استشارة مجانية",
     "home.hero.companyProfile": "ملف الشركة",
     "home.hero.noHiddenFees": "لا توجد رسوم خفية",
     "home.hero.support24": "دعم على مدار الساعة",
-    
+
     // Homepage - Why Saudi Arabia
     "home.whySaudi.title": "لماذا المملكة العربية السعودية جذابة للأعمال",
-    "home.whySaudi.founded": "تأسست TK.SA في عام 2024 لإحداث ثورة في اقتصاد المملكة العربية السعودية من خلال تسهيل تأسيس الشركات الأجنبية في المملكة. نحن نفهم التحديات والإثارة عند بدء عمل تجاري. مهمتنا هي إلهام وتمكين وإرشاد رواد الأعمال لتحويل رؤاهم إلى واقع.",
+    "home.whySaudi.founded":
+      "تأسست TK.SA في عام 2024 لإحداث ثورة في اقتصاد المملكة العربية السعودية من خلال تسهيل تأسيس الشركات الأجنبية في المملكة. نحن نفهم التحديات والإثارة عند بدء عمل تجاري. مهمتنا هي إلهام وتمكين وإرشاد رواد الأعمال لتحويل رؤاهم إلى واقع.",
     "home.whySaudi.point1": "اقتصاد سريع التطور ومتنوع",
     "home.whySaudi.point2": "قوة عاملة محلية ودولية ماهرة",
-    "home.whySaudi.point3": "موقع استراتيجي عند مفترق طرق أوروبا وآسيا وأفريقيا",
+    "home.whySaudi.point3":
+      "موقع استراتيجي عند مفترق طرق أوروبا وآسيا وأفريقيا",
     "home.whySaudi.point4": "دعم حكومي للقطاعات الرئيسية في إطار رؤية 2030",
     "home.whySaudi.objective": "هدفنا",
-    "home.whySaudi.objectiveText": "جذب الشركات الدولية التي تخلق نظامًا بيئيًا مزدهرًا للنمو، مما يفيد الشركات والمملكة والاقتصاد العالمي.",
-    
+    "home.whySaudi.objectiveText":
+      "جذب الشركات الدولية التي تخلق نظامًا بيئيًا مزدهرًا للنمو، مما يفيد الشركات والمملكة والاقتصاد العالمي.",
+
     // Homepage - Stats
     "home.stats.companies": "شركات مسجلة",
     "home.stats.success": "معدل النجاح",
     "home.stats.processing": "متوسط وقت المعالجة",
     "home.stats.satisfaction": "رضا العملاء",
-    
+
     // Homepage - Features
     "home.features.title": "مصمم لرواد الأعمال المعاصرين",
     "home.features.subtitle": "اختبر مستقبل تسجيل الشركات مع منصتنا المتطورة",
@@ -2281,12 +2732,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "home.features.expert.desc": "محترفون معتمدون يرشدونك",
     "home.features.tracking.title": "تتبع في الوقت الفعلي",
     "home.features.tracking.desc": "راقب التقدم على مدار الساعة",
-    
+
     // Homepage - Services
     "home.services.title": "حلول أعمال شاملة",
     "home.services.subtitle": "من التسجيل إلى الدعم المستمر، نقدم كل ما تحتاجه",
     "home.services.registration.title": "تسجيل الشركة",
-    "home.services.registration.desc": "تأسيس شركة كامل مع جميع المتطلبات القانونية",
+    "home.services.registration.desc":
+      "تأسيس شركة كامل مع جميع المتطلبات القانونية",
     "home.services.registration.feature1": "رخصة تجارية",
     "home.services.registration.feature2": "السجل التجاري",
     "home.services.registration.feature3": "غرفة التجارة",
@@ -2303,23 +2755,27 @@ const messages: Record<Locale, Record<string, string>> = {
     "home.services.support.feature2": "الامتثال القانوني",
     "home.services.support.feature3": "المحاسبة",
     "home.services.support.feature4": "حلول الموارد البشرية",
-    
+
     // Homepage - Our Services
     "home.ourServices.title": "خدماتنا",
     "home.ourServices.subtitle": "خدمات شاملة لإعداد الأعمال والصناعة",
     "home.ourServices.incorporate.title": "تأسيس شركتك",
     "home.ourServices.incorporate.desc": "احصل على جميع تراخيص وتصاريح ميسا.",
     "home.ourServices.compliance.title": "ضمان الامتثال القانوني",
-    "home.ourServices.compliance.desc": "الامتثال لقوانين العمل والسلامة والصناعة السعودية.",
+    "home.ourServices.compliance.desc":
+      "الامتثال لقوانين العمل والسلامة والصناعة السعودية.",
     "home.ourServices.operations.title": "دعم العمليات",
-    "home.ourServices.operations.desc": "احصل على إرشادات مستمرة للامتثال السلس.",
+    "home.ourServices.operations.desc":
+      "احصل على إرشادات مستمرة للامتثال السلس.",
     "home.ourServices.visas.title": "الحصول على التأشيرات وتصاريح العمل",
-    "home.ourServices.visas.desc": "إدارة تأشيرات الموظفين وتصاريح العمل والسعودة.",
+    "home.ourServices.visas.desc":
+      "إدارة تأشيرات الموظفين وتصاريح العمل والسعودة.",
     "home.ourServices.tax.title": "إدارة تسجيل ضريبة القيمة المضافة والضرائب",
-    "home.ourServices.tax.desc": "ابق متوافقًا بالكامل مع سلطة الضرائب السعودية.",
+    "home.ourServices.tax.desc":
+      "ابق متوافقًا بالكامل مع سلطة الضرائب السعودية.",
     "home.ourServices.bank.title": "فتح حسابات بنكية للأعمال",
     "home.ourServices.bank.desc": "شراكة مع بنوك سعودية موثوقة.",
-    
+
     // Homepage - Process
     "home.process.title": "أطلق في 4 خطوات سهلة",
     "home.process.subtitle": "احصل على عملك وتشغيله أسرع مما كنت تتخيل",
@@ -2331,41 +2787,52 @@ const messages: Record<Locale, Record<string, string>> = {
     "home.process.step3.desc": "فريقنا يتولى كل شيء",
     "home.process.step4.title": "أنت تطلق",
     "home.process.step4.desc": "احصل على التراخيص وابدأ العمل",
-    
+
     // Homepage - Testimonials
     "home.testimonials.title": "محبوب من رواد الأعمال",
-    "home.testimonials.subtitle": "انضم إلى مئات العملاء الراضين الذين حولوا أحلام أعمالهم إلى واقع",
-    
+    "home.testimonials.subtitle":
+      "انضم إلى مئات العملاء الراضين الذين حولوا أحلام أعمالهم إلى واقع",
+
     // Homepage - Licenses
     "home.licenses.badge": "التراخيص والمعايير",
     "home.licenses.title": "التشغيل مع الامتثال الكامل",
-    "home.licenses.subtitle": "موثوق به من قبل منصات الحكومة الرئيسية في المملكة العربية السعودية، مما يضمن أن كل شركة نطلقها متوافقة بالكامل مع اللوائح المحلية.",
+    "home.licenses.subtitle":
+      "موثوق به من قبل منصات الحكومة الرئيسية في المملكة العربية السعودية، مما يضمن أن كل شركة نطلقها متوافقة بالكامل مع اللوائح المحلية.",
     "home.licenses.licensed": "مرخص ومتكامل",
-    
+
     // Homepage - Why Choose
     "home.whyChoose.title": "لماذا تختارنا؟",
-    "home.whyChoose.subtitle": "شريك بخبرة مثبتة ونتائج قابلة للقياس للشركات التي تدخل المملكة العربية السعودية.",
+    "home.whyChoose.subtitle":
+      "شريك بخبرة مثبتة ونتائج قابلة للقياس للشركات التي تدخل المملكة العربية السعودية.",
     "home.whyChoose.point1.title": "من بين أول 10 شركات لترخيص ميسا",
-    "home.whyChoose.point1.desc": "رواد في تسهيل دخول السوق منذ إدخال الترخيص لأول مرة.",
+    "home.whyChoose.point1.desc":
+      "رواد في تسهيل دخول السوق منذ إدخال الترخيص لأول مرة.",
     "home.whyChoose.point2.title": "صناعات متنوعة تم خدمتها",
-    "home.whyChoose.point2.desc": "دعمنا بنجاح المشاريع في المنسوجات وتكنولوجيا المعلومات والتكنولوجيا والنقل والمركبات الكهربائية والتجزئة والرعاية الصحية والاستشارات.",
+    "home.whyChoose.point2.desc":
+      "دعمنا بنجاح المشاريع في المنسوجات وتكنولوجيا المعلومات والتكنولوجيا والنقل والمركبات الكهربائية والتجزئة والرعاية الصحية والاستشارات.",
     "home.whyChoose.point3.title": "شراكات قوية",
-    "home.whyChoose.point3.desc": "التعاون مع المؤسسات المالية والقانونية والحكومية يضمن عملية سلسة وموثوقة.",
+    "home.whyChoose.point3.desc":
+      "التعاون مع المؤسسات المالية والقانونية والحكومية يضمن عملية سلسة وموثوقة.",
     "home.whyChoose.point4.title": "معدل رضا العملاء 97%+",
-    "home.whyChoose.point4.desc": "عملاؤنا يقدروننا لكفاءتنا وشفافيتنا ونهجنا القائم على النتائج.",
+    "home.whyChoose.point4.desc":
+      "عملاؤنا يقدروننا لكفاءتنا وشفافيتنا ونهجنا القائم على النتائج.",
     "home.whyChoose.point5.title": "حل شامل متكامل",
-    "home.whyChoose.point5.desc": "إعداد الأعمال والترخيص والتمويل والامتثال والتوظيف—كل شيء تحت سقف واحد.",
+    "home.whyChoose.point5.desc":
+      "إعداد الأعمال والترخيص والتمويل والامتثال والتوظيف—كل شيء تحت سقف واحد.",
     "home.whyChoose.point6.title": "متوافق مع رؤية 2030",
-    "home.whyChoose.point6.desc": "مساعدة الشركات على الاستفادة من فرص النمو في المملكة العربية السعودية بثقة.",
-    
+    "home.whyChoose.point6.desc":
+      "مساعدة الشركات على الاستفادة من فرص النمو في المملكة العربية السعودية بثقة.",
+
     // Homepage - CTA
     "home.cta.title": "هل أنت مستعد لإطلاق عملك؟",
-    "home.cta.subtitle": "انضم إلى مئات رواد الأعمال الناجحين الذين اختاروا تبادل الكون لتسجيل شركاتهم",
+    "home.cta.subtitle":
+      "انضم إلى مئات رواد الأعمال الناجحين الذين اختاروا تبادل الكون لتسجيل شركاتهم",
     "home.cta.getStarted": "ابدأ مجانًا",
     "home.cta.contactSales": "اتصل بالمبيعات",
-    
+
     // Footer
-    "footer.tagline": "شريكك الموثوق لتأسيس الأعمال والنمو في المملكة العربية السعودية.",
+    "footer.tagline":
+      "شريكك الموثوق لتأسيس الأعمال والنمو في المملكة العربية السعودية.",
     "footer.services": "الخدمات",
     "footer.misaLicensing": "ترخيص ميسا",
     "footer.company": "الشركة",
@@ -2378,54 +2845,69 @@ const messages: Record<Locale, Record<string, string>> = {
     "footer.copyright": "جميع الحقوق محفوظة.",
     "footer.developedBy": "طور بواسطة",
     "footer.cookiePolicy": "سياسة ملفات تعريف الارتباط",
-    
+
     // About Us
     "about.badge": "من نحن",
     "about.title": "حول تبادل الكون",
-    "about.subtitle": "شريكك الموثوق في تأسيس الأعمال والنمو في جميع أنحاء المملكة العربية السعودية. نحن ملتزمون بجعل ريادة الأعمال في متناول الجميع وناجحة للجميع.",
+    "about.subtitle":
+      "شريكك الموثوق في تأسيس الأعمال والنمو في جميع أنحاء المملكة العربية السعودية. نحن ملتزمون بجعل ريادة الأعمال في متناول الجميع وناجحة للجميع.",
     "about.profile.title": "استكشف ملف شركة تبادل الكون",
-    "about.profile.desc": "احصل على نظرة مفصلة على قدراتنا وخبرات القطاع والمنهجية المثبتة التي تساعد المؤسسين الدوليين على التأسيس في المملكة بثقة.",
+    "about.profile.desc":
+      "احصل على نظرة مفصلة على قدراتنا وخبرات القطاع والمنهجية المثبتة التي تساعد المؤسسين الدوليين على التأسيس في المملكة بثقة.",
     "about.profile.point1": "نظرة عامة كاملة على خدمات التسجيل والامتثال",
-    "about.profile.point2": "خبرة صناعية عبر التكنولوجيا والتجزئة والصناعة والخدمات اللوجستية",
+    "about.profile.point2":
+      "خبرة صناعية عبر التكنولوجيا والتجزئة والصناعة والخدمات اللوجستية",
     "about.profile.point3": "منهجية إطلاق مثبتة مخططة لمبادرات رؤية 2030",
     "about.profile.point4": "فريق حساب مخصص وطريق إعداد",
     "about.profile.download": "تحميل PDF",
     "about.profile.talkExpert": "تحدث إلى خبير",
     "about.profile.whatsInside": "ما بداخله",
-    "about.profile.whatsInsideDesc": "ملف موجز جاهز للمستثمرين يغطي أوراق اعتمادنا ودراسات الحالة وطريق الامتثال الذي نستخدمه لنقل الشركات العالمية من النية إلى العمليات في المملكة العربية السعودية.",
+    "about.profile.whatsInsideDesc":
+      "ملف موجز جاهز للمستثمرين يغطي أوراق اعتمادنا ودراسات الحالة وطريق الامتثال الذي نستخدمه لنقل الشركات العالمية من النية إلى العمليات في المملكة العربية السعودية.",
     "about.profile.industries": "الصناعات",
     "about.profile.coreServices": "الخدمات الأساسية",
     "about.profile.teamExperts": "خبراء الفريق",
     "about.profile.caseStudies": "دراسات الحالة",
-    
+
     // About Us - Mission & Vision
     "about.mission.title": "مهمتنا",
-    "about.mission.paragraph1": "مهمتنا هي تبسيط ودعم رحلة الشركات التي تدخل المملكة العربية السعودية. نقدم خدمات التسجيل والامتثال والاستشارات الخبيرة لضمان أن يبدأ كل عميل بثقة ووضوح.",
-    "about.mission.paragraph2": "من خلال العمل كشريك موثوق، نتعامل مع العمليات المعقدة حتى تتمكن الشركات من التركيز على النمو. مع الاحترافية والشفافية، نمكن المنظمات من بناء أساس قوي ودائم.",
+    "about.mission.paragraph1":
+      "مهمتنا هي تبسيط ودعم رحلة الشركات التي تدخل المملكة العربية السعودية. نقدم خدمات التسجيل والامتثال والاستشارات الخبيرة لضمان أن يبدأ كل عميل بثقة ووضوح.",
+    "about.mission.paragraph2":
+      "من خلال العمل كشريك موثوق، نتعامل مع العمليات المعقدة حتى تتمكن الشركات من التركيز على النمو. مع الاحترافية والشفافية، نمكن المنظمات من بناء أساس قوي ودائم.",
     "about.vision.title": "رؤيتنا",
-    "about.vision.paragraph1": "رؤيتنا هي أن نكون الشريك الرائد للشركات العالمية التي تسعى للفرص في المملكة العربية السعودية. نسعى لوضع معيار الثقة والابتكار والكفاءة في خدمات الأعمال.",
-    "about.vision.paragraph2": "من خلال التعاون والخبرة، نهدف إلى تعزيز بيئة شاملة حيث تزدهر الشركات وتساهم في دور المملكة العربية السعودية كمحور عالمي ديناميكي.",
-    
+    "about.vision.paragraph1":
+      "رؤيتنا هي أن نكون الشريك الرائد للشركات العالمية التي تسعى للفرص في المملكة العربية السعودية. نسعى لوضع معيار الثقة والابتكار والكفاءة في خدمات الأعمال.",
+    "about.vision.paragraph2":
+      "من خلال التعاون والخبرة، نهدف إلى تعزيز بيئة شاملة حيث تزدهر الشركات وتساهم في دور المملكة العربية السعودية كمحور عالمي ديناميكي.",
+
     // About Us - Our Story
     "about.story.title": "قصتنا",
-    "about.story.subtitle": "من الرؤية إلى الواقع، بناء مستقبل الأعمال في المملكة العربية السعودية",
+    "about.story.subtitle":
+      "من الرؤية إلى الواقع، بناء مستقبل الأعمال في المملكة العربية السعودية",
     "about.story.beginning.title": "البداية",
-    "about.story.beginning.content": "تأسست تبادل الكون في عام 2024 من ملاحظة بسيطة: بدء عمل تجاري في المملكة العربية السعودية كان معقدًا ومستهلكًا للوقت بشكل غير ضروري. رأينا فرصة لإحداث ثورة في عملية تأسيس الأعمال.",
+    "about.story.beginning.content":
+      "تأسست تبادل الكون في عام 2024 من ملاحظة بسيطة: بدء عمل تجاري في المملكة العربية السعودية كان معقدًا ومستهلكًا للوقت بشكل غير ضروري. رأينا فرصة لإحداث ثورة في عملية تأسيس الأعمال.",
     "about.story.innovation.title": "الابتكار الرقمي",
-    "about.story.innovation.content": "قمنا ببناء منصة رقمية شاملة تبسط كل جانب من جوانب تأسيس الأعمال، من التسجيل الأولي إلى الامتثال المستمر. نهجنا القائم على التكنولوجيا أولاً يلغي الأعمال الورقية ويقلل أوقات المعالجة.",
+    "about.story.innovation.content":
+      "قمنا ببناء منصة رقمية شاملة تبسط كل جانب من جوانب تأسيس الأعمال، من التسجيل الأولي إلى الامتثال المستمر. نهجنا القائم على التكنولوجيا أولاً يلغي الأعمال الورقية ويقلل أوقات المعالجة.",
     "about.story.impact.title": "التأثير المتزايد",
-    "about.story.impact.content": "اليوم، ساعدنا مئات رواد الأعمال على إطلاق أعمالهم بنجاح، مما يساهم في تنويع الاقتصاد السعودي ويدعم أهداف رؤية المملكة 2030.",
-    
+    "about.story.impact.content":
+      "اليوم، ساعدنا مئات رواد الأعمال على إطلاق أعمالهم بنجاح، مما يساهم في تنويع الاقتصاد السعودي ويدعم أهداف رؤية المملكة 2030.",
+
     // About Us - Our Values
     "about.values.title": "قيمنا",
     "about.values.subtitle": "المبادئ التي توجه كل ما نقوم به",
     "about.values.trust.title": "الثقة والنزاهة",
-    "about.values.trust.content": "نحافظ على أعلى معايير الصدق والشفافية في جميع تفاعلاتنا، وبناء علاقات دائمة قائمة على الثقة.",
+    "about.values.trust.content":
+      "نحافظ على أعلى معايير الصدق والشفافية في جميع تفاعلاتنا، وبناء علاقات دائمة قائمة على الثقة.",
     "about.values.innovation.title": "الابتكار",
-    "about.values.innovation.content": "نواصل الابتكار وتحسين خدماتنا، والاستفادة من أحدث التقنيات لتوفير أفضل تجربة ممكنة لعملائنا.",
+    "about.values.innovation.content":
+      "نواصل الابتكار وتحسين خدماتنا، والاستفادة من أحدث التقنيات لتوفير أفضل تجربة ممكنة لعملائنا.",
     "about.values.clientSuccess.title": "نجاح العملاء",
-    "about.values.clientSuccess.content": "يُقاس نجاحنا بنجاح عملائنا. نحن ملتزمون بتوفير الدعم والإرشاد الاستثنائيين طوال رحلتهم الريادية.",
-    
+    "about.values.clientSuccess.content":
+      "يُقاس نجاحنا بنجاح عملائنا. نحن ملتزمون بتوفير الدعم والإرشاد الاستثنائيين طوال رحلتهم الريادية.",
+
     // About Us - Achievements
     "about.achievements.title": "إنجازاتنا",
     "about.achievements.subtitle": "معالم تحدد رحلتنا",
@@ -2433,18 +2915,20 @@ const messages: Record<Locale, Record<string, string>> = {
     "about.achievements.successRate": "معدل النجاح",
     "about.achievements.clientRating": "تقييم العملاء",
     "about.achievements.averageProcessing": "متوسط المعالجة",
-    
+
     // About Us - CTA
     "about.cta.title": "هل أنت مستعد لبدء رحلة عملك؟",
-    "about.cta.subtitle": "انضم إلى مئات رواد الأعمال الناجحين الذين اختاروا تبادل الكون لاحتياجات تأسيس أعمالهم.",
+    "about.cta.subtitle":
+      "انضم إلى مئات رواد الأعمال الناجحين الذين اختاروا تبادل الكون لاحتياجات تأسيس أعمالهم.",
     "about.cta.getStarted": "ابدأ اليوم",
     "about.cta.contactUs": "اتصل بنا",
-    
+
     // Contact
     "contact.title": "اتصل بنا",
     "contact.subtitle": "تواصل مع فريقنا",
     "contact.hero.title": "استشارة الأعمال",
-    "contact.hero.subtitle": "هل أنت مستعد لبدء عملك في المملكة العربية السعودية؟ احصل على استشارة خبير وإرشادات لإعداد شركتك.",
+    "contact.hero.subtitle":
+      "هل أنت مستعد لبدء عملك في المملكة العربية السعودية؟ احصل على استشارة خبير وإرشادات لإعداد شركتك.",
     "contact.form.title": "نموذج استشارة الأعمال",
     "contact.form.name": "الاسم الكامل",
     "contact.form.email": "عنوان البريد الإلكتروني",
@@ -2474,17 +2958,21 @@ const messages: Record<Locale, Record<string, string>> = {
     "contact.selectOption": "اختر خيارًا",
     "contact.phonePlaceholder": "أدخل 10 أرقام (مثال: 501234567)",
     "contact.section.expert.title": "استشارة أعمال خبيرة",
-    "contact.section.expert.desc": "سيقوم مستشارونا ذوو الخبرة بمساعدتك في التنقل في المشهد التجاري السعودي وإعداد شركتك بنجاح.",
+    "contact.section.expert.desc":
+      "سيقوم مستشارونا ذوو الخبرة بمساعدتك في التنقل في المشهد التجاري السعودي وإعداد شركتك بنجاح.",
     "contact.info.email": "البريد الإلكتروني",
     "contact.info.phone": "الهاتف",
     "contact.info.address": "العنوان",
-    "contact.info.addressValue": "تبادل الكون، الرياض، المملكة العربية السعودية",
+    "contact.info.addressValue":
+      "تبادل الكون، الرياض، المملكة العربية السعودية",
     "contact.section.visit.title": "زر مكتبنا",
-    "contact.section.visit.subtitle": "اعثر علينا في موقعنا في الرياض، المملكة العربية السعودية",
+    "contact.section.visit.subtitle":
+      "اعثر علينا في موقعنا في الرياض، المملكة العربية السعودية",
     "contact.section.visit.location": "موقعنا",
     "contact.section.visit.getDirections": "احصل على الاتجاهات",
     "contact.howHear.google": "بحث جوجل",
-    "contact.howHear.social": "وسائل التواصل الاجتماعي (فيسبوك، إنستغرام، لينكد إن)",
+    "contact.howHear.social":
+      "وسائل التواصل الاجتماعي (فيسبوك، إنستغرام، لينكد إن)",
     "contact.howHear.referral": "إحالة من صديق/زميل",
     "contact.howHear.advertisement": "إعلان",
     "contact.howHear.website": "الموقع الإلكتروني",
@@ -2503,81 +2991,124 @@ const messages: Record<Locale, Record<string, string>> = {
     "contact.businessType.financial": "الخدمات المالية",
     "contact.businessType.ecommerce": "التجارة الإلكترونية والتجزئة",
     "contact.businessType.logistics": "الخدمات اللوجستية والنقل",
-    
+
     // MISA Page
     "misa.badge": "ترخيص ميسا",
     "misa.hero.title": "ترخيص ميسا والاستثمار",
     "misa.hero.subtitle": "للمستثمرين الأجانب والمحليين",
-    "misa.hero.benefit1": "استراتيجية ترخيص ميسا متوافقة مع أهداف الملكية والقطاع الخاصة بك",
-    "misa.hero.benefit2": "الدعم عبر التكنولوجيا والصناعة والخدمات اللوجستية والتجزئة والخدمات",
+    "misa.hero.benefit1":
+      "استراتيجية ترخيص ميسا متوافقة مع أهداف الملكية والقطاع الخاصة بك",
+    "misa.hero.benefit2":
+      "الدعم عبر التكنولوجيا والصناعة والخدمات اللوجستية والتجزئة والخدمات",
     "misa.hero.benefit3": "التنسيق الشامل مع منصات الحكومة السعودية",
     "misa.hero.benefit4": "الوثائق والعروض والمتابعة بالعربية والإنجليزية",
     "misa.section.title": "لماذا يهم ترخيص ميسا",
-    "misa.section.subtitle": "ملف ميسا القوي يفتح الموافقات الأسرع، والخدمات المصرفية الأفضل، وأساسًا يدعم الإقامة المميزة والتأشيرات والتوسعات المستقبلية في جميع أنحاء المملكة العربية السعودية.",
+    "misa.section.subtitle":
+      "ملف ميسا القوي يفتح الموافقات الأسرع، والخدمات المصرفية الأفضل، وأساسًا يدعم الإقامة المميزة والتأشيرات والتوسعات المستقبلية في جميع أنحاء المملكة العربية السعودية.",
     "misa.content.whatIs.title": "ما هو ترخيص ميسا؟",
-    "misa.content.whatIs.body": "ترخيص ميسا هو الموافقة الأساسية التي تسمح للمستثمرين الأجانب والمحليين بتأسيس وتشغيل الكيانات التجارية في المملكة العربية السعودية. إنه الخطوة الأولى في فتح ترخيصك التجاري والتسجيل التجاري والموافقات اللاحقة.",
+    "misa.content.whatIs.body":
+      "ترخيص ميسا هو الموافقة الأساسية التي تسمح للمستثمرين الأجانب والمحليين بتأسيس وتشغيل الكيانات التجارية في المملكة العربية السعودية. إنه الخطوة الأولى في فتح ترخيصك التجاري والتسجيل التجاري والموافقات اللاحقة.",
     "misa.content.whoIsFor.title": "لمن هو؟",
-    "misa.content.whoIsFor.body": "المؤسسون الدوليون والمجموعات الإقليمية والشركاء السعوديون الذين يريدون طريقًا واضحًا ومتوافقًا للدخول إلى المملكة. من المشاريع ذات المساهم الواحد إلى الهياكل المؤسسية المعقدة، نخصص مسار الترخيص لإعدادك القانوني والضريبي.",
+    "misa.content.whoIsFor.body":
+      "المؤسسون الدوليون والمجموعات الإقليمية والشركاء السعوديون الذين يريدون طريقًا واضحًا ومتوافقًا للدخول إلى المملكة. من المشاريع ذات المساهم الواحد إلى الهياكل المؤسسية المعقدة، نخصص مسار الترخيص لإعدادك القانوني والضريبي.",
     "misa.content.howWeHelp.title": "كيف تساعد تبادل الكون",
-    "misa.content.howWeHelp.body": "نصمم مسار الترخيص الصحيح، ونعد ملفك وفقًا لمعايير ميسا، ونعالج العروض على البوابة، وندير التوضيحات—كل ذلك بينما تركز على التخطيط التجاري والتوظيف والدخول إلى السوق.",
+    "misa.content.howWeHelp.body":
+      "نصمم مسار الترخيص الصحيح، ونعد ملفك وفقًا لمعايير ميسا، ونعالج العروض على البوابة، وندير التوضيحات—كل ذلك بينما تركز على التخطيط التجاري والتوظيف والدخول إلى السوق.",
     "misa.cta.title": "هل أنت مستعد لبدء رحلة ترخيص ميسا؟",
-    "misa.cta.subtitle": "شارك فكرة عملك وهيكله والجدول الزمني—سيقوم فريقنا بتخطيط ترخيص ميسا المناسب، وتحديد متطلبات المستندات، وإرشادك خطوة بخطوة حتى الموافقة.",
+    "misa.cta.subtitle":
+      "شارك فكرة عملك وهيكله والجدول الزمني—سيقوم فريقنا بتخطيط ترخيص ميسا المناسب، وتحديد متطلبات المستندات، وإرشادك خطوة بخطوة حتى الموافقة.",
     "misa.cta.requestConsultation": "طلب استشارة ميسا",
     "misa.cta.getStarted": "ابدأ مع TK.sa",
     "misa.image.alt": "جناح استثمار ميسا",
-    
+
     // Premium Residency Page
     "premiumResidency.badge": "برنامج الإقامة المميزة",
     "premiumResidency.hero.title": "الإقامة المميزة",
     "premiumResidency.hero.subtitle": "للمستثمرين والمواهب ورواد الأعمال",
-    "premiumResidency.hero.benefit1": "تقييم أهليتك عبر جميع فئات الإقامة المميزة الست",
-    "premiumResidency.hero.benefit2": "قائمة التحقق من المستندات المالية والمهنية المطلوبة",
+    "premiumResidency.hero.benefit1":
+      "تقييم أهليتك عبر جميع فئات الإقامة المميزة الست",
+    "premiumResidency.hero.benefit2":
+      "قائمة التحقق من المستندات المالية والمهنية المطلوبة",
     "premiumResidency.hero.benefit3": "الدعم في الوثائق العربية ومنصات الحكومة",
-    "premiumResidency.hero.benefit4": "خيارات للمستثمرين وأصحاب العقارات والمواهب الاستثنائية",
+    "premiumResidency.hero.benefit4":
+      "خيارات للمستثمرين وأصحاب العقارات والمواهب الاستثنائية",
     "premiumResidency.section.title": "من المؤهل للحصول على الإقامة المميزة؟",
-    "premiumResidency.section.subtitle": "الإقامة المميزة في المملكة العربية السعودية متاحة للأفراد الذين يستوفون معايير إحدى فئات الإقامة المميزة الست الرئيسية أدناه. كل مسار له متطلبات مالية ومهنية محددة.",
+    "premiumResidency.section.subtitle":
+      "الإقامة المميزة في المملكة العربية السعودية متاحة للأفراد الذين يستوفون معايير إحدى فئات الإقامة المميزة الست الرئيسية أدناه. كل مسار له متطلبات مالية ومهنية محددة.",
     "premiumResidency.category.specialTalent.title": "إقامة المواهب الخاصة",
-    "premiumResidency.category.specialTalent.bullet1": "الباحثون والمهنيون الصحيون والتنفيذيون ذوو المهارات المتخصصة",
-    "premiumResidency.category.specialTalent.bullet2": "الباحثون: 14,000 ريال سعودي / شهر + 3 أبحاث منشورة",
-    "premiumResidency.category.specialTalent.bullet3": "المهنيون الصحيون والعلميون: 35,000 ريال سعودي / شهر",
-    "premiumResidency.category.specialTalent.bullet4": "التنفيذيون: 960,000 ريال سعودي / سنة",
-    "premiumResidency.category.specialTalent.bullet5": "الجميع يتطلب صاحب عمل معتمد، خبرة 3+ سنوات، وخطاب توصية",
+    "premiumResidency.category.specialTalent.bullet1":
+      "الباحثون والمهنيون الصحيون والتنفيذيون ذوو المهارات المتخصصة",
+    "premiumResidency.category.specialTalent.bullet2":
+      "الباحثون: 14,000 ريال سعودي / شهر + 3 أبحاث منشورة",
+    "premiumResidency.category.specialTalent.bullet3":
+      "المهنيون الصحيون والعلميون: 35,000 ريال سعودي / شهر",
+    "premiumResidency.category.specialTalent.bullet4":
+      "التنفيذيون: 960,000 ريال سعودي / سنة",
+    "premiumResidency.category.specialTalent.bullet5":
+      "الجميع يتطلب صاحب عمل معتمد، خبرة 3+ سنوات، وخطاب توصية",
     "premiumResidency.category.gifted.title": "إقامة الموهوبين",
-    "premiumResidency.category.gifted.bullet1": "يستهدف المواهب الرياضية والثقافية والفنية",
-    "premiumResidency.category.gifted.bullet2": "موهبة استثنائية مثبتة (جائزة، ترشيح، أو معايير معتمدة)",
-    "premiumResidency.category.gifted.bullet3": "محفظة + اقتراح حول المساهمة في المملكة العربية السعودية",
-    "premiumResidency.category.gifted.bullet4": "توصية من وزارة الثقافة أو الرياضة",
-    "premiumResidency.category.gifted.bullet5": "مطلوب الملاءة المالية (دخل أو كشف حساب بنكي لمدة 12 شهرًا)",
-    "premiumResidency.category.gifted.bullet6": "المتقدمون دون 18 عامًا يجب أن يكون لديهم وصي",
-    "premiumResidency.category.gifted.bullet7": "الفئة 1: حاصل على جائزة أو مرشح",
-    "premiumResidency.category.gifted.bullet8": "الفئة 2: يستوفي معايير الأهلية المعتمدة",
+    "premiumResidency.category.gifted.bullet1":
+      "يستهدف المواهب الرياضية والثقافية والفنية",
+    "premiumResidency.category.gifted.bullet2":
+      "موهبة استثنائية مثبتة (جائزة، ترشيح، أو معايير معتمدة)",
+    "premiumResidency.category.gifted.bullet3":
+      "محفظة + اقتراح حول المساهمة في المملكة العربية السعودية",
+    "premiumResidency.category.gifted.bullet4":
+      "توصية من وزارة الثقافة أو الرياضة",
+    "premiumResidency.category.gifted.bullet5":
+      "مطلوب الملاءة المالية (دخل أو كشف حساب بنكي لمدة 12 شهرًا)",
+    "premiumResidency.category.gifted.bullet6":
+      "المتقدمون دون 18 عامًا يجب أن يكون لديهم وصي",
+    "premiumResidency.category.gifted.bullet7":
+      "الفئة 1: حاصل على جائزة أو مرشح",
+    "premiumResidency.category.gifted.bullet8":
+      "الفئة 2: يستوفي معايير الأهلية المعتمدة",
     "premiumResidency.category.investor.title": "إقامة المستثمر",
-    "premiumResidency.category.investor.bullet1": "الأفراد ذوو الثروات العالية الذين يقومون باستثمارات كبيرة (الحد الأدنى 7 ملايين ريال سعودي)",
+    "premiumResidency.category.investor.bullet1":
+      "الأفراد ذوو الثروات العالية الذين يقومون باستثمارات كبيرة (الحد الأدنى 7 ملايين ريال سعودي)",
     "premiumResidency.category.investor.bullet2": "ترخيص استثمار ميسا",
-    "premiumResidency.category.investor.bullet3": "الحد الأدنى 7 ملايين ريال سعودي حصة شخصية في الاستثمارات",
+    "premiumResidency.category.investor.bullet3":
+      "الحد الأدنى 7 ملايين ريال سعودي حصة شخصية في الاستثمارات",
     "premiumResidency.category.investor.bullet4": "سجل تجاري ساري",
-    "premiumResidency.category.investor.bullet5": "عقد التأسيس يوضح حصص الملكية",
+    "premiumResidency.category.investor.bullet5":
+      "عقد التأسيس يوضح حصص الملكية",
     "premiumResidency.category.entrepreneur.title": "إقامة رائد الأعمال",
-    "premiumResidency.category.entrepreneur.bullet1": "مؤسسو الشركات الناشئة وأصحاب الأعمال مع ترخيص رائد أعمال ميسا",
-    "premiumResidency.category.entrepreneur.bullet2": "الفئة 1: ≥ 400,000 ريال سعودي استثمار/تمويل، ≥ 20% ملكية + خطاب توصية",
-    "premiumResidency.category.entrepreneur.bullet3": "الفئة 2: ≥ 15 مليون ريال سعودي استثمار/تمويل، ≥ 10% ملكية + خطاب توصية",
-    "premiumResidency.category.entrepreneur.bullet4": "مسار إلى الإقامة الدائمة بعد 30 شهرًا في المملكة مع الحفاظ على الأهلية",
-    "premiumResidency.category.entrepreneur.bullet5": "متطلب خلق الوظائف: 10 وظائف في السنة الأولى + 10 أخرى في السنة الثانية للفئة 2",
+    "premiumResidency.category.entrepreneur.bullet1":
+      "مؤسسو الشركات الناشئة وأصحاب الأعمال مع ترخيص رائد أعمال ميسا",
+    "premiumResidency.category.entrepreneur.bullet2":
+      "الفئة 1: ≥ 400,000 ريال سعودي استثمار/تمويل، ≥ 20% ملكية + خطاب توصية",
+    "premiumResidency.category.entrepreneur.bullet3":
+      "الفئة 2: ≥ 15 مليون ريال سعودي استثمار/تمويل، ≥ 10% ملكية + خطاب توصية",
+    "premiumResidency.category.entrepreneur.bullet4":
+      "مسار إلى الإقامة الدائمة بعد 30 شهرًا في المملكة مع الحفاظ على الأهلية",
+    "premiumResidency.category.entrepreneur.bullet5":
+      "متطلب خلق الوظائف: 10 وظائف في السنة الأولى + 10 أخرى في السنة الثانية للفئة 2",
     "premiumResidency.category.realEstate.title": "إقامة مالك العقار",
-    "premiumResidency.category.realEstate.bullet1": "أصحاب العقارات مع استثمارات تبلغ 4 ملايين ريال سعودي أو أكثر في المملكة العربية السعودية",
-    "premiumResidency.category.realEstate.bullet2": "ملكية أو حق انتفاع لعقار سكني بقيمة لا تقل عن 4 ملايين ريال سعودي",
-    "premiumResidency.category.realEstate.bullet3": "يجب أن يكون العقار مدفوعًا بالكامل وغير مرهون وقت التقديم أو بعده",
-    "premiumResidency.category.realEstate.bullet4": "يجب أن يكون العقار مكتمل البناء (وليس أرضًا غير مطورة)",
-    "premiumResidency.category.realEstate.bullet5": "مطلوب تقرير تقييم معتمد من مقيم سعودي معتمد",
-    "premiumResidency.category.limitedUnlimited.title": "الإقامة المميزة محدودة وغير محدودة المدة",
-    "premiumResidency.category.limitedUnlimited.bullet1": "للأفراد الذين يستوفون معايير راتب أو مالية محددة (1–5 سنوات أو غير محدود)",
-    "premiumResidency.category.limitedUnlimited.bullet2": "مصممة للإقامة المميزة السنوية (المحدودة) أو الدائمة (غير المحدودة) في المملكة العربية السعودية",
-    "premiumResidency.category.limitedUnlimited.bullet3": "يجب على المتقدمين تقديم دليل على القدرة المالية لدعم أنفسهم في المملكة",
-    "premiumResidency.cta.title": "غير متأكد من مسار الإقامة المميزة المناسب لك؟",
-    "premiumResidency.cta.subtitle": "يمكن لفريقنا مراجعة ملفك الشخصي وإرشادك إلى الفئة الأنسب بناءً على استثمارك أو مهنتك أو موهبتك—حتى تتمكن من المضي قدمًا بثقة.",
+    "premiumResidency.category.realEstate.bullet1":
+      "أصحاب العقارات مع استثمارات تبلغ 4 ملايين ريال سعودي أو أكثر في المملكة العربية السعودية",
+    "premiumResidency.category.realEstate.bullet2":
+      "ملكية أو حق انتفاع لعقار سكني بقيمة لا تقل عن 4 ملايين ريال سعودي",
+    "premiumResidency.category.realEstate.bullet3":
+      "يجب أن يكون العقار مدفوعًا بالكامل وغير مرهون وقت التقديم أو بعده",
+    "premiumResidency.category.realEstate.bullet4":
+      "يجب أن يكون العقار مكتمل البناء (وليس أرضًا غير مطورة)",
+    "premiumResidency.category.realEstate.bullet5":
+      "مطلوب تقرير تقييم معتمد من مقيم سعودي معتمد",
+    "premiumResidency.category.limitedUnlimited.title":
+      "الإقامة المميزة محدودة وغير محدودة المدة",
+    "premiumResidency.category.limitedUnlimited.bullet1":
+      "للأفراد الذين يستوفون معايير راتب أو مالية محددة (1–5 سنوات أو غير محدود)",
+    "premiumResidency.category.limitedUnlimited.bullet2":
+      "مصممة للإقامة المميزة السنوية (المحدودة) أو الدائمة (غير المحدودة) في المملكة العربية السعودية",
+    "premiumResidency.category.limitedUnlimited.bullet3":
+      "يجب على المتقدمين تقديم دليل على القدرة المالية لدعم أنفسهم في المملكة",
+    "premiumResidency.cta.title":
+      "غير متأكد من مسار الإقامة المميزة المناسب لك؟",
+    "premiumResidency.cta.subtitle":
+      "يمكن لفريقنا مراجعة ملفك الشخصي وإرشادك إلى الفئة الأنسب بناءً على استثمارك أو مهنتك أو موهبتك—حتى تتمكن من المضي قدمًا بثقة.",
     "premiumResidency.cta.requestConsultation": "طلب استشارة",
     "premiumResidency.image.alt": "رسم توضيحي لبطاقة الإقامة المميزة",
-    
+
     // Common UI Elements
     "common.save": "حفظ",
     "common.cancel": "إلغاء",
@@ -2649,7 +3180,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "common.accessDenied": "تم رفض الوصول",
     "common.noPermission": "ليس لديك إذن للوصول إلى هذه الصفحة.",
     "common.pageUnderConstruction": "الصفحة قيد الإنشاء",
-    "common.featureComingSoon": "هذه الميزة قيد التطوير حالياً وستكون متاحة قريباً.",
+    "common.featureComingSoon":
+      "هذه الميزة قيد التطوير حالياً وستكون متاحة قريباً.",
     "common.comingSoon": "قريباً",
     "common.workingOnFeature": "نحن نعمل على إحضار هذه الميزة لك.",
     "common.backToDashboard": "العودة إلى لوحة التحكم",
@@ -2662,11 +3194,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "common.saveChanges": "حفظ التغييرات",
     "common.refreshing": "جاري التحديث...",
     "common.later": "لاحقاً",
-    
+
     // PWA
     "pwa.installTitle": "تثبيت التطبيق",
-    "pwa.installDescription": "قم بتثبيت TK CRM للوصول السريع والدعم في وضع عدم الاتصال.",
-    "pwa.installFallback": "استخدم قائمة المتصفح (⋮ أو ⋯) واختر \"تثبيت التطبيق\" أو \"إضافة إلى الشاشة الرئيسية\".",
+    "pwa.installDescription":
+      "قم بتثبيت TK CRM للوصول السريع والدعم في وضع عدم الاتصال.",
+    "pwa.installFallback":
+      'استخدم قائمة المتصفح (⋮ أو ⋯) واختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".',
     "pwa.installButton": "تثبيت",
     "pwa.alreadyInstalled": "مثبّت",
     "pwa.notInstalled": "غير مثبّت",
@@ -2678,7 +3212,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "pwa.installDismissedDesc": "يمكنك تثبيت التطبيق في أي وقت من هذه الصفحة.",
     "pwa.installIosHint": "على iPhone/iPad: اضغط مشاركة، ثم \"إضافة إلى الشاشة الرئيسية\".",
     "common.new": "جديد",
-    
+
     // Login & Signup
     "auth.login": "تسجيل الدخول",
     "auth.signup": "إنشاء حساب",
@@ -2739,7 +3273,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "auth.verificationFailedTitle": "فشل التحقق",
     "auth.invalidVerificationLink": "رابط التحقق غير صالح.",
     "auth.pleaseWait": "يرجى الانتظار أثناء التحقق من بريدك الإلكتروني.",
-    
+
     // Admin Sidebar
     "admin.sidebar.dashboard": "لوحة التحكم",
     "admin.sidebar.clientManagement": "إدارة العملاء",
@@ -2775,6 +3309,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.messages": "الرسائل",
     "admin.sidebar.inbox": "صندوق الوارد",
     "admin.sidebar.supportMessaging": "رسائل الدعم",
+    "admin.sidebar.supportTickets": "تذاكر الدعم",
     "admin.sidebar.templates": "القوالب",
     "admin.sidebar.reports": "التقارير",
     "admin.sidebar.clientReports": "تقارير العملاء",
@@ -2800,7 +3335,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.sidebar.contactSupport": "اتصل بالدعم",
     "admin.sidebar.notifications": "الإشعارات",
     "admin.sidebar.collaboratorManagement": "إدارة المتعاونين",
-    
+
     // Admin Dashboard
     "admin.dashboard.title": "لوحة التحكم",
     "admin.dashboard.description": "نظرة عامة على نظام إدارة علاقات العملاء",
@@ -2810,7 +3345,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.createApplication": "إنشاء طلب",
     "admin.dashboard.addClient": "إضافة عميل",
     "admin.dashboard.addLead": "إضافة عميل محتمل",
-    "admin.dashboard.analyticsUnavailable": "بيانات التحليلات غير متوفرة حاليًا. عرض لوحة التحكم بقيم افتراضية.",
+    "admin.dashboard.analyticsUnavailable":
+      "بيانات التحليلات غير متوفرة حاليًا. عرض لوحة التحكم بقيم افتراضية.",
     "admin.dashboard.newThisMonth": "جديد هذا الشهر",
     "admin.dashboard.pending": "قيد الانتظار",
     "admin.dashboard.pendingReview": "قيد المراجعة",
@@ -2825,7 +3361,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.cards.documents": "المستندات",
     "admin.dashboard.performanceMetrics": "مقاييس الأداء",
     "admin.dashboard.conversionRate": "معدل التحويل",
-    "admin.dashboard.leadsToClientsConversion": "تحويل العملاء المحتملين إلى عملاء",
+    "admin.dashboard.leadsToClientsConversion":
+      "تحويل العملاء المحتملين إلى عملاء",
     "admin.dashboard.avgRevenueClient": "متوسط الإيراد/عميل",
     "admin.dashboard.averageRevenuePerClient": "متوسط الإيراد لكل عميل",
     "admin.dashboard.taskCompletion": "إنجاز المهام",
@@ -2839,30 +3376,36 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.days": "أيام",
     "admin.dashboard.analyticsTrends": "التحليلات والاتجاهات",
     "admin.dashboard.revenueTrend": "اتجاه الإيرادات",
-    "admin.dashboard.monthlyRevenueLast6Months": "الإيرادات الشهرية خلال آخر 6 أشهر",
+    "admin.dashboard.monthlyRevenueLast6Months":
+      "الإيرادات الشهرية خلال آخر 6 أشهر",
     "admin.dashboard.clientGrowthChart": "نمو العملاء",
     "admin.dashboard.newClientsLast6Months": "العملاء الجدد خلال آخر 6 أشهر",
     "admin.dashboard.latestUpdates": "آخر التحديثات",
     "admin.dashboard.widgets.clientsOverview": "نظرة عامة على العملاء",
-    "admin.dashboard.widgets.clientsOverviewDesc": "إدارة عملائك والعملاء المحتملين",
+    "admin.dashboard.widgets.clientsOverviewDesc":
+      "إدارة عملائك والعملاء المحتملين",
     "admin.dashboard.widgets.leadsOverview": "إدارة العملاء المحتملين",
-    "admin.dashboard.widgets.leadsOverviewDesc": "تتبع وإدارة العملاء المحتملين",
+    "admin.dashboard.widgets.leadsOverviewDesc":
+      "تتبع وإدارة العملاء المحتملين",
     "admin.dashboard.widgets.applicationsOverview": "الطلبات",
     "admin.dashboard.widgets.applicationsOverviewDesc": "تتبع تقدم الطلبات",
     "admin.dashboard.widgets.financialOverview": "نظرة مالية",
-    "admin.dashboard.widgets.financialOverviewDesc": "الإيرادات والمقاييس المالية",
+    "admin.dashboard.widgets.financialOverviewDesc":
+      "الإيرادات والمقاييس المالية",
     "admin.dashboard.widgets.invoicesOverview": "الفواتير",
     "admin.dashboard.widgets.invoicesOverviewDesc": "إدارة وتتبع الفواتير",
     "admin.dashboard.widgets.paymentsOverview": "المدفوعات",
     "admin.dashboard.widgets.paymentsOverviewDesc": "معالجة وتتبع المدفوعات",
     "admin.dashboard.widgets.expensesOverview": "المصروفات",
-    "admin.dashboard.widgets.expensesOverviewDesc": "تتبع والموافقة على المصروفات",
+    "admin.dashboard.widgets.expensesOverviewDesc":
+      "تتبع والموافقة على المصروفات",
     "admin.dashboard.widgets.documentsOverview": "المستندات",
     "admin.dashboard.widgets.documentsOverviewDesc": "إدارة المستندات",
     "admin.dashboard.widgets.teamOverview": "إدارة الفريق",
     "admin.dashboard.widgets.teamOverviewDesc": "إدارة أعضاء الفريق والأدوار",
     "admin.dashboard.widgets.messagesOverview": "الرسائل",
-    "admin.dashboard.widgets.messagesOverviewDesc": "التواصل الداخلي ومع العملاء",
+    "admin.dashboard.widgets.messagesOverviewDesc":
+      "التواصل الداخلي ومع العملاء",
     "admin.dashboard.widgets.reportsOverview": "التقارير",
     "admin.dashboard.widgets.reportsOverviewDesc": "إنشاء وعرض التقارير",
     "admin.dashboard.widgets.settingsOverview": "الإعدادات",
@@ -2871,10 +3414,12 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.dashboard.chartNewClients": "عملاء جدد",
     "admin.dashboard.chartMonth": "الشهر",
     "admin.dashboard.customizeDashboard": "تخصيص لوحة التحكم",
-    "admin.dashboard.customizeDescription": "تفعيل أو إلغاء خيارات عرض لوحة التحكم.",
+    "admin.dashboard.customizeDescription":
+      "تفعيل أو إلغاء خيارات عرض لوحة التحكم.",
     "admin.dashboard.showGraphs": "إظهار الرسوم البيانية",
-    "admin.dashboard.showGraphsHint": "عند التفعيل، تظهر الرسوم البيانية في بطاقات النظرة العامة والأداء. عند الإيقاف، تظهر الأرقام فقط.",
-    
+    "admin.dashboard.showGraphsHint":
+      "عند التفعيل، تظهر الرسوم البيانية في بطاقات النظرة العامة والأداء. عند الإيقاف، تظهر الأرقام فقط.",
+
     // Admin Clients
     "admin.clients.title": "إدارة العملاء",
     "admin.clients.description": "إدارة جميع عملائك",
@@ -2939,10 +3484,12 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.noPhone": "لا يوجد هاتف",
     "admin.clients.active": "نشط",
     "admin.clients.inactive": "غير نشط",
-    "admin.clients.import.description": "استيراد جهات اتصال العملاء بشكل جماعي من ملف CSV",
+    "admin.clients.import.description":
+      "استيراد جهات اتصال العملاء بشكل جماعي من ملف CSV",
     "admin.clients.import.howToImport": "كيفية استيراد العملاء",
     "admin.clients.import.step1": "تحميل قالب CSV",
-    "admin.clients.import.step2": "املأ بيانات العملاء (الاسم، البريد الإلكتروني، الهاتف، الشركة)",
+    "admin.clients.import.step2":
+      "املأ بيانات العملاء (الاسم، البريد الإلكتروني، الهاتف، الشركة)",
     "admin.clients.import.step3": "ارفع ملف CSV أدناه",
     "admin.clients.import.downloadTemplate": "تحميل قالب CSV",
     "admin.clients.import.uploadCsv": "رفع ملف CSV",
@@ -2970,11 +3517,14 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.import.imported": "تم الاستيراد",
     "admin.clients.import.failed": "فشل",
     "admin.clients.import.successCount": "تم استيراد {count} عميل بنجاح",
-    "admin.clients.import.failedCount": "فشل استيراد {count} جهة اتصال. قد تكون موجودة مسبقًا أو تحتوي على بيانات غير صالحة.",
+    "admin.clients.import.failedCount":
+      "فشل استيراد {count} جهة اتصال. قد تكون موجودة مسبقًا أو تحتوي على بيانات غير صالحة.",
     "admin.clients.import.csvFormatTitle": "متطلبات تنسيق CSV",
     "admin.clients.import.csvHeader": "name,email,phone,company",
-    "admin.clients.import.csvHeaderDisplay": "الاسم,البريد الإلكتروني,الهاتف,الشركة",
-    "admin.clients.import.csvHeaderNote": "ملاحظة: يجب أن يستخدم ملف CSV رؤوس إنجليزية: name,email,phone,company",
+    "admin.clients.import.csvHeaderDisplay":
+      "الاسم,البريد الإلكتروني,الهاتف,الشركة",
+    "admin.clients.import.csvHeaderNote":
+      "ملاحظة: يجب أن يستخدم ملف CSV رؤوس إنجليزية: name,email,phone,company",
     "admin.clients.import.csvExample": "{name},{email},{phone},{company}",
     "admin.clients.import.csvExampleName": "أحمد محمد",
     "admin.clients.import.csvExampleEmail": "john@example.com",
@@ -2982,35 +3532,42 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.import.csvExampleCompany": "شركة ABC",
     "admin.clients.import.requiredColumns": "الأعمدة المطلوبة:",
     "admin.clients.import.requiredColsList": "name, email, company",
-    "admin.clients.import.requiredColsListDisplay": "الاسم, البريد الإلكتروني, الشركة",
+    "admin.clients.import.requiredColsListDisplay":
+      "الاسم, البريد الإلكتروني, الشركة",
     "admin.clients.import.optionalColumns": "الأعمدة الاختيارية:",
     "admin.clients.import.optionalColsList": "phone",
     "admin.clients.import.optionalColsListDisplay": "الهاتف",
-    "admin.clients.import.noFileChosen": "لم يتم اختيار ملف. انقر لاختيار ملف CSV.",
+    "admin.clients.import.noFileChosen":
+      "لم يتم اختيار ملف. انقر لاختيار ملف CSV.",
     "admin.clients.import.defaultPassword": "كلمة المرور الافتراضية:",
-    "admin.clients.import.defaultPasswordNote": "client123 (يجب على العملاء تغييرها عند أول تسجيل دخول)",
+    "admin.clients.import.defaultPasswordNote":
+      "client123 (يجب على العملاء تغييرها عند أول تسجيل دخول)",
     "admin.clients.import.duplicatesNote": "التكرارات:",
-    "admin.clients.import.duplicatesDesc": "سيتم تخطي جهات الاتصال ذات البريد الإلكتروني الموجود مسبقًا",
+    "admin.clients.import.duplicatesDesc":
+      "سيتم تخطي جهات الاتصال ذات البريد الإلكتروني الموجود مسبقًا",
     "admin.clients.import.csvParseError": "خطأ في قراءة CSV",
     "admin.clients.import.importCompleted": "اكتمل الاستيراد",
-    "admin.clients.import.importSuccessToast": "تم استيراد {imported} عميل بنجاح. {failed} أخطاء.",
+    "admin.clients.import.importSuccessToast":
+      "تم استيراد {imported} عميل بنجاح. {failed} أخطاء.",
     "admin.clients.import.importFailed": "فشل الاستيراد",
     "admin.clients.import.importFailedDesc": "حدث خطأ أثناء الاستيراد.",
     "admin.clients.import.nameRequired": "الاسم مطلوب",
     "admin.clients.import.emailRequired": "البريد الإلكتروني مطلوب",
     "admin.clients.import.companyRequired": "الشركة مطلوبة",
-    "admin.clients.import.invalidEmailFormat": "صيغة البريد الإلكتروني غير صالحة",
+    "admin.clients.import.invalidEmailFormat":
+      "صيغة البريد الإلكتروني غير صالحة",
     "admin.clients.import.invalidPhoneFormat": "صيغة الهاتف غير صالحة",
     "admin.clients.import.failedToCreate": "فشل الإنشاء",
     "admin.clients.groups.title": "المجموعة",
-    
+
     // Admin Client Groups
     "admin.groups.title": "مجموعات العملاء",
     "admin.groups.description": "تنظيم العملاء في مجموعات لإدارة أفضل",
     "admin.groups.createGroup": "إنشاء مجموعة",
     "admin.groups.totalGroups": "إجمالي المجموعات",
     "admin.groups.groupNamePlaceholder": "عملاء VIP",
-    "admin.groups.descriptionPlaceholder": "عملاء ذوو أولوية عالية مع خدمات مميزة",
+    "admin.groups.descriptionPlaceholder":
+      "عملاء ذوو أولوية عالية مع خدمات مميزة",
     "admin.groups.groupName": "اسم المجموعة",
     "admin.groups.groupColor": "لون المجموعة",
     "admin.groups.clients": "عملاء",
@@ -3021,13 +3578,14 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.groups.editGroup": "تعديل مجموعة العملاء",
     "admin.groups.updateGroup": "تحديث معلومات المجموعة",
     "admin.groups.cannotDelete": "لا يمكن الحذف",
-    "admin.groups.hasClients": "تحتوي هذه المجموعة على {count} عميل. يرجى إعادة تعيين أو إزالة العملاء أولاً.",
-    "admin.groups.deleteConfirm": "هل أنت متأكد أنك تريد حذف \"{name}\"؟",
+    "admin.groups.hasClients":
+      "تحتوي هذه المجموعة على {count} عميل. يرجى إعادة تعيين أو إزالة العملاء أولاً.",
+    "admin.groups.deleteConfirm": 'هل أنت متأكد أنك تريد حذف "{name}"؟',
     "admin.groups.created": "تم إنشاء مجموعة العملاء بنجاح",
     "admin.groups.updated": "تم تحديث مجموعة العملاء بنجاح",
     "admin.groups.deleted": "تم حذف مجموعة العملاء بنجاح",
     "admin.groups.failed": "فشل {action} المجموعة",
-    
+
     // Admin Leads
     "admin.leads.title": "إدارة العملاء المحتملين",
     "admin.leads.description": "إدارة وتتبع عملائك المحتملين",
@@ -3050,11 +3608,16 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.import.instructions": "تعليمات الاستيراد",
     "admin.leads.import.requiredFields": "الحقول المطلوبة",
     "admin.leads.import.optionalFields": "الحقول الاختيارية",
-    "admin.leads.import.requiredList": "fullName (أو Full Name)، email (أو Email)",
-    "admin.leads.import.requiredListDisplay": "الاسم الكامل (fullName), البريد الإلكتروني (email)",
-    "admin.leads.import.optionalList": "phone, companyName, companyType, natureOfBusiness, designation, country (اسم صحيح), city, howDidYouHear, businessTypes, source, notes",
-    "admin.leads.import.optionalListDisplay": "الهاتف (phone), اسم الشركة (companyName), نوع الشركة (companyType), طبيعة العمل (natureOfBusiness), المنصب (designation), الدولة (country), المدينة (city), كيف سمعت عنا (howDidYouHear), أنواع الأعمال (businessTypes), المصدر (source), الملاحظات (notes)",
-    "admin.leads.import.columnNamesNote": "ملاحظة: يجب أن تكون أسماء الأعمدة في ملف CSV بالإنجليزية (مثل: fullName, email) لضمان التوافق مع قاعدة البيانات.",
+    "admin.leads.import.requiredList":
+      "fullName (أو Full Name)، email (أو Email)",
+    "admin.leads.import.requiredListDisplay":
+      "الاسم الكامل (fullName), البريد الإلكتروني (email)",
+    "admin.leads.import.optionalList":
+      "phone, companyName, companyType, natureOfBusiness, designation, country (اسم صحيح), city, howDidYouHear, businessTypes, source, notes",
+    "admin.leads.import.optionalListDisplay":
+      "الهاتف (phone), اسم الشركة (companyName), نوع الشركة (companyType), طبيعة العمل (natureOfBusiness), المنصب (designation), الدولة (country), المدينة (city), كيف سمعت عنا (howDidYouHear), أنواع الأعمال (businessTypes), المصدر (source), الملاحظات (notes)",
+    "admin.leads.import.columnNamesNote":
+      "ملاحظة: يجب أن تكون أسماء الأعمدة في ملف CSV بالإنجليزية (مثل: fullName, email) لضمان التوافق مع قاعدة البيانات.",
     "admin.leads.import.downloadTemplate": "تحميل القالب",
     "admin.leads.import.uploadCsv": "رفع ملف CSV",
     "admin.leads.import.selectCsv": "اختر ملف CSV",
@@ -3091,25 +3654,30 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.import.moreErrors": "و {count} أخطاء أخرى",
     "admin.leads.import.importMore": "استيراد المزيد",
     "admin.leads.import.viewAllLeads": "عرض جميع العملاء المحتملين",
-    "admin.leads.import.invalidCountryTooltip": "دولة غير صالحة: {country}. يرجى التحديث إلى اسم دولة صحيح.",
+    "admin.leads.import.invalidCountryTooltip":
+      "دولة غير صالحة: {country}. يرجى التحديث إلى اسم دولة صحيح.",
     "admin.leads.import.invalidFileType": "نوع ملف غير صالح",
     "admin.leads.import.selectCsvFile": "يرجى اختيار ملف CSV.",
     "admin.leads.import.countryWarning": "تحذير التحقق من الدولة",
-    "admin.leads.import.invalidCountryCount": "تم العثور على {count} اسم دولة غير صالح. يرجى مراجعة جدول المعاينة.",
+    "admin.leads.import.invalidCountryCount":
+      "تم العثور على {count} اسم دولة غير صالح. يرجى مراجعة جدول المعاينة.",
     "admin.leads.import.csvParseError": "خطأ في قراءة CSV",
     "admin.leads.import.importCompleted": "اكتمل الاستيراد",
-    "admin.leads.import.importSuccessToast": "تم استيراد {success} عميل محتمل بنجاح. {errors} أخطاء، {duplicates} مكرّر.",
+    "admin.leads.import.importSuccessToast":
+      "تم استيراد {success} عميل محتمل بنجاح. {errors} أخطاء، {duplicates} مكرّر.",
     "admin.leads.import.importFailed": "فشل الاستيراد",
     "admin.leads.import.importFailedDesc": "حدث خطأ أثناء الاستيراد.",
     "admin.leads.import.fullNameRequired": "الاسم الكامل مطلوب",
     "admin.leads.import.emailRequired": "البريد الإلكتروني مطلوب",
     "admin.leads.import.invalidEmailFormat": "صيغة البريد الإلكتروني غير صالحة",
     "admin.leads.import.invalidPhoneFormat": "صيغة الهاتف غير صالحة",
-    "admin.leads.import.rowEmailExists": "صف {row}: البريد الإلكتروني موجود مسبقًا",
+    "admin.leads.import.rowEmailExists":
+      "صف {row}: البريد الإلكتروني موجود مسبقًا",
     "admin.leads.import.rowServerError": "صف {row}: خطأ في الخادم",
     "admin.leads.import.rowNetworkError": "صف {row}: خطأ في الشبكة",
     "admin.leads.import.rowValidation": "صف {row}: {details}",
-    "admin.leads.searchPlaceholder": "ابحث عن العملاء المحتملين بالاسم أو البريد الإلكتروني أو الشركة... (الحد الأدنى 3 أحرف)",
+    "admin.leads.searchPlaceholder":
+      "ابحث عن العملاء المحتملين بالاسم أو البريد الإلكتروني أو الشركة... (الحد الأدنى 3 أحرف)",
     "admin.leads.filterByStatus": "تصفية حسب الحالة",
     "admin.leads.allStatuses": "جميع الحالات",
     "admin.leads.showActiveLeads": "عرض العملاء المحتملين النشطين",
@@ -3119,7 +3687,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.loadingLeads": "جاري تحميل العملاء المحتملين...",
     "admin.leads.errorLoading": "خطأ في تحميل العملاء المحتملين",
     "admin.leads.noLeadsFound": "لم يتم العثور على عملاء محتملين يطابقون بحثك.",
-    "admin.leads.noLeadsCreateFirst": "لم يتم العثور على عملاء محتملين. أنشئ عميلك المحتمل الأول للبدء.",
+    "admin.leads.noLeadsCreateFirst":
+      "لم يتم العثور على عملاء محتملين. أنشئ عميلك المحتمل الأول للبدء.",
     "admin.leads.table.id": "المعرف",
     "admin.leads.table.name": "الاسم",
     "admin.leads.table.company": "الشركة",
@@ -3175,7 +3744,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.unassigned": "غير معين",
     "admin.leads.notes": "ملاحظات",
     "admin.leads.additionalNotes": "ملاحظات إضافية حول هذا العميل المحتمل...",
-    "admin.leads.convertDescription": "تحويل هذا العميل المحتمل إلى عميل سينشئ حساب مستخدم بكلمة المرور الم provided.",
+    "admin.leads.convertDescription":
+      "تحويل هذا العميل المحتمل إلى عميل سينشئ حساب مستخدم بكلمة المرور الم provided.",
     "admin.leads.password": "كلمة المرور",
     "admin.leads.confirmPassword": "تأكيد كلمة المرور",
     "admin.leads.enterPassword": "أدخل كلمة المرور",
@@ -3236,9 +3806,11 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.scheduling": "جاري الجدولة...",
     "admin.leads.followUpScheduled": "تم جدولة المتابعة بنجاح",
     "admin.leads.failedToSchedule": "فشل جدولة المتابعة",
-    "admin.leads.titleAndDateTimeRequired": "يرجى إدخال العنوان واختيار التاريخ والوقت.",
+    "admin.leads.titleAndDateTimeRequired":
+      "يرجى إدخال العنوان واختيار التاريخ والوقت.",
     "admin.leads.setTime": "تعيين الوقت",
-    "admin.leads.selectDateAndTimeForCalendar": "يرجى اختيار التاريخ والوقت لإضافة إلى التقويم.",
+    "admin.leads.selectDateAndTimeForCalendar":
+      "يرجى اختيار التاريخ والوقت لإضافة إلى التقويم.",
     "admin.leads.documentName": "اسم المستند",
     "admin.leads.documentDescription": "الوصف",
     "admin.leads.selectFile": "اختر ملفًا",
@@ -3253,7 +3825,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.loadingDocument": "جاري تحميل معاينة المستند...",
     "admin.leads.documentPreview": "معاينة المستند",
     "admin.leads.close": "إغلاق",
-    
+
     // Admin Applications
     "admin.applications.title": "الطلبات",
     "admin.applications.subtitle": "طلبات المعالج للعملاء — المسودات قيد التقدم والنماذج المقدمة بانتظار المراجعة.",
@@ -3314,7 +3886,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.applications.status.completed": "مكتمل",
     "admin.applications.badge.review": "مراجعة",
     "admin.applications.badge.pending": "معلق",
-    
+
     // Admin Documents
     "admin.documents.title": "المستندات",
     "admin.documents.description": "إدارة جميع المستندات",
@@ -3328,7 +3900,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.documents.noDocuments": "لم يتم العثور على مستندات",
     "admin.documents.document": "المستند",
     "admin.documents.reviewFailed": "فشل مراجعة المستند",
-    "admin.documents.underConstruction": "إدارة المستندات للمسؤولين قيد الإنشاء.",
+    "admin.documents.underConstruction":
+      "إدارة المستندات للمسؤولين قيد الإنشاء.",
     "admin.documents.totalDocuments": "إجمالي المستندات",
     "admin.documents.pendingReview": "قيد المراجعة",
     "admin.documents.filterByStatus": "تصفية حسب الحالة",
@@ -3345,7 +3918,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.documents.markUnderReview": "وضع علامة قيد المراجعة",
     "admin.documents.approve": "الموافقة",
     "admin.documents.reject": "الرفض",
-    
+
     // Admin Financial
     "admin.financial.revenue": "نظرة عامة على الإيرادات",
     "admin.financial.invoices": "الفواتير",
@@ -3361,7 +3934,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.financial.paymentMethod": "طريقة الدفع",
     "admin.financial.category": "الفئة",
     "admin.financial.invoicesDescription": "إدارة فواتير العملاء",
-    "admin.financial.invoicesUnderConstruction": "إدارة الفواتير قيد الإنشاء وستكون متاحة قريباً.",
+    "admin.financial.invoicesUnderConstruction":
+      "إدارة الفواتير قيد الإنشاء وستكون متاحة قريباً.",
     "admin.financial.totalInvoices": "إجمالي الفواتير",
     "admin.financial.paid": "مدفوع",
     "admin.financial.totalRevenue": "إجمالي الإيرادات",
@@ -3414,7 +3988,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.financial.loadingExpenses": "جاري تحميل المصروفات...",
     "admin.financial.noExpenses": "لم يتم تسجيل أي مصروفات",
     "admin.financial.revenueDescription": "تتبع الإيرادات والدخل",
-    "admin.financial.revenueUnderConstruction": "هذه الصفحة قيد الإنشاء وستكون متاحة قريباً.",
+    "admin.financial.revenueUnderConstruction":
+      "هذه الصفحة قيد الإنشاء وستكون متاحة قريباً.",
     "admin.financial.pendingRevenue": "الإيرادات المعلقة",
     "admin.financial.netProfit": "صافي الربح",
     "admin.financial.revenueMinusExpenses": "الإيرادات - المصروفات",
@@ -3437,7 +4012,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.financial.marketing": "تسويق",
     "admin.financial.legal": "قانوني",
     "admin.financial.other": "أخرى",
-    
+
     // Admin Team
     "admin.team.title": "إدارة الفريق",
     "admin.team.description": "عرض وإدارة أعضاء الفريق",
@@ -3447,9 +4022,11 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.team.roleReports": "التقارير",
     "admin.team.roleSupport": "الدعم",
     "admin.roles.descriptionAdmin": "مستخدم فائق. الوصول إلى كل صفحة وكل خيار.",
-    "admin.roles.descriptionClients": "إدارة العملاء فقط. العملاء المحتملون، العملاء، الطلبات، المستندات.",
+    "admin.roles.descriptionClients":
+      "إدارة العملاء فقط. العملاء المحتملون، العملاء، الطلبات، المستندات.",
     "admin.roles.descriptionReports": "قسم التقارير فقط.",
-    "admin.roles.descriptionSupport": "الرسائل والخيارات الفرعية فقط. صندوق الوارد، رسائل الدعم، القوالب.",
+    "admin.roles.descriptionSupport":
+      "الرسائل والخيارات الفرعية فقط. صندوق الوارد، رسائل الدعم، القوالب.",
     "admin.permissions.action.view": "عرض",
     "admin.permissions.action.create": "إنشاء",
     "admin.permissions.action.update": "تحديث",
@@ -3479,7 +4056,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.permissions.module.expenses": "المصروفات",
     "admin.permissions.module.analytics": "التحليلات",
     "admin.permissions.module.dashboardDesc": "نظرة عامة والتحليلات",
-    "admin.permissions.module.clientsDesc": "إدارة معلومات العملاء والملفات الشخصية",
+    "admin.permissions.module.clientsDesc":
+      "إدارة معلومات العملاء والملفات الشخصية",
     "admin.permissions.module.leadsDesc": "تتبع وإدارة العملاء المحتملين",
     "admin.permissions.module.applicationsDesc": "إدارة طلبات العملاء",
     "admin.permissions.module.documentsDesc": "إدارة المستندات والموافقة",
@@ -3489,7 +4067,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.permissions.module.reportsDesc": "إنشاء وعرض التقارير",
     "admin.permissions.module.settingsDesc": "تكوين النظام والإعدادات",
     "admin.permissions.module.helpDesc": "وثائق المساعدة والدعم",
-    "admin.permissions.module.userManagementDesc": "إدارة حسابات المستخدمين والوصول",
+    "admin.permissions.module.userManagementDesc":
+      "إدارة حسابات المستخدمين والوصول",
     "admin.permissions.module.roleManagementDesc": "إدارة الأدوار والصلاحيات",
     "admin.permissions.module.supportDesc": "دعم العملاء وإدارة التذاكر",
     "admin.permissions.module.tasksDesc": "إدارة المهام والتعيين",
@@ -3512,7 +4091,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.team.status": "الحالة",
     "admin.team.lastActive": "آخر نشاط",
     "admin.team.noMembers": "لم يتم العثور على أعضاء فريق",
-    
+
     // Admin Messages
     "admin.messages.inbox": "صندوق الوارد",
     "admin.messages.sent": "المرسل",
@@ -3529,11 +4108,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.messages.connected": "متصل",
     "admin.messages.connecting": "جاري الاتصال...",
     "admin.messages.refreshing": "جاري التحديث...",
-    "admin.messages.searchApplications": "بحث عن الطلبات... (الحد الأدنى 3 أحرف)",
+    "admin.messages.searchApplications":
+      "بحث عن الطلبات... (الحد الأدنى 3 أحرف)",
     "admin.messages.errorLoading": "خطأ في تحميل الطلبات",
     "admin.messages.noMatching": "لا توجد طلبات مطابقة",
     "admin.messages.noApplicationsYet": "لا توجد طلبات بعد",
-    "admin.messages.applicationsWillAppear": "ستظهر الطلبات هنا عندما يقدمها العملاء",
+    "admin.messages.applicationsWillAppear":
+      "ستظهر الطلبات هنا عندما يقدمها العملاء",
     "admin.messages.selectApplication": "اختر طلبًا",
     "admin.messages.selectToView": "اختر طلبًا لعرض الرسائل",
     "admin.messages.loadFailed": "فشل تحميل الرسائل",
@@ -3550,7 +4131,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.notifications.markAllReadShort": "تحديد الكل كمقروء",
     "admin.notifications.markAsRead": "تحديد كمقروء",
     "admin.notifications.removeAll": "إزالة الكل",
-    "admin.notifications.removeAllConfirm": "هل أنت متأكد من إزالة جميع الإشعارات؟ لا يمكن التراجع عن ذلك.",
+    "admin.notifications.removeAllConfirm":
+      "هل أنت متأكد من إزالة جميع الإشعارات؟ لا يمكن التراجع عن ذلك.",
     "admin.notifications.remove": "إزالة",
     "admin.notifications.pin": "تثبيت",
     "admin.notifications.unpin": "إلغاء التثبيت",
@@ -3562,18 +4144,24 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.notifications.filterUnread": "غير مقروء",
     "admin.notifications.filterPinned": "مثبت",
     "admin.notifications.pushTitle": "إشعارات المتصفح",
-    "admin.notifications.pushDescription": "فعّل إشعارات المتصفح لتلقي التنبيهات حتى عندما يكون التطبيق في الخلفية.",
+    "admin.notifications.pushDescription":
+      "فعّل إشعارات المتصفح لتلقي التنبيهات حتى عندما يكون التطبيق في الخلفية.",
     "admin.notifications.sendTestPush": "إرسال إشعار تجريبي",
     "admin.notifications.viewAll": "عرض كل الإشعارات",
-    "admin.notifications.testSentHint": "تم إرسال الإشعار التجريبي. تحقق من لوحة الإشعارات.",
-    "admin.notifications.enablePushHint": "فعّل إشعارات المتصفح أولاً من صفحة الإشعارات",
+    "admin.notifications.testSentHint":
+      "تم إرسال الإشعار التجريبي. تحقق من لوحة الإشعارات.",
+    "admin.notifications.enablePushHint":
+      "فعّل إشعارات المتصفح أولاً من صفحة الإشعارات",
     "admin.notifications.testFailed": "فشل الإرسال",
     "admin.notifications.settings.title": "إعدادات الإشعارات",
-    "admin.notifications.settings.description": "اختر الأحداث التي تريد استقبال إشعارات عنها.",
+    "admin.notifications.settings.description":
+      "اختر الأحداث التي تريد استقبال إشعارات عنها.",
     "admin.notifications.settings.eventsByType": "أخبرني بهذه الأحداث",
-    "admin.notifications.settings.eventsByTypeDesc": "إذا أوقفت حدثاً، لن تستلم إشعارات (داخل التطبيق أو المتصفح) عنه.",
+    "admin.notifications.settings.eventsByTypeDesc":
+      "إذا أوقفت حدثاً، لن تستلم إشعارات (داخل التطبيق أو المتصفح) عنه.",
     "admin.notifications.settings.remindBefore": "تذكيري قبل المتابعة",
-    "admin.notifications.settings.remindBeforeDesc": "إرسال تذكير قبل وقت المتابعة المجدول بهذا المقدار.",
+    "admin.notifications.settings.remindBeforeDesc":
+      "إرسال تذكير قبل وقت المتابعة المجدول بهذا المقدار.",
     "admin.notifications.settings.hours": "ساعات",
     "admin.notifications.settings.minutes": "دقائق",
     "admin.notifications.settings.beforeFollowUp": "قبل وقت المتابعة",
@@ -3583,15 +4171,20 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.notifications.settings.saved": "تم حفظ تفضيلات الإشعارات.",
     "admin.notifications.settings.saveFailed": "فشل حفظ التفضيلات.",
     "admin.notifications.events.leadCreation": "إنشاء عميل محتمل",
-    "admin.notifications.events.leadCreationDesc": "عند إنشاء عميل محتمل جديد وتعيينه لك",
+    "admin.notifications.events.leadCreationDesc":
+      "عند إنشاء عميل محتمل جديد وتعيينه لك",
     "admin.notifications.events.followUpCreation": "إنشاء متابعة",
     "admin.notifications.events.followUpCreationDesc": "عند جدولة متابعة",
-    "admin.notifications.events.leadFollowUp": "متابعة العملاء المحتملين والتذكيرات",
-    "admin.notifications.events.leadFollowUpDesc": "عند جدولة متابعة أو اقتراب موعد تذكير",
+    "admin.notifications.events.leadFollowUp":
+      "متابعة العملاء المحتملين والتذكيرات",
+    "admin.notifications.events.leadFollowUpDesc":
+      "عند جدولة متابعة أو اقتراب موعد تذكير",
     "admin.notifications.events.reminder": "تذكير",
-    "admin.notifications.events.reminderDesc": "إرسال تذكير قبل وقت المتابعة المجدول",
+    "admin.notifications.events.reminderDesc":
+      "إرسال تذكير قبل وقت المتابعة المجدول",
     "admin.notifications.events.clientConversion": "تحويل إلى عميل",
-    "admin.notifications.events.clientConversionDesc": "عند تحويل عميل محتمل إلى عميل",
+    "admin.notifications.events.clientConversionDesc":
+      "عند تحويل عميل محتمل إلى عميل",
     "admin.applications.pendingDescription": "الطلبات في انتظار المراجعة",
     "admin.applications.noPending": "لا توجد طلبات معلقة",
     "admin.applications.startDate": "تاريخ البدء",
@@ -3600,24 +4193,29 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.applications.noCompleted": "لا توجد طلبات مكتملة",
     "admin.applications.completedDate": "تاريخ الإكمال",
     "admin.applications.rejectedDescription": "الطلبات التي تم رفضها",
-    "admin.applications.noRejected": "لا توجد طلبات مرفوضة. يمكن تنفيذ سير عمل الرفض حسب الحاجة.",
+    "admin.applications.noRejected":
+      "لا توجد طلبات مرفوضة. يمكن تنفيذ سير عمل الرفض حسب الحاجة.",
     "admin.documents.uploadDocuments": "رفع المستندات",
     "admin.documents.uploadDescription": "رفع مستندات جديدة للطلبات",
-    "admin.documents.uploadUnderConstruction": "هذه الميزة قيد الإنشاء وستكون متاحة قريباً.",
+    "admin.documents.uploadUnderConstruction":
+      "هذه الميزة قيد الإنشاء وستكون متاحة قريباً.",
     "admin.documents.selectApplication": "اختر الطلب",
     "admin.documents.selectApplicationPlaceholder": "اختر طلباً...",
     "admin.documents.selectFile": "اختر الملف",
-    "admin.documents.supportedFormats": "الصيغ المدعومة: PDF، Word، الصور. الحد الأقصى للحجم: 10 ميجابايت",
+    "admin.documents.supportedFormats":
+      "الصيغ المدعومة: PDF، Word، الصور. الحد الأقصى للحجم: 10 ميجابايت",
     "admin.documents.uploading": "جاري الرفع...",
     "admin.documents.selectApplicationAndFile": "يرجى اختيار طلب وملف",
     "admin.documents.uploadSuccess": "تم رفع المستند بنجاح",
     "admin.documents.uploadFailed": "فشل رفع المستند",
     "admin.documents.archived": "المستندات المؤرشفة",
     "admin.documents.archivedDescription": "عرض المستندات المؤرشفة",
-    "admin.documents.archivedUnderConstruction": "تصفح الأرشيف سيكون متاحاً قريباً.",
+    "admin.documents.archivedUnderConstruction":
+      "تصفح الأرشيف سيكون متاحاً قريباً.",
     "admin.documents.templates": "قوالب المستندات",
     "admin.documents.templatesDescription": "إدارة قوالب المستندات",
-    "admin.documents.templatesUnderConstruction": "أدوات إدارة القوالب قيد التطوير.",
+    "admin.documents.templatesUnderConstruction":
+      "أدوات إدارة القوالب قيد التطوير.",
     "admin.roles.title": "إدارة الأدوار",
     "admin.roles.description": "إدارة أدوار المستخدمين والصلاحيات",
     "admin.roles.allRoles": "جميع الأدوار",
@@ -3639,7 +4237,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.roles.updateRole": "تحديث الدور",
     "admin.roles.manageForStaff": "إدارة الأدوار لأعضاء الفريق",
     "admin.roles.createAndManage": "إنشاء وإدارة الأدوار المخصصة",
-    "admin.roles.createNewRoleDesc": "إنشاء دور جديد مع صلاحيات محددة لأعضاء الفريق.",
+    "admin.roles.createNewRoleDesc":
+      "إنشاء دور جديد مع صلاحيات محددة لأعضاء الفريق.",
     "admin.roles.roleNamePlaceholder": "مثل: مدير أول",
     "admin.roles.descriptionPlaceholder": "وصف موجز للدور",
     "admin.roles.selectAll": "تحديد الكل",
@@ -3663,11 +4262,13 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.roles.removeUserFromRole": "إزالة المستخدم من الدور",
     "admin.roles.removeUserConfirm": "هل أنت متأكد من إزالة",
     "admin.roles.fromRole": "من الدور",
-    "admin.roles.revokePermissions": "سيؤدي هذا إلى إلغاء جميع الصلاحيات المخصصة المخصصة لهذا المستخدم.",
+    "admin.roles.revokePermissions":
+      "سيؤدي هذا إلى إلغاء جميع الصلاحيات المخصصة المخصصة لهذا المستخدم.",
     "admin.roles.removing": "جاري الإزالة...",
     "admin.roles.removeUser": "إزالة المستخدم",
     "admin.roles.noUsersAssigned": "لا يوجد مستخدمون معينون لهذا الدور",
-    "admin.roles.assignFromTeamPage": "يمكن تعيين المستخدمين لهذا الدور من صفحة إدارة الفريق",
+    "admin.roles.assignFromTeamPage":
+      "يمكن تعيين المستخدمين لهذا الدور من صفحة إدارة الفريق",
     "admin.messages.sentDescription": "عرض الرسائل التي أرسلتها",
     "admin.messages.yourSentMessages": "رسائلك المرسلة",
     "admin.messages.loadingMessages": "جاري تحميل الرسائل...",
@@ -3679,7 +4280,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.messages.lastSynced": "آخر مزامنة",
     "admin.messages.conversations": "المحادثات",
     "admin.messages.conversation": "محادثة",
-    "admin.messages.searchConversations": "بحث في المحادثات... (الحد الأدنى 3 أحرف)",
+    "admin.messages.searchConversations":
+      "بحث في المحادثات... (الحد الأدنى 3 أحرف)",
     "admin.messages.noMatchingConversations": "لا توجد محادثات مطابقة",
     "admin.messages.noConversationsYet": "لا توجد محادثات بعد",
     "admin.messages.visitorsWillAppear": "سيظهر الزوار هنا عندما يبدأون محادثة",
@@ -3692,20 +4294,26 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.messages.offlineCheck": "⚫ غير متصل - تحقق من الاتصال",
     "admin.messages.pressEnterToSend": "اضغط Enter للإرسال",
     "admin.messages.templates.title": "قوالب الرسائل",
-    "admin.messages.templates.description": "قوالب رسائل محددة مسبقاً للتواصل السريع",
+    "admin.messages.templates.description":
+      "قوالب رسائل محددة مسبقاً للتواصل السريع",
     "admin.messages.templates.createTemplate": "إنشاء قالب",
     "admin.messages.templates.useTemplate": "استخدام القالب",
     "admin.messages.templates.welcome": "رسالة ترحيب",
-    "admin.messages.templates.welcomeContent": "مرحباً بك في تبدل الكون! لقد بدأنا معالجة قضيتك. سيبقيك فريقنا على اطلاع بالتقدم.",
+    "admin.messages.templates.welcomeContent":
+      "مرحباً بك في تبدل الكون! لقد بدأنا معالجة قضيتك. سيبقيك فريقنا على اطلاع بالتقدم.",
     "admin.messages.templates.documentRequest": "طلب مستند",
-    "admin.messages.templates.documentRequestContent": "نحتاج إلى مستندات إضافية للمضي قدماً في قضيتك. يرجى تحميل المستندات المطلوبة في أقرب وقت ممكن.",
+    "admin.messages.templates.documentRequestContent":
+      "نحتاج إلى مستندات إضافية للمضي قدماً في قضيتك. يرجى تحميل المستندات المطلوبة في أقرب وقت ممكن.",
     "admin.messages.templates.statusUpdate": "تحديث الحالة",
-    "admin.messages.templates.statusUpdateContent": "تم تحديث حالة قضيتك. يرجى التحقق من لوحة التحكم للحصول على أحدث المعلومات.",
+    "admin.messages.templates.statusUpdateContent":
+      "تم تحديث حالة قضيتك. يرجى التحقق من لوحة التحكم للحصول على أحدث المعلومات.",
     "admin.messages.templates.approvalNotification": "إشعار الموافقة",
-    "admin.messages.templates.approvalNotificationContent": "تهانينا! تم اعتماد طلبك. سنتابع الخطوات التالية قريباً.",
+    "admin.messages.templates.approvalNotificationContent":
+      "تهانينا! تم اعتماد طلبك. سنتابع الخطوات التالية قريباً.",
     "admin.team.performance": "أداء الفريق",
     "admin.team.performanceDescription": "عرض مقاييس أداء الفريق",
-    "admin.team.performanceUnderConstruction": "تحليلات أداء الفريق قيد الإنشاء.",
+    "admin.team.performanceUnderConstruction":
+      "تحليلات أداء الفريق قيد الإنشاء.",
     "admin.team.noDataAvailable": "لا توجد بيانات متاحة",
     "admin.team.applicationsManaged": "الطلبات المُدارة",
     "admin.team.completionRate": "معدل الإكمال",
@@ -3716,7 +4324,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.createNewClientAccount": "إنشاء حساب عميل جديد",
     "admin.clients.backToClients": "العودة إلى العملاء",
     "admin.clients.clientInformation": "معلومات العميل",
-    "admin.clients.enterClientDetails": "أدخل تفاصيل العميل الجديد. سيتم إنشاء حساب تلقائياً.",
+    "admin.clients.enterClientDetails":
+      "أدخل تفاصيل العميل الجديد. سيتم إنشاء حساب تلقائياً.",
     "admin.clients.designationPlaceholder": "المسمى الوظيفي/المنصب",
     "admin.clients.natureOfBusinessPlaceholder": "وصف أنشطة عملك",
     "admin.clients.cityPlaceholder": "مدينتك",
@@ -3726,12 +4335,15 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.clients.categoriesDescription": "إدارة تصنيف العملاء",
     "admin.clients.categoriesUnderConstruction": "إدارة الفئات قيد التطوير.",
     "admin.leads.statuses.title": "حالات العملاء المحتملين",
-    "admin.leads.statuses.description": "تكوين حالات العملاء المحتملين والألوان لخط الأنابيب الخاص بك",
-    "admin.leads.statuses.usedForLeads": "تُستخدم هذه الحالات لجميع العملاء المحتملين والتحليلات.",
+    "admin.leads.statuses.description":
+      "تكوين حالات العملاء المحتملين والألوان لخط الأنابيب الخاص بك",
+    "admin.leads.statuses.usedForLeads":
+      "تُستخدم هذه الحالات لجميع العملاء المحتملين والتحليلات.",
     "admin.leads.statuses.addStatus": "إضافة حالة",
     "admin.leads.statuses.totalStatuses": "إجمالي الحالات",
     "admin.leads.statuses.loading": "جاري تحميل الحالات...",
-    "admin.leads.statuses.noStatuses": "لم يتم تعريف حالات العملاء المحتملين بعد. انقر على \"إضافة حالة\" لإنشاء واحدة.",
+    "admin.leads.statuses.noStatuses":
+      'لم يتم تعريف حالات العملاء المحتملين بعد. انقر على "إضافة حالة" لإنشاء واحدة.',
     "admin.leads.statuses.system": "النظام",
     "admin.leads.statuses.systemGenerated": "منشأ بواسطة النظام",
     "admin.leads.statuses.editStatus": "تعديل حالة العميل المحتمل",
@@ -3739,10 +4351,12 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.statuses.color": "اللون",
     "admin.leads.statuses.deleteStatus": "حذف حالة العميل المحتمل",
     "admin.leads.statuses.deleteConfirm": "هل أنت متأكد من حذف الحالة",
-    "admin.leads.statuses.deleteNote": "إذا كانت هذه الحالة مستخدمة من قبل عملاء محتملين موجودين، فستحتاج إلى اختيار حالة أخرى لنقلهم إليها.",
+    "admin.leads.statuses.deleteNote":
+      "إذا كانت هذه الحالة مستخدمة من قبل عملاء محتملين موجودين، فستحتاج إلى اختيار حالة أخرى لنقلهم إليها.",
     "admin.leads.statuses.reassignLeads": "إعادة تعيين العملاء المحتملين إلى",
     "admin.leads.statuses.selectTargetStatus": "اختر الحالة المستهدفة",
-    "admin.leads.statuses.reassignNote": "جميع العملاء المحتملين الذين يستخدمون حالياً",
+    "admin.leads.statuses.reassignNote":
+      "جميع العملاء المحتملين الذين يستخدمون حالياً",
     "admin.leads.statuses.willBeUpdated": "سيتم تحديثهم إلى هذه الحالة.",
     "admin.leads.statuses.fetchFailed": "فشل جلب حالات العملاء المحتملين",
     "admin.leads.statuses.nameRequired": "اسم الحالة مطلوب",
@@ -3750,12 +4364,15 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.leads.statuses.statusCreated": "تم إنشاء الحالة",
     "admin.leads.statuses.saveFailed": "فشل حفظ حالة العميل المحتمل",
     "admin.leads.statuses.statusDeleted": "تم حذف الحالة",
-    "admin.leads.statuses.statusUsedByLeads": "هذه الحالة مستخدمة من قبل {count} عميل محتمل. يرجى اختيار حالة لنقلهم إليها.",
+    "admin.leads.statuses.statusUsedByLeads":
+      "هذه الحالة مستخدمة من قبل {count} عميل محتمل. يرجى اختيار حالة لنقلهم إليها.",
     "admin.leads.statuses.deleteFailed": "فشل حذف حالة العميل المحتمل",
     "admin.leads.statuses.createStatus": "إنشاء حالة",
     "admin.documents.leads.title": "مستندات العملاء المحتملين",
-    "admin.documents.leads.description": "جميع المستندات المرفوعة للعملاء المحتملين",
-    "admin.documents.leads.underConstruction": "إدارة مستندات العملاء المحتملين قيد الإنشاء.",
+    "admin.documents.leads.description":
+      "جميع المستندات المرفوعة للعملاء المحتملين",
+    "admin.documents.leads.underConstruction":
+      "إدارة مستندات العملاء المحتملين قيد الإنشاء.",
     "admin.documents.leads.fetchFailed": "فشل جلب مستندات العملاء المحتملين",
     "admin.documents.leads.allDocuments": "جميع مستندات العملاء المحتملين",
     "admin.documents.pdfFiles": "ملفات PDF",
@@ -3774,18 +4391,22 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.settings.email.loadFailed": "فشل تحميل تكوين البريد الإلكتروني",
     "admin.settings.email.saved": "تم حفظ تكوين البريد الإلكتروني بنجاح",
     "admin.settings.email.saveFailed": "فشل حفظ تكوين البريد الإلكتروني",
-    "admin.settings.email.testSent": "تم إرسال بريد إلكتروني تجريبي بنجاح إلى {email}",
-    "admin.settings.email.testSentSuccess": "تم إرسال البريد الإلكتروني التجريبي بنجاح!",
+    "admin.settings.email.testSent":
+      "تم إرسال بريد إلكتروني تجريبي بنجاح إلى {email}",
+    "admin.settings.email.testSentSuccess":
+      "تم إرسال البريد الإلكتروني التجريبي بنجاح!",
     "admin.settings.email.testFailed": "فشل البريد الإلكتروني التجريبي",
     "admin.settings.email.whatsappSaved": "تم حفظ أرقام واتساب الموظفين بنجاح",
     "admin.settings.email.whatsappSaveFailed": "فشل حفظ أرقام هواتف الموظفين",
-    "admin.settings.email.recipientsSaved": "تم حفظ مستلمي استشارة الأعمال بنجاح",
+    "admin.settings.email.recipientsSaved":
+      "تم حفظ مستلمي استشارة الأعمال بنجاح",
     "admin.settings.email.recipientsSaveFailed": "فشل حفظ المستلمين",
     "admin.settings.email.mailDriverHost": "تكوين بريد السائق والمضيف",
     "admin.settings.email.mailDriver": "بريد السائق",
     "admin.settings.email.smtpOnly": "يتم دعم SMTP فقط حالياً",
     "admin.settings.email.tlsServername": "اسم خادم TLS (SNI)",
-    "admin.settings.email.tlsServernameHint": "اسم المضيف على شهادة SMTP (يتم تعيينه عند استخدام IP)",
+    "admin.settings.email.tlsServernameHint":
+      "اسم المضيف على شهادة SMTP (يتم تعيينه عند استخدام IP)",
     "admin.settings.email.host": "المضيف",
     "admin.settings.email.port": "المنفذ",
     "admin.settings.email.username": "اسم المستخدم",
@@ -3799,44 +4420,228 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.settings.email.sendTest": "إرسال بريد إلكتروني تجريبي",
     "admin.settings.email.saveConfiguration": "حفظ التكوين",
     "admin.settings.email.companyContact": "معلومات الاتصال بالشركة",
-    "admin.settings.email.companyContactDesc": "سيتم استخدام هذه المعلومات في رسائل التأكيد والاتصالات الأخرى الموجهة للعملاء",
+    "admin.settings.email.companyContactDesc":
+      "سيتم استخدام هذه المعلومات في رسائل التأكيد والاتصالات الأخرى الموجهة للعملاء",
     "admin.settings.email.contactEmail": "بريد الاتصال",
-    "admin.settings.email.contactEmailHint": "عنوان البريد الإلكتروني المعروض في رسائل التأكيد",
+    "admin.settings.email.contactEmailHint":
+      "عنوان البريد الإلكتروني المعروض في رسائل التأكيد",
     "admin.settings.email.contactPhone": "هاتف الاتصال",
-    "admin.settings.email.contactPhoneHint": "رقم الهاتف المعروض في رسائل التأكيد",
+    "admin.settings.email.contactPhoneHint":
+      "رقم الهاتف المعروض في رسائل التأكيد",
     "admin.settings.email.saveContactInfo": "حفظ معلومات الاتصال",
-    "admin.settings.email.businessRecipients": "مستلمو بريد استمارة استشارة الأعمال",
-    "admin.settings.email.businessRecipientsDesc": "عناوين البريد الإلكتروني التي ستتلقى إشعارات عند تقديم نماذج استشارة الأعمال",
+    "admin.settings.email.businessRecipients":
+      "مستلمو بريد استمارة استشارة الأعمال",
+    "admin.settings.email.businessRecipientsDesc":
+      "عناوين البريد الإلكتروني التي ستتلقى إشعارات عند تقديم نماذج استشارة الأعمال",
     "admin.settings.email.enterEmail": "أدخل عنوان البريد الإلكتروني",
     "admin.settings.email.addRecipient": "إضافة مستلم",
     "admin.settings.email.currentRecipients": "المستلمون الحاليون",
     "admin.settings.email.noRecipients": "لم يتم إضافة مستلمين بعد",
     "admin.settings.email.saveRecipients": "حفظ المستلمين",
     "admin.settings.email.staffWhatsApp": "أرقام إشعارات واتساب الموظفين",
-    "admin.settings.email.staffWhatsAppDesc": "أرقام هواتف واتساب التي ستتلقى إشعارات عند تقديم نماذج استشارة الأعمال (مثل: 923189108310)",
+    "admin.settings.email.staffWhatsAppDesc":
+      "أرقام هواتف واتساب التي ستتلقى إشعارات عند تقديم نماذج استشارة الأعمال (مثل: 923189108310)",
     "admin.settings.email.enterPhone": "أدخل رقم الهاتف (مثل: 923189108310)",
     "admin.settings.email.addPhone": "إضافة رقم",
     "admin.settings.email.currentStaffPhones": "أرقام هواتف الموظفين الحالية",
-    "admin.settings.email.noStaffPhones": "لم يتم إضافة أرقام هواتف الموظفين بعد",
+    "admin.settings.email.noStaffPhones":
+      "لم يتم إضافة أرقام هواتف الموظفين بعد",
     "admin.settings.email.saveStaffPhones": "حفظ أرقام هواتف الموظفين",
     "admin.settings.email.whatsappConfig": "تكوين إشعارات واتساب",
-    "admin.settings.email.whatsappConfigDesc": "تكوين إعدادات واتساب للأعمال API. سيتم تفعيل إشعارات واتساب تلقائياً عند تعيين جميع الحقول المطلوبة.",
+    "admin.settings.email.whatsappConfigDesc":
+      "تكوين إعدادات واتساب للأعمال API. سيتم تفعيل إشعارات واتساب تلقائياً عند تعيين جميع الحقول المطلوبة.",
     "admin.settings.email.whatsappAccessToken": "رمز وصول واتساب",
-    "admin.settings.email.whatsappAccessTokenPlaceholder": "أدخل رمز وصول واتساب للأعمال API",
-    "admin.settings.email.whatsappAccessTokenHint": "رمز وصول واتساب للأعمال API من Meta Business Suite",
+    "admin.settings.email.whatsappAccessTokenPlaceholder":
+      "أدخل رمز وصول واتساب للأعمال API",
+    "admin.settings.email.whatsappAccessTokenHint":
+      "رمز وصول واتساب للأعمال API من Meta Business Suite",
     "admin.settings.email.whatsappApiVersion": "إصدار واتساب API",
-    "admin.settings.email.whatsappApiVersionPlaceholder": "مثل: v21.0، v18.0، v19.0",
-    "admin.settings.email.whatsappApiVersionHint": "إصدار Graph API (مثل: v21.0، v18.0، v19.0)",
+    "admin.settings.email.whatsappApiVersionPlaceholder":
+      "مثل: v21.0، v18.0، v19.0",
+    "admin.settings.email.whatsappApiVersionHint":
+      "إصدار Graph API (مثل: v21.0، v18.0، v19.0)",
     "admin.settings.email.whatsappPhoneNumberId": "معرف رقم هاتف واتساب",
-    "admin.settings.email.whatsappPhoneNumberIdPlaceholder": "أدخل معرف رقم هاتفك",
-    "admin.settings.email.whatsappPhoneNumberIdHint": "معرف رقم هاتف واتساب للأعمال الخاص بك",
+    "admin.settings.email.whatsappPhoneNumberIdPlaceholder":
+      "أدخل معرف رقم هاتفك",
+    "admin.settings.email.whatsappPhoneNumberIdHint":
+      "معرف رقم هاتف واتساب للأعمال الخاص بك",
     "admin.settings.email.whatsappDocumentUrl": "رابط مستند واتساب",
-    "admin.settings.email.whatsappDocumentUrlHint": "الرابط الكامل للمستند المرفق في إشعارات واتساب (مثل: ملف PDF لملف الشركة).",
+    "admin.settings.email.whatsappDocumentUrlHint":
+      "الرابط الكامل للمستند المرفق في إشعارات واتساب (مثل: ملف PDF لملف الشركة).",
     "admin.settings.email.whatsappConfigSaved": "تم حفظ تكوين واتساب بنجاح",
     "admin.settings.email.whatsappConfigSaveFailed": "فشل حفظ تكوين واتساب",
     "admin.settings.email.saveWhatsAppConfig": "حفظ تكوين واتساب",
     "common.saving": "جاري الحفظ...",
-    
+    // admin support tickets
+    "admin.supportTickets.title": "Support Tickets | تذاكر الدعم",
+    "admin.supportTickets.description":
+      "Manage all support tickets and their statuses | إدارة جميع تذاكر الدعم وحالاتها",
+    "admin.supportTickets.desc": "Description | الوصف",
+    "admin.supportTickets.newTicket": "New Ticket | تذكرة جديدة",
+    "admin.supportTickets.createDescription":
+      "Create a new support ticket for a client | إنشاء تذكرة دعم جديدة للعميل",
+    "admin.supportTickets.ticketInfo": "Ticket Information | معلومات التذكرة",
+    "admin.supportTickets.category": "Category | التصنيف",
+    "admin.supportTickets.selectCategory": "Select category | اختر التصنيف",
+    "admin.supportTickets.describeIssue":
+      "Describe the issue in detail | اشرح المشكلة بالتفصيل",
+    "admin.supportTickets.client": "Client | العميل",
+    "admin.supportTickets.selectClient": "Select client | اختر العميل",
+    "admin.supportTickets.priority": "Priority | الأولوية",
+    "admin.supportTickets.selectPriority": "Select priority | اختر الأولوية",
+    "admin.supportTickets.assignedTo": "Assigned To | مسند إلى",
+    "admin.supportTickets.selectAssignee":
+      "Select assignee (optional) | اختر المسند إليه (اختياري)",
+    "admin.supportTickets.unassigned": "Unassigned | غير مسند",
+    "admin.supportTickets.createTicket": "Create Ticket | إنشاء تذكرة",
+    "admin.supportTickets.totalTickets": "Total Tickets | إجمالي التذاكر",
+    "admin.supportTickets.new": "New | جديدة",
+    "admin.supportTickets.in_Progress": "In_Progress | قيد التنفيذ",
+    "admin.supportTickets.resolved": "Resolved | تم الحل",
+    "admin.supportTickets.searchPlaceholder":
+      "Search tickets... | ابحث عن تذاكر...",
+    "admin.supportTickets.noResults":
+      "No tickets found matching your search. | لم يتم العثور على تذاكر تطابق بحثك.",
+    "admin.supportTickets.noTickets":
+      "No tickets found | لم يتم العثور على تذاكر",
+    "admin.supportTickets.ticket": "Ticket | التذكرة",
+    "admin.supportTickets.status": "Status | الحالة",
+    "admin.supportTickets.statuses.new": "New | جديدة",
+    "admin.supportTickets.statuses.in_progress": "In_Progress | قيد التنفيذ",
+    "admin.supportTickets.statuses.resolved": "Resolved | تم الحل",
+    "admin.supportTickets.statuses.closed": "Closed | مغلقة",
+    "admin.supportTickets.statuses.pending": "Pending | معلقة",
+    "admin.supportTickets.priorities.low": "Low | منخفضة",
+    "admin.supportTickets.priorities.medium": "Medium | متوسطة",
+    "admin.supportTickets.priorities.high": "High | عالية",
+    "admin.supportTickets.priorities.urgent": "Urgent | عاجلة",
+    "admin.supportTickets.updating": "Updating... | جاري التحديث...",
+    "admin.supportTickets.ticketDetails": "Ticket Details | تفاصيل التذكرة",
+    "admin.supportTickets.created": "Created | تم الإنشاء",
+    "admin.supportTickets.newCategories": " New Categories | فئات جديدة",
+    "admin.supportTickets.newAssigned": " New Assigned | مسندون جدد",
+    "admin.supportTickets.updated": "Updated | تم التحديث",
+    "admin.supportTickets.messages": "Messages | الرسائل",
+    "admin.supportTickets.resolution": "Resolution | الحل",
+    "admin.supportTickets.resolvedOn": "Resolved on | تم الحل في",
+    "admin.supportTickets.editTicket": "Edit Ticket | تعديل التذكرة",
+    "admin.supportTickets.updateTicket":
+      "Update ticket details and status | تحديث تفاصيل التذكرة والحالة",
+    "admin.supportTickets.clientCannotChange":
+      "Client cannot be changed after ticket creation | لا يمكن تغيير العميل بعد إنشاء التذكرة",
+    "admin.supportTickets.deleteTicket": "Delete Ticket | حذف التذكرة",
+    "admin.supportTickets.deletePermanent":
+      "This action cannot be undone. This will permanently delete the ticket and all associated data. | لا يمكن التراجع عن هذا الإجراء. سيتم حذف التذكرة وجميع البيانات المرتبطة بها بشكل دائم.",
+    "admin.supportTickets.deleteTicketQuestion": "Delete ticket | حذف التذكرة",
+    "admin.supportTickets.ticketId": "Ticket ID | معرف التذكرة",
+    "admin.supportTickets.deleting": "Deleting... | جاري الحذف...",
+    "admin.supportTickets.showing": "Showing | عرض",
+    "admin.supportTickets.to": "to | إلى",
+    "admin.supportTickets.of": "of | من",
+    "admin.supportTickets.tickets": "tickets | تذاكر",
+    "admin.supportTickets.ticketTitle": " Title | عنوان التذكرة",
+    "admin.supportTickets.showingAll": "Showing all | عرض الكل",
+    "admin.assignees.title": "Assignees | المُكلّفون",
+    "admin.assignees.description":
+      "Manage users assigned to support tickets and tasks | إدارة المستخدمين المكلّفين بتذاكر الدعم والمهام",
+    "admin.assignees.newAssignee": "New Assignee | مُكلّف جديد",
+    "admin.assignees.totalAssignees": "Total Assignees | إجمالي المُكلّفين",
+    "admin.assignees.active": "Active | نشط",
+    "admin.assignees.inactive": "Inactive | غير نشط",
+    "admin.assignees.totalTickets": "Total Tickets | إجمالي التذاكر",
+    "admin.assignees.avgTickets": "Average Tickets | متوسط التذاكر",
+    "admin.assignees.searchPlaceholder":
+      "Search assignees | البحث عن المُكلّفين",
+    "admin.assignees.name": "Name | الاسم",
+    "admin.assignees.email": "Email | البريد الإلكتروني",
+    "admin.assignees.role": "Role | الدور",
+    "admin.assignees.tickets": "Tickets | التذاكر",
+    "admin.assignees.created": "Created | تاريخ الإنشاء",
+    "admin.assignees.createDescription":
+      "Create a new assignee for managing support tickets and tasks | إنشاء مُكلّف جديد لإدارة تذاكر الدعم والمهام",
+    "admin.assignees.assigneeInfo": "Assignee Information | معلومات المُكلّف",
+    "admin.assignees.assigneeDetails": "Assignee Details | تفاصيل المُكلّف",
+    "admin.assignees.updated": "تم التحديث",
+    // "admin.assignees.email": "البريد الإلكتروني",
+    "admin.assignees.totalTicketsAssigned": "إجمالي التذاكر المخصصة",
+    // "admin.assignees.created": "تم الإنشاء",
+    "admin.assignees.editAssignee": "تعديل المُكلّف",
+    "admin.assignees.updateAssignee": "تحديث المُكلّف",
+    "admin.assignees.enterName": "Enter name | أدخل الاسم",
+    "admin.assignees.enterEmail": "Enter email | أدخل البريد الإلكتروني",
+    "admin.assignees.enterRole": "Enter role | أدخل الدور",
+    "admin.assignees.createAssignee": "Create Assignee | إنشاء مُكلّف",
+    "admin.assignees.noResults": "No results found | لم يتم العثور على نتائج",
+    "admin.supportTickets.descriptionBox": "Description  | مربع الوصف",
+
+    "admin.supportTickets.attachments": "Attachments | المرفقات",
+    "admin.supportTickets.searchResults": "Search Results | نتائج البحث",
+    "admin.supportTickets.emptyComment":
+      "Comment cannot be empty | لا يمكن أن يكون التعليق فارغًا",
+    "admin.supportTickets.commentBoxes": "Comment Boxes | مربعات التعليقات",
+    "admin.supportTickets.addCommentBox": "Add Comment Box | إضافة مربع تعليق",
+    "admin.supportTickets.noCommentBoxes":
+      "No comment boxes available | لا توجد مربعات تعليقات متاحة",
+    "admin.categories.parentCategories": "Parent Categories | الفئات الرئيسية",
+    "admin.categories.parentCategory": "Parent Category | الفئة الرئيسية",
+
+    "admin.supportTickets.actions": "Actions | الإجراءات",
+    "admin.assignees.deleteAssignee": "Delete Assignee | حذف المسؤول",
+    "admin.assignees.deletePermanent": "Delete Permanently | حذف نهائيًا",
+    "admin.assignees.deleteAssigneeQuestion":
+      "Are you sure you want to permanently delete this assignee? | هل أنت متأكد أنك تريد حذف هذا المسؤول نهائيًا؟",
+    "admin.assignees.deleting": "Deleting... | جارٍ الحذف...",
+    "admin.assignees.createSuccess": "تم إنشاء المسؤول بنجاح",
+    "admin.assignees.updating": "جارٍ التحديث...",
+    "admin.assignees.updateSuccess": "تم تحديث المسؤول بنجاح",
+
+    // categoreies
+    "admin.categories.title": "Categories | الفئات",
+    "admin.categories.description":
+      "Manage support ticket categories | إدارة فئات تذاكر الدعم",
+    "admin.categories.newCategory": "New Category | فئة جديدة",
+    "admin.categories.createDescription":
+      "Create a new support ticket category | إنشاء فئة جديدة لتذاكر الدعم",
+    "admin.categories.categoryInfo": "Category Information | معلومات الفئة",
+    "admin.categories.name": "Category Name | اسم الفئة",
+    "admin.categories.enterName": "Enter category name | أدخل اسم الفئة",
+    "admin.categories.createCategory": "Create Category | إنشاء فئة",
+    "admin.categories.totalCategories": "Total Categories | إجمالي الفئات",
+    "admin.categories.active": "Active | نشطة",
+    "admin.categories.inactive": "Inactive | غير نشطة",
+    "admin.categories.totalTickets": "Total Tickets | إجمالي التذاكر",
+    "admin.categories.searchPlaceholder":
+      "Search categories... | البحث عن الفئات...",
+    "admin.categories.noResults":
+      "No categories found matching your search. | لم يتم العثور على فئات تطابق بحثك.",
+    "admin.categories.noCategories":
+      "No categories found | لم يتم العثور على فئات",
+    "admin.categories.status": "Status | الحالة",
+    "admin.categories.categoryDetails": "Category Details | تفاصيل الفئة",
+    "admin.categories.editCategory": "Edit Category | تعديل الفئة",
+    "admin.categories.updateCategory":
+      "Update category information | تحديث معلومات الفئة",
+    "admin.categories.updating": "Updating... | جاري التحديث...",
+    "admin.categories.deleteCategory": "Delete Category | حذف الفئة",
+    "admin.categories.deletePermanent":
+      "This action cannot be undone. This will permanently delete the category. | لا يمكن التراجع عن هذا الإجراء. سيتم حذف الفئة نهائيًا.",
+    "admin.categories.deleteCategoryQuestion": "Delete category | حذف الفئة",
+    "admin.categories.deleting": "Deleting... | جاري الحذف...",
+    "admin.categories.showing": "Showing | عرض",
+    "admin.categories.to": "to | إلى",
+    "admin.categories.of": "of | من",
+    "admin.categories.categories": "categories | الفئات",
+    "admin.categories.showingAll": "Showing all | عرض الكل",
+    "admin.categories.nameRequired":
+      "Category name is required | اسم الفئة مطلوب",
+    "admin.categories.createSuccess":
+      "Category created successfully | تم إنشاء الفئة بنجاح",
+    "admin.categories.updateSuccess":
+      "Category updated successfully | تم تحديث الفئة بنجاح",
+    "admin.categories.deleteSuccess":
+      "Category deleted successfully | تم حذف الفئة بنجاح",
+    "admin.supportTickets.titleBox": "Title | العنوان",
+
     // Admin Reports
     "admin.reports.title": "التقارير",
     "admin.reports.clients": "تقارير العملاء",
@@ -3847,17 +4652,23 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.reports.dateRange": "نطاق التاريخ",
     "admin.reports.generate": "إنشاء تقرير",
     "admin.reports.clientsDescription": "إحصائيات وتحليلات العملاء",
-    "admin.reports.clientsConstructionDesc": "تحليلات العملاء التفصيلية قيد الإعداد.",
+    "admin.reports.clientsConstructionDesc":
+      "تحليلات العملاء التفصيلية قيد الإعداد.",
     "admin.reports.applicationsDescription": "تحليلات الطلبات",
-    "admin.reports.applicationsConstructionDesc": "هذا التقرير قيد الإنشاء حالياً.",
+    "admin.reports.applicationsConstructionDesc":
+      "هذا التقرير قيد الإنشاء حالياً.",
     "admin.reports.financialDescription": "التحليلات والتقارير المالية",
-    "admin.reports.financialConstructionDesc": "هذا التقرير قيد التطوير وسيكون متاحاً قريباً.",
+    "admin.reports.financialConstructionDesc":
+      "هذا التقرير قيد التطوير وسيكون متاحاً قريباً.",
     "admin.reports.performanceDescription": "مقاييس أداء النظام والفريق",
-    "admin.reports.performanceConstructionDesc": "تحليلات الأداء التفصيلية ستُضاف قريباً.",
+    "admin.reports.performanceConstructionDesc":
+      "تحليلات الأداء التفصيلية ستُضاف قريباً.",
     "admin.reports.leadsByCountry.title": "تحليلات العملاء المحتملين حسب البلد",
-    "admin.reports.leadsByCountry.description": "تحليل توزيع العملاء المحتملين حسب البلد",
+    "admin.reports.leadsByCountry.description":
+      "تحليل توزيع العملاء المحتملين حسب البلد",
     "admin.reports.leadsByCountry.filters": "الفلاتر",
-    "admin.reports.leadsByCountry.filtersDesc": "تصفية العملاء المحتملين حسب نطاق التاريخ والحالة",
+    "admin.reports.leadsByCountry.filtersDesc":
+      "تصفية العملاء المحتملين حسب نطاق التاريخ والحالة",
     "admin.reports.leadsByCountry.startDate": "تاريخ البداية",
     "admin.reports.leadsByCountry.endDate": "تاريخ النهاية",
     "admin.reports.leadsByCountry.last7Days": "آخر 7 أيام",
@@ -3882,22 +4693,29 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.reports.leadsByCountry.statusClosedLost": "خسارة",
     "admin.reports.leadsByCountry.totalLeads": "إجمالي العملاء المحتملين",
     "admin.reports.leadsByCountry.totalCountries": "إجمالي البلدان",
-    "admin.reports.leadsByCountry.countriesWithLeads": "بلدان بها عملاء محتملون",
+    "admin.reports.leadsByCountry.countriesWithLeads":
+      "بلدان بها عملاء محتملون",
     "admin.reports.leadsByCountry.topCountry": "أعلى بلد",
-    "admin.reports.leadsByCountry.leadDistributionByCountry": "توزيع العملاء المحتملين حسب البلد",
-    "admin.reports.leadsByCountry.leadDistributionDesc": "تمثيل مرئي للعملاء المحتملين حسب البلد",
+    "admin.reports.leadsByCountry.leadDistributionByCountry":
+      "توزيع العملاء المحتملين حسب البلد",
+    "admin.reports.leadsByCountry.leadDistributionDesc":
+      "تمثيل مرئي للعملاء المحتملين حسب البلد",
     "admin.reports.leadsByCountry.topCountriesDesc": "تفصيل حسب البلد",
     "admin.reports.leadsByCountry.country": "البلد",
     "admin.reports.leadsByCountry.count": "العدد",
     "admin.reports.leadsByCountry.percentage": "النسبة",
-    "admin.reports.leadsByCountry.statusBreakdownByCountry": "تفصيل الحالة حسب البلد",
-    "admin.reports.leadsByCountry.statusBreakdownDesc": "توزيع الحالات التفصيلي لكل بلد",
+    "admin.reports.leadsByCountry.statusBreakdownByCountry":
+      "تفصيل الحالة حسب البلد",
+    "admin.reports.leadsByCountry.statusBreakdownDesc":
+      "توزيع الحالات التفصيلي لكل بلد",
     "admin.reports.leadsByCountry.total": "الإجمالي",
-    "admin.reports.leadsByCountry.noLeadsFound": "لم يتم العثور على عملاء محتملين للشروط المحددة",
+    "admin.reports.leadsByCountry.noLeadsFound":
+      "لم يتم العثور على عملاء محتملين للشروط المحددة",
     "admin.reports.leadsByCountry.fetchError": "فشل جلب بيانات التحليلات",
     "admin.reports.leadsByCountry.exportSuccess": "تم تصدير البيانات بنجاح",
     "admin.reports.leadsByCountry.statusBreakdown": "تفصيل الحالة",
-    
+    "admin.assignees.assignedTickets": "Assigned Tickets | التذاكر المعينة",
+    "common.updating": "Updating... | جاري التحديث...",
     // Admin Settings
     "admin.settings.title": "الإعدادات",
     "admin.settings.general": "الإعدادات العامة",
@@ -3924,7 +4742,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.settings.systemDescription": "إعدادات النظام المتقدمة",
     "admin.settings.systemConstructionDesc": "نحن نعد خيارات التكوين المتقدمة.",
     "admin.settings.backupDescription": "نسخ احتياطي واستعادة قاعدة البيانات",
-    "admin.settings.backupConstructionDesc": "أدوات النسخ الاحتياطي التلقائي قيد التطوير.",
+    "admin.settings.backupConstructionDesc":
+      "أدوات النسخ الاحتياطي التلقائي قيد التطوير.",
     "admin.settings.security": "إعدادات الأمان",
     "admin.settings.securityDesc": "تكوين سياسات الأمان وضوابط الوصول",
     "admin.settings.configure": "تكوين",
@@ -3932,8 +4751,15 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.settings.testEmail": "اختبار البريد الإلكتروني",
     "admin.settings.backupNow": "نسخ احتياطي الآن",
     "admin.settings.systemStatus": "حالة النظام",
-    "admin.applications.tasksDescription": "نظام متقدم لإدارة المهام لتتبع تقدم الطلبات والمواعيد النهائية وتعيينات الفريق.",
-    
+    "admin.applications.tasksDescription":
+      "نظام متقدم لإدارة المهام لتتبع تقدم الطلبات والمواعيد النهائية وتعيينات الفريق.",
+    "admin.supportTickets.comment": "Comment | تعليق",
+    "admin.supportTickets.commentHelp":
+      "Add a comment to this ticket | أضف تعليقًا على هذه التذكرة",
+    "admin.supportTickets.commentPlaceholder":
+      "Write your comment here... | اكتب تعليقك هنا...",
+    "admin.supportTickets.deleted": "Deleted successfully | تم الحذف بنجاح",
+
     // Admin Help
     "admin.help.title": "المساعدة والدعم",
     "admin.help.description": "احصل على المساعدة والدعم",
@@ -3945,23 +4771,32 @@ const messages: Record<Locale, Record<string, string>> = {
     "admin.help.faqDescription": "الأسئلة الشائعة",
     "admin.help.faqCardTitle": "الأسئلة الشائعة",
     "admin.help.contact": "اتصل بالدعم",
+    "admin.help.support": "الدعم",
+    "admin.help.supportDescription": "الدعم الفني",
     "admin.help.contactDescription": "احصل على الدعم الفني",
     "admin.help.contactConstructionTitle": "اتصل بالدعم",
-    "admin.help.contactConstructionDesc": "تفاصيل الاتصال بالدعم ستظهر هنا قريباً.",
+    "admin.help.contactConstructionDesc":
+      "تفاصيل الاتصال بالدعم ستظهر هنا قريباً.",
     "admin.help.constructionResources": "نحن نعد الموارد لهذا القسم.",
     "admin.help.faqQ1": "كيف أنشئ قضية جديدة؟",
-    "admin.help.faqA1": "اذهب إلى صفحة الطلبات، انقر \"إنشاء قضية\"، اختر العميل، عين المدير، وأدخل الوصف.",
+    "admin.help.faqA1":
+      'اذهب إلى صفحة الطلبات، انقر "إنشاء قضية"، اختر العميل، عين المدير، وأدخل الوصف.',
     "admin.help.faqQ2": "كيف أحول عميلاً محتملاً إلى عميل؟",
-    "admin.help.faqA2": "في قسم العملاء المحتملين، ابحث عن المؤهل وانقر \"تحويل\". ستحتاج لإدخال كلمة مرور للحساب الجديد.",
+    "admin.help.faqA2":
+      'في قسم العملاء المحتملين، ابحث عن المؤهل وانقر "تحويل". ستحتاج لإدخال كلمة مرور للحساب الجديد.',
     "admin.help.faqQ3": "كيف أنشئ فاتورة؟",
-    "admin.help.faqA3": "اذهب إلى المالية > الفواتير، انقر \"إنشاء فاتورة\"، اختر العميل، أضف البنود، وحدد تاريخ الاستحقاق. النظام يحسب الضرائب والإجمالي تلقائياً.",
+    "admin.help.faqA3":
+      'اذهب إلى المالية > الفواتير، انقر "إنشاء فاتورة"، اختر العميل، أضف البنود، وحدد تاريخ الاستحقاق. النظام يحسب الضرائب والإجمالي تلقائياً.',
     "admin.help.faqQ4": "كيف أوافق على المستندات؟",
-    "admin.help.faqA4": "اذهب إلى صفحة المستندات، انقر \"مراجعة\" على أي مستند، أضف ملاحظات، ثم انقر \"موافق\" أو \"مرفوض\".",
+    "admin.help.faqA4":
+      'اذهب إلى صفحة المستندات، انقر "مراجعة" على أي مستند، أضف ملاحظات، ثم انقر "موافق" أو "مرفوض".',
     "admin.help.faqQ5": "ما أنواع الخدمات المتاحة؟",
-    "admin.help.faqA5": "نقدم تسجيل الشركات (ميسا)، رخص البلديات، غرفة التجارة، إعداد الأعمال، تسجيل العلامات التجارية، وتجديد الرخص.",
+    "admin.help.faqA5":
+      "نقدم تسجيل الشركات (ميسا)، رخص البلديات، غرفة التجارة، إعداد الأعمال، تسجيل العلامات التجارية، وتجديد الرخص.",
     "admin.help.faqQ6": "كيف أتابع أداء الموظفين؟",
-    "admin.help.faqA6": "اذهب إلى الفريق > الأداء لمشاهدة مقاييس كل موظف: إنجاز القضايا، المهام، وتحويل العملاء المحتملين.",
-    
+    "admin.help.faqA6":
+      "اذهب إلى الفريق > الأداء لمشاهدة مقاييس كل موظف: إنجاز القضايا، المهام، وتحويل العملاء المحتملين.",
+
     // Profile (dropdown & page)
     "profile.myProfile": "ملفي",
     "profile.manageAccount": "إدارة معلومات حسابك",
@@ -3992,9 +4827,10 @@ const messages: Record<Locale, Record<string, string>> = {
     "profile.noCountryFound": "لم يتم العثور على دولة.",
     "profile.roleStaff": "موظف",
     "profile.placeholder.currentPassword": "أدخل كلمة المرور الحالية",
-    "profile.placeholder.newPassword": "أدخل كلمة مرور جديدة (6 أحرف على الأقل)",
+    "profile.placeholder.newPassword":
+      "أدخل كلمة مرور جديدة (6 أحرف على الأقل)",
     "profile.placeholder.confirmPassword": "أكد كلمة المرور الجديدة",
-    
+
     // Client Sidebar
     "client.sidebar.dashboard": "لوحة التحكم",
     "client.sidebar.completeProfile": "إكمال الملف الشخصي",
@@ -4013,6 +4849,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.sidebar.support": "الدعم",
     "client.sidebar.needHelp": "تحتاج مساعدة؟",
     "client.sidebar.contactManager": "اتصل بمدير الطلبات الخاص بك",
+    "client.sidebar.collaboratorManagement": "إدارة المتعاونين",
     "client.sidebar.collaboration": "التعاون",
     "client.collaboration.pageTitle": "التعاون",
     "client.collaboration.pageDescription": "ادعُ أشخاصًا لتعبئة وإدارة الطلبات نيابةً عنك",
@@ -4037,7 +4874,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.collaboration.revoked": "تم إلغاء الوصول",
     "client.collaboration.revokeFailed": "فشل الإلغاء",
     "client.collaboration.actingBanner": "أنت تتعاون نيابةً عن {name}",
-    
+
     // Client Dashboard
     "client.dashboard.title": "لوحة التحكم",
     "client.dashboard.welcome": "مرحباً",
@@ -4057,8 +4894,9 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.dashboard.noInvoices": "لا توجد فواتير",
     "client.dashboard.quickActions": "إجراءات سريعة",
     "client.dashboard.addApplication": "إضافة طلب",
+
     "client.dashboard.applyForApplication": "التقديم على طلب",
-    
+
     // Client Applications
     "client.applications.title": "طلباتي",
     "client.applications.startApplication": "بدء طلب",
@@ -4277,7 +5115,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.fill.stepApproved": "تمت الموافقة على الخطوة",
     "client.fill.stepApprovedDesc": "تمت الموافقة على هذه الخطوة من قبل الإدارة. تظل الحقول مقفلة حتى لا يمكن تغيير البيانات المعتمدة.",
     "client.fill.changesRequestedDesc": "رفضت الإدارة هذه الخطوة. يرجى تحديث الحقول والحفظ مرة أخرى للمراجعة.",
-    
+
     // Client Documents
     "client.documents.title": "مستنداتي",
     "client.documents.uploadDocument": "رفع مستند",
@@ -4287,12 +5125,12 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.documents.pendingUpload": "قيد الرفع",
     "client.documents.unknown": "غير معروف",
     "client.documents.uploaded": "تم الرفع",
-    
+
     // Client Messages
     "client.messages.title": "الرسائل",
     "client.messages.newMessage": "رسالة جديدة",
     "client.messages.noMessages": "لم يتم العثور على رسائل",
-    
+
     // Client Help
     "client.help.title": "مركز المساعدة",
     "client.help.description": "احصل على المساعدة والدعم",
@@ -4306,7 +5144,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.help.getInTouch": "تواصل مع فريقنا",
     "client.help.submitTicket": "إرسال تذكرة",
     "client.help.constructionTitle": "مركز المساعدة",
-    "client.help.constructionDesc": "هذه الميزة قيد التطوير وستكون متاحة قريباً.",
+    "client.help.constructionDesc":
+      "هذه الميزة قيد التطوير وستكون متاحة قريباً.",
     "client.help.quickHelp": "مساعدة سريعة",
     "client.help.phoneSupport": "الدعم الهاتفي",
     "client.help.emailSupport": "الدعم بالبريد",
@@ -4324,28 +5163,33 @@ const messages: Record<Locale, Record<string, string>> = {
     "client.help.messagePlaceholder": "صف مشكلتك أو سؤالك بالتفصيل...",
     "client.help.sendMessageButton": "إرسال الرسالة",
     "client.help.faqQ1": "كم تستغرق عملية تسجيل الشركة؟",
-    "client.help.faqA1": "متوسط وقت المعالجة 7–10 أيام عمل من تاريخ اكتمال المستندات. قد يختلف حسب أوقات الجهات الحكومية واكتمال المستندات.",
+    "client.help.faqA1":
+      "متوسط وقت المعالجة 7–10 أيام عمل من تاريخ اكتمال المستندات. قد يختلف حسب أوقات الجهات الحكومية واكتمال المستندات.",
     "client.help.faqQ2": "ما المستندات المطلوبة للرفع؟",
-    "client.help.faqA2": "المطلوب: نسخة جواز سفر ساري، إثبات عنوان، خطة عمل، كشوف بنكية (آخر 6 أشهر)، وأي رخص أو شهادات ذات صلة.",
+    "client.help.faqA2":
+      "المطلوب: نسخة جواز سفر ساري، إثبات عنوان، خطة عمل، كشوف بنكية (آخر 6 أشهر)، وأي رخص أو شهادات ذات صلة.",
     "client.help.faqQ3": "هل يمكنني متابعة حالة طلبي؟",
-    "client.help.faqA3": "نعم. يمكنك متابعة حالة الطلب لحظياً من لوحة التحكم. نرسل أيضاً إشعارات بريدية عند أي تحديث.",
+    "client.help.faqA3":
+      "نعم. يمكنك متابعة حالة الطلب لحظياً من لوحة التحكم. نرسل أيضاً إشعارات بريدية عند أي تحديث.",
     "client.help.faqQ4": "ماذا يحدث إذا رُفض مستندي؟",
-    "client.help.faqA4": "عند الرفض، تصلك ملاحظات تفصيلية. يمكنك إعادة رفع نسخة مصححة. فريقنا متاح للمساعدة.",
+    "client.help.faqA4":
+      "عند الرفض، تصلك ملاحظات تفصيلية. يمكنك إعادة رفع نسخة مصححة. فريقنا متاح للمساعدة.",
     "client.help.faqQ5": "كيف أتواصل مع مدير قضيتي؟",
-    "client.help.faqA5": "يمكنك المراسلة عبر ويدجت الدردشة (أسفل اليمين) أو قسم الرسائل. وقت الرد عادة 2–4 ساعات عمل.",
-    
+    "client.help.faqA5":
+      "يمكنك المراسلة عبر ويدجت الدردشة (أسفل اليمين) أو قسم الرسائل. وقت الرد عادة 2–4 ساعات عمل.",
+
     // Client Profile
     "client.profile.title": "الملف الشخصي",
     "client.profile.updateProfile": "تحديث الملف الشخصي",
     "client.profile.changePassword": "تغيير كلمة المرور",
     "client.profile.personalInfo": "المعلومات الشخصية",
     "client.profile.companyInfo": "معلومات الشركة",
-    
+
     // Client Settings
     "client.settings.title": "الإعدادات",
     "client.settings.general": "الإعدادات العامة",
     "client.settings.saveSettings": "حفظ الإعدادات",
-    
+
     // Legal Pages
     "legal.privacyPolicy": "سياسة الخصوصية",
     "legal.termsOfService": "شروط الخدمة",
@@ -4369,11 +5213,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);
     localStorage.setItem("locale", newLocale);
-    
+
     // Update HTML lang and dir attributes
     document.documentElement.lang = newLocale;
     document.documentElement.dir = newLocale === "ar" ? "rtl" : "ltr";
-    
+
     router.refresh();
   };
 
@@ -4382,7 +5226,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const html = document.documentElement;
     html.lang = locale;
     html.dir = locale === "ar" ? "rtl" : "ltr";
-    
+
     // Add/remove Arabic font class
     if (locale === "ar") {
       html.classList.add("font-arabic");
@@ -4397,14 +5241,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   // Convert Western numerals (0-9) to Eastern Arabic numerals (٠-٩)
   const toArabicNumerals = (str: string): string => {
-    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
     return str.replace(/\d/g, (digit) => arabicNumerals[parseInt(digit)]);
   };
 
   // Format number with locale-aware formatting
-  const formatNumber = (value: number | string, options?: Intl.NumberFormatOptions): string => {
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    
+  const formatNumber = (
+    value: number | string,
+    options?: Intl.NumberFormatOptions,
+  ): string => {
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+
     if (isNaN(numValue)) {
       return String(value);
     }
@@ -4417,10 +5264,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     };
 
     // Format the number (this will use Western numerals)
-    let formatted = new Intl.NumberFormat('en-US', defaultOptions).format(numValue);
+    let formatted = new Intl.NumberFormat("en-US", defaultOptions).format(
+      numValue,
+    );
 
     // Convert to Eastern Arabic numerals if in Arabic mode
-    if (locale === 'ar') {
+    if (locale === "ar") {
       formatted = toArabicNumerals(formatted);
     }
 

@@ -14,6 +14,7 @@ import { format } from 'date-fns'
 import axios from 'axios'
 import { useAuth } from '@/contexts/AuthContext'
 import { Module, Action } from '@/lib/rbac'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 interface PageAccessLogRow {
   id: string
@@ -137,7 +138,7 @@ export default function UserActivityPage() {
                     <TableCell className="whitespace-nowrap text-sm">
                       {format(new Date(log.createdAt), 'MMM d, yyyy HH:mm:ss')}
                     </TableCell>
-                    <TableCell className="text-sm">{log.user.name ?? log.user.email}</TableCell>
+                    <TableCell className="text-sm">{getLocalizedText(log.user.name, 'en') || log.user.email}</TableCell>
                     <TableCell className="text-sm">{log.pageTitle ?? '—'}</TableCell>
                     <TableCell className="text-sm font-mono">{log.path}</TableCell>
                     <TableCell className="text-sm">

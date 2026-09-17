@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { sendWhatsAppMessage } from "./whatsapp-client";
 import { APPLICATION_WHATSAPP } from "./application-templates";
-import { getClientNotificationFlags } from "@/lib/settings/general";
 
 export interface ApplicationWhatsAppPayload {
   applicationId?: string;
@@ -16,13 +15,32 @@ export async function sendApplicationStatusWhatsApp(
   payload: ApplicationWhatsAppPayload
 ): Promise<{ success: boolean; skipped?: boolean; error?: string; messageId?: string }> {
   try {
-    const flags = await getClientNotificationFlags();
-    if (!flags.whatsappEnabled) {
+    // 🔥 Check WhatsApp config from database
+    const settings = await db.emailSettings.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        enableWhatsAppNotifications: true,
+        whatsappAccessToken: true,
+        whatsappPhoneNumberId: true,
+      }
+    })
+
+    // Check if WhatsApp is enabled in database
+    if (!settings?.enableWhatsAppNotifications) {
       return {
         success: false,
         skipped: true,
-        error: 'Client WhatsApp notifications are disabled in General Settings',
-      };
+        error: 'Client WhatsApp notifications are disabled in Settings. Enable in Admin → Email Settings → WhatsApp Configuration.',
+      }
+    }
+
+    // Check if credentials are configured
+    if (!settings.whatsappAccessToken || !settings.whatsappPhoneNumberId) {
+      return {
+        success: false,
+        skipped: true,
+        error: 'WhatsApp API credentials are not configured. Setup in Admin → Email Settings → WhatsApp Configuration.',
+      }
     }
 
     // Build where clause for finding the application
@@ -30,13 +48,13 @@ export async function sendApplicationStatusWhatsApp(
       ? { id: payload.applicationId }
       : payload.applicationNumber
       ? { applicationNumber: payload.applicationNumber }
-      : undefined;
+      : undefined
 
     if (!where) {
       return {
         success: false,
         error: 'applicationId or applicationNumber is required',
-      };
+      }
     }
 
     // Fetch application with client details
@@ -52,27 +70,27 @@ export async function sendApplicationStatusWhatsApp(
           },
         },
       },
-    });
+    })
 
     if (!application) {
       return {
         success: false,
         error: `Application not found: ${payload.applicationId ?? payload.applicationNumber}`,
-      };
+      }
     }
 
     // Get recipient phone number
-    const recipientPhone = payload.recipientPhone || application.client?.phone;
+    const recipientPhone = payload.recipientPhone || application.client?.phone
 
     if (!recipientPhone) {
       return {
         success: false,
         error: 'No recipient phone number available for the application client',
-      };
+      }
     }
 
     // Map status to template key
-    const rawStatus = payload.status || application.status;
+    const rawStatus = payload.status || application.status
     const statusKey = 
       rawStatus === 'PENDING' ? 'SUBMITTED' :
       rawStatus === 'IN_PROGRESS' ? 'IN_PROGRESS' :
@@ -81,16 +99,16 @@ export async function sendApplicationStatusWhatsApp(
       rawStatus === 'APPROVED' ? 'APPROVED' :
       rawStatus === 'REJECTED' ? 'REJECTED' :
       rawStatus === 'COMPLETED' ? 'COMPLETED' :
-      'SUBMITTED';
+      'SUBMITTED'
 
     // Get the template
-    const template = APPLICATION_WHATSAPP[statusKey as keyof typeof APPLICATION_WHATSAPP];
+    const template = APPLICATION_WHATSAPP[statusKey as keyof typeof APPLICATION_WHATSAPP]
 
     if (!template) {
       return {
         success: false,
         error: `Invalid status: ${rawStatus}`,
-      };
+      }
     }
 
     // WhatsApp Cloud API expects digits only (country code + number, no + or spaces)
@@ -101,7 +119,7 @@ export async function sendApplicationStatusWhatsApp(
       return {
         success: false,
         error: `Invalid phone number: ${recipientPhone}`,
-      };
+      }
     }
 
     // Build the message content
@@ -111,36 +129,36 @@ export async function sendApplicationStatusWhatsApp(
       status: rawStatus,
       serviceName: payload.serviceName || application.areaOfInterest || 'N/A',
       adminNotes: payload.adminNotes,
-    });
+    })
 
     // Send WhatsApp message
     const result = await sendWhatsAppMessage({
       to: fullPhone,
       message: messageContent,
       type: statusKey,
-    });
+    })
 
     if (!result.success) {
-      console.error('Application WhatsApp notification failed:', result.error);
+      console.error('Application WhatsApp notification failed:', result.error)
       return {
         success: false,
         error: result.error || 'Failed to send WhatsApp message',
-      };
+      }
     }
 
     // Log success
-    console.log(`✅ WhatsApp notification sent for application ${application.applicationNumber} to ${fullPhone}`);
+    console.log(`✅ WhatsApp notification sent for application ${application.applicationNumber} to ${fullPhone}`)
 
     return {
       success: true,
       messageId: result.messageId,
-    };
+    }
   } catch (error) {
-    console.error("WHATSAPP ERROR:", error);
+    console.error("WHATSAPP ERROR:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send WhatsApp message",
-    };
+    }
   }
 }
 
@@ -159,38 +177,38 @@ export async function sendCustomWhatsAppMessage(
       return {
         success: false,
         error: 'Phone number is required',
-      };
+      }
     }
 
     // Format phone number
-    const formattedPhone = phoneNumber.replace(/\s/g, '').replace(/^0/, '');
-    const fullPhone = formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`;
+    const formattedPhone = phoneNumber.replace(/\s/g, '').replace(/^0/, '')
+    const fullPhone = formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`
 
     // Send WhatsApp message
     const result = await sendWhatsAppMessage({
       to: fullPhone,
       message: message,
       type: metadata?.type || 'custom',
-    });
+    })
 
     if (!result.success) {
-      console.error('Custom WhatsApp message failed:', result.error);
+      console.error('Custom WhatsApp message failed:', result.error)
       return {
         success: false,
         error: result.error || 'Failed to send WhatsApp message',
-      };
+      }
     }
 
     return {
       success: true,
       messageId: result.messageId,
-    };
+    }
   } catch (error) {
-    console.error("WHATSAPP ERROR:", error);
+    console.error("WHATSAPP ERROR:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send WhatsApp message",
-    };
+    }
   }
 }
 
@@ -210,25 +228,25 @@ export async function sendWhatsAppToClient(
         phone: true,
         email: true,
       },
-    });
+    })
 
     if (!client) {
       return {
         success: false,
         error: `Client not found: ${clientId}`,
-      };
+      }
     }
 
     if (!client.phone) {
       return {
         success: false,
         error: 'Client has no phone number',
-      };
+      }
     }
 
     // Format phone number
-    const formattedPhone = client.phone.replace(/\s/g, '').replace(/^0/, '');
-    const fullPhone = formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`;
+    const formattedPhone = client.phone.replace(/\s/g, '').replace(/^0/, '')
+    const fullPhone = formattedPhone.startsWith('+') ? formattedPhone : `+${formattedPhone}`
 
     // Get status template
     const statusKey = 
@@ -239,15 +257,15 @@ export async function sendWhatsAppToClient(
       status === 'APPROVED' ? 'APPROVED' :
       status === 'REJECTED' ? 'REJECTED' :
       status === 'COMPLETED' ? 'COMPLETED' :
-      'SUBMITTED';
+      'SUBMITTED'
 
-    const template = APPLICATION_WHATSAPP[statusKey as keyof typeof APPLICATION_WHATSAPP];
+    const template = APPLICATION_WHATSAPP[statusKey as keyof typeof APPLICATION_WHATSAPP]
 
     if (!template) {
       return {
         success: false,
         error: `Invalid status: ${status}`,
-      };
+      }
     }
 
     // Build message
@@ -257,31 +275,31 @@ export async function sendWhatsAppToClient(
       status: status,
       serviceName: 'N/A',
       adminNotes: adminNotes,
-    });
+    })
 
     // Send message
     const result = await sendWhatsAppMessage({
       to: fullPhone,
       message: messageContent,
       type: statusKey,
-    });
+    })
 
     if (!result.success) {
       return {
         success: false,
         error: result.error || 'Failed to send WhatsApp message',
-      };
+      }
     }
 
     return {
       success: true,
       messageId: result.messageId,
-    };
+    }
   } catch (error) {
-    console.error("WHATSAPP ERROR:", error);
+    console.error("WHATSAPP ERROR:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send WhatsApp message",
-    };
+    }
   }
 }

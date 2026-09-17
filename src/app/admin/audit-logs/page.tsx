@@ -14,6 +14,7 @@ import { format } from 'date-fns'
 import axios from 'axios'
 import { useAuth } from '@/contexts/AuthContext'
 import { Module, Action } from '@/lib/rbac'
+import { getLocalizedText } from '@/lib/multilingual-text'
 
 interface AuditLog {
   id: string
@@ -171,10 +172,10 @@ export default function AuditLogsPage() {
                       <TableCell className="whitespace-nowrap text-sm">
                         {format(new Date(log.createdAt), 'MMM d, yyyy HH:mm')}
                       </TableCell>
-                      <TableCell className="text-sm">{log.user.name ?? log.user.email}</TableCell>
+                      <TableCell className="text-sm">{getLocalizedText(log.user.name, 'en') || log.user.email}</TableCell>
                       <TableCell><Badge variant={getActionBadge(log.action)}>{log.action}</Badge></TableCell>
                       <TableCell className="text-sm">{log.entityType}</TableCell>
-                      <TableCell className="text-sm">{log.entityName ?? log.entityId}</TableCell>
+                      <TableCell className="text-sm">{getLocalizedText(log.entityName, 'en') || log.entityId}</TableCell>
                     </TableRow>
                     {expandedRow === log.id && log.changes && (
                       <TableRow>

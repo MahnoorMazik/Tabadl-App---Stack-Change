@@ -7,56 +7,231 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Prisma excerpt — Support Tickets (from Zypher ERP schema)
+// Add relation on User: supportTicketsCreated SupportTicket[] @relation("SupportTicketCreatedBy")
+
+enum SupportTicketStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model SupportTicketCommentBox {
+  id       Int           @id @default(autoincrement())
+  ticketId Int
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  comment   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments SupportTicketCommentAttachment[]
+
+  @@index([ticketId])
+}
+
+model SupportTicketCommentAttachment {
+  id           Int                     @id @default(autoincrement())
+  commentBoxId Int
+  commentBox   SupportTicketCommentBox @relation(fields: [commentBoxId], references: [id], onDelete: Cascade)
+
+  fileName  String
+  filePath  String
+  fileSize  Int
+  fileType  String
+  createdAt DateTime @default(now())
+
+  @@index([commentBoxId])
+}
+
+model SupportTicket {
+  id                Int                       @id @default(autoincrement())
+  title             String
+  description       String
+  status            SupportTicketStatus       @default(NEW)
+  priority          SupportTicketPriority     @default(MEDIUM)
+  category          String?
+  createdById       String // ✅ Changed from Int to String
+  assignedToId      String? // ✅ Changed from Int? to String?
+  clientId          String? // ✅ Changed from Int? to String?
+  comment           String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  commentBoxes      SupportTicketCommentBox[]
+  parentId          Int?
+  parent            SupportTicket?            @relation("TicketHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children          SupportTicket[]           @relation("TicketHierarchy")
+  createdBy         User                      @relation("createdTickets", fields: [createdById], references: [id])
+  // assignedTo        User?                     @relation("assignedTickets", fields: [assignedToId], references: [id])
+  assignedTo        SupportAssignee?          @relation(fields: [assignedToId], references: [id])
+  client            Client?                   @relation(fields: [clientId], references: [id])
+  attachments       SupportTicketAttachment[]
+  messages          SupportTicketMessage[]
+  supportCategory   SupportCategory?          @relation(fields: [supportCategoryId], references: [id])
+  supportCategoryId String?
+  user              User?                     @relation(fields: [userId], references: [id])
+  userId            String?
+  // user              User?                     @relation(fields: [userId], references: [id])
+  // supportTickets    SupportTicket[]
+  // supportTicket     SupportTicket?            @relation(fields: [supportTicketId], references: [id])
+  // supportTicketId   Int?
+}
+
+// model SupportCategory {
+//   id        String   @id @default(cuid())
+//   name      String   @unique
+//   isActive  Boolean  @default(true)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   tickets SupportTicket[]
+// }
+
+model SupportCategory {
+  id        String            @id @default(cuid())
+  name      String
+  parentId  String?           @map("parent_id")
+  parent    SupportCategory?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children  SupportCategory[] @relation("CategoryParent")
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  tickets   SupportTicket[]
+
+  @@map("support_categories")
+}
+
+enum SupportAssigneeRole {
+  ARCHITECT
+  FUNCTIONAL_ARCHITECT
+  DEVELOPER
+  SQA_MANAGER
+  SOLUTION_ENGINEER
+  FUNCTIONAL_MANAGER
+  PROJECT_MANAGER
+  PRODUCT_MANAGER
+  SCRUM_MASTER
+  IT_SUPPORT
+}
+
+model SupportAssignee {
+  id             String              @id @default(cuid())
+  name           String
+  role           SupportAssigneeRole // ✅ Changed from String to Enum
+  email          String?
+  avatar         String?
+  isActive       Boolean             @default(true) // ✅ Added this field
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  supportTickets SupportTicket[]
+
+  @@map("support_assignees")
+}
+
+model SupportTicketMessage {
+  id         Int           @id @default(autoincrement())
+  ticketId   Int
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String // ✅ Changed from Int to String
+  user       User          @relation(fields: [userId], references: [id])
+  message    String
+  isInternal Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([ticketId])
+  @@index([userId])
+  @@map("support_ticket_messages")
+}
+
+model SupportTicketAttachment {
+  id        Int           @id @default(autoincrement())
+  ticketId  Int
+  fileName  String
+  filePath  String
+  fileSize  Int
+  fileType  String
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_ticket_attachments")
+}
+
 model User {
-  id                         String                        @id @default(cuid())
-  email                      String
-  name                       String?
-  passwordHash               String
-  role                       UserRole                      @default(CLIENT)
-  staffType                  StaffType?
-  isActive                   Boolean                       @default(true)
-  isDeleted                  Boolean                       @default(false)
-  deletedAt                  DateTime?
-  lastLoginAt                DateTime?
-  tokenVersion               Int                           @default(0)
-  phone                      String?
-  avatar                     String?
-  customRoleId               String?
-  resetPasswordToken         String?                       @unique
-  resetPasswordExpiry        DateTime?
-  emailVerified              DateTime?
-  emailVerificationToken     String?                       @unique
-  emailVerificationExpiry    DateTime?
-  createdAt                  DateTime                      @default(now())
-  updatedAt                  DateTime                      @updatedAt
-  accounts                   Account[]
-  applicationWizards         ApplicationWizard[]           @relation("ApplicationWizardCreatedBy")
-  assignedApplications       Application[]                 @relation("ApplicationAssignedTo")
-  approvedApplications       Application[]                 @relation("ApplicationApprovedBy")
-  auditLogs                  AuditLog[]
-  clientProfile              Client?
-  uploadedDocs               Document[]                    @relation("DocumentUploader")
-  reviewedDocs               Document[]                    @relation("DocumentReviewer")
-  createdExpenses            Expense[]                     @relation("ExpenseCreator")
-  approvedExpenses           Expense[]                     @relation("ExpenseApprover")
-  formTemplates              FormTemplate[]                @relation("FormTemplateCreatedBy")
-  leadFollowUps              LeadFollowUp[]
-  leadNotes                  LeadNote[]
-  createdLeads               Lead[]                        @relation("LeadCreator")
-  assignedLeads              Lead[]
-  sentMessages               Message[]                     @relation("MessageSender")
-  notificationPreferences    NotificationPreference[]
-  notificationSettings       NotificationSettings?
-  notifications              Notification[]
-  pageAccessLogs             PageAccessLog[]
-  pushSubscriptions          PushSubscription[]
-  sessions                   Session[]
-  assignedTasks              Task[]
-  customRole                 Role?                         @relation(fields: [customRoleId], references: [id])
-  wizardAnswerUpdates        WizardApplicationAnswer[]     @relation("WizardAnswerUpdatedBy")
-  wizardStepReviews          WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String?
+  firstName          String? // ✅ ADD THIS
+  lastName           String? // ✅ ADD THIS
+  passwordHash       String
+  role               UserRole   @default(CLIENT)
+  staffType          StaffType?
+  isActive           Boolean    @default(true)
+  isDeleted          Boolean    @default(false)
+  deletedAt          DateTime?
+  lastLoginAt        DateTime?
+  tokenVersion       Int        @default(0)
+  phone              String?
+  avatar             String?
+  customRoleId       String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  resetPasswordToken String?    @unique
+
+  resetPasswordExpiry     DateTime?
+  emailVerified           DateTime?
+  emailVerificationToken  String?   @unique
+  emailVerificationExpiry DateTime?
+
+  // ✅ ADD SUPPORT TICKET RELATIONS
+  createdTickets  SupportTicket[]        @relation("createdTickets")
+  // assignedTickets SupportTicket[]        @relation("assignedTickets")
+  supportMessages SupportTicketMessage[]
+
+  // ADD THESE
+  formTemplatesCreated       FormTemplate[]                @relation("FormTemplateCreatedBy")
+  applicationWizardsCreated  ApplicationWizard[]           @relation("ApplicationWizardCreatedBy")
   assignedWizardApplications WizardApplication[]           @relation("WizardApplicationAssignedTo")
-  collaborations             ClientCollaborator[]          @relation("CollaboratorUser")
+  wizardAnswersUpdated       WizardApplicationAnswer[]     @relation("WizardAnswerUpdatedBy")
+  wizardStepReviewsReviewed  WizardApplicationStepReview[] @relation("WizardStepReviewedBy")
+
+  // Keep existing relations
+  approvedApplications    Application[]            @relation("ApplicationApprovedBy")
+  assignedApplications    Application[]            @relation("ApplicationAssignedTo")
+  clientProfile           Client?
+  reviewedDocs            Document[]               @relation("DocumentReviewer")
+  uploadedDocs            Document[]               @relation("DocumentUploader")
+  approvedExpenses        Expense[]                @relation("ExpenseApprover")
+  createdExpenses         Expense[]                @relation("ExpenseCreator")
+  assignedLeads           Lead[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  notificationSettings    NotificationSettings?
+  assignedTasks           Task[]
+  customRole              Role?                    @relation(fields: [customRoleId], references: [id])
+  sentMessages            Message[]                @relation("MessageSender")
+  leadNotes               LeadNote[]
+  leadFollowUps           LeadFollowUp[]
+  createdLeads            Lead[]                   @relation("LeadCreator")
+  pushSubscriptions       PushSubscription[]
+  auditLogs               AuditLog[]
+  pageAccessLogs          PageAccessLog[]
+  accounts                Account[]
+  sessions                Session[]
+  supportTickets          SupportTicket[]
+  collaborations          ClientCollaborator[]     @relation("CollaboratorUser")
 
   @@index([email, isDeleted])
   @@index([isDeleted])
@@ -163,37 +338,50 @@ model Application {
 }
 
 model Client {
-  id                      String                  @id @default(cuid())
-  clientNumber            String                  @unique
-  name                    String
-  email                   String
-  phone                   String?
-  company                 String?
-  companyType             String?
-  designation             String?
-  natureOfBusiness        String?
-  country                 String?
-  city                    String?
-  howDidYouHear           String?
-  userId                  String                  @unique
-  groupId                 String?
-  isDeleted               Boolean                 @default(false)
-  deletedAt               DateTime?
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
-  servicePackageId        String?
+  id               String  @id @default(cuid())
+  clientNumber     String  @unique
+  name             String
+  email            String
+  phone            String?
+  company          String?
+  companyType      String?
+  designation      String?
+  natureOfBusiness String?
+  country          String?
+  city             String?
+
+  howDidYouHear    String?
+  userId           String                  @unique
+  groupId          String?
+  isDeleted        Boolean                 @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  applications     Application[]
+  group            ClientGroup?            @relation(fields: [groupId], references: [id])
+  user             User                    @relation(fields: [userId], references: [id])
+  tickets          SupportTicket[]
+  invoices         Invoice[]
+  paymentIntents   PaymentIntent[]
+  leads            Lead[]
+  payments         Payment[]
+  profileDocuments ClientProfileDocument[]
+  documents        Document[]
+  servicePackage   ServicePackage?         @relation(fields: [servicePackageId], references: [id])
+  servicePackageId String?
+
   profileCompletionStatus ProfileCompletionStatus @default(INCOMPLETE)
   profileCompletedAt      DateTime?
-  applications            Application[]
-  profileDocuments        ClientProfileDocument[]
-  servicePackage          ServicePackage?         @relation(fields: [servicePackageId], references: [id])
-  user                    User                    @relation(fields: [userId], references: [id])
-  group                   ClientGroup?            @relation(fields: [groupId], references: [id])
-  documents               Document[]
-  invoices                Invoice[]
-  leads                   Lead[]
-  paymentIntents          PaymentIntent[]
-  payments                Payment[]
+  // applications            Application[]
+  // profileDocuments        ClientProfileDocument[]
+  // servicePackage          ServicePackage?         @relation(fields: [servicePackageId], references: [id])
+  // user                    User                    @relation(fields: [userId], references: [id])
+  // group                   ClientGroup?            @relation(fields: [groupId], references: [id])
+  // documents               Document[]
+  // invoices                Invoice[]
+  // leads                   Lead[]
+  // paymentIntents          PaymentIntent[]
+  // payments                Payment[]
   wizardApplications      WizardApplication[]
   collaborators           ClientCollaborator[]
 
@@ -235,8 +423,8 @@ model Document {
   mimeType             String
   status               DocumentStatus              @default(PENDING)
   reviewNotes          String?
-  name                 String?
-  description          String?
+  name                 String? // Document name/title
+  description          String? // Document description
   uploadedById         String
   reviewedById         String?
   applicationId        String?
@@ -247,12 +435,12 @@ model Document {
   deletedAt            DateTime?
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
-  uploadedBy           User                        @relation("DocumentUploader", fields: [uploadedById], references: [id])
-  reviewedBy           User?                       @relation("DocumentReviewer", fields: [reviewedById], references: [id])
-  profileRequirement   ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
-  client               Client?                     @relation(fields: [clientId], references: [id])
-  lead                 Lead?                       @relation(fields: [leadId], references: [id])
   application          Application?                @relation(fields: [applicationId], references: [id])
+  lead                 Lead?                       @relation(fields: [leadId], references: [id])
+  client               Client?                     @relation(fields: [clientId], references: [id])
+  profileRequirement   ProfileDocumentRequirement? @relation(fields: [profileRequirementId], references: [id])
+  reviewedBy           User?                       @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  uploadedBy           User                        @relation("DocumentUploader", fields: [uploadedById], references: [id])
 
   @@index([isDeleted])
   @@index([leadId, isDeleted])
@@ -276,20 +464,20 @@ model ServiceCategory {
 }
 
 model BusinessService {
-  id                  String                     @id @default(cuid())
-  categoryId          String
-  name                String
-  slug                String                     @unique
-  description         String?
-  sortOrder           Int                        @default(0)
-  isActive            Boolean                    @default(true)
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
-  addOns              AdditionalService[]
-  wizardServices      ApplicationWizardService[]
-  category            ServiceCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  formTemplateService FormTemplateService?
-  packages            PackageService[]
+  id                        String                     @id @default(cuid())
+  categoryId                String
+  name                      String
+  slug                      String                     @unique
+  description               String?
+  sortOrder                 Int                        @default(0)
+  isActive                  Boolean                    @default(true)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  category                  ServiceCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  packages                  PackageService[]
+  addOns                    AdditionalService[]
+  formTemplateService       FormTemplateService?
+  applicationWizardServices ApplicationWizardService[]
 
   @@index([categoryId, sortOrder])
   @@map("business_services")
@@ -336,7 +524,7 @@ model AdditionalService {
   sortOrder   Int              @default(0)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  service     BusinessService? @relation(fields: [serviceId], references: [id])
+  service     BusinessService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 
   @@map("additional_services")
 }
@@ -436,17 +624,17 @@ model ApplicationWizard {
 }
 
 model ApplicationWizardStep {
-  id              String            @id @default(cuid())
-  wizardId        String
-  formTemplateId  String
-  sortOrder       Int               @default(0)
-  paymentRequired Boolean           @default(false)
-  approvalRequired Boolean          @default(false)
-  adminUseOnly    Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  wizard           ApplicationWizard @relation(fields: [wizardId], references: [id], onDelete: Cascade)
-  formTemplate     FormTemplate      @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
+  id               String                        @id @default(cuid())
+  wizardId         String
+  formTemplateId   String
+  sortOrder        Int                           @default(0)
+  paymentRequired  Boolean                       @default(false)
+  approvalRequired Boolean                       @default(false)
+  adminUseOnly     Boolean                       @default(false)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  wizard           ApplicationWizard             @relation(fields: [wizardId], references: [id], onDelete: Cascade)
+  formTemplate     FormTemplate                  @relation(fields: [formTemplateId], references: [id], onDelete: Restrict)
   answers          WizardApplicationAnswer[]
   stepReviews      WizardApplicationStepReview[]
 
@@ -644,8 +832,8 @@ model Invoice {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   client         Client          @relation(fields: [clientId], references: [id])
-  paymentIntents PaymentIntent[]
   payments       Payment[]
+  paymentIntents PaymentIntent[]
 
   @@index([isDeleted])
   @@index([clientId, isDeleted])
@@ -659,8 +847,8 @@ model Payment {
   reference            String?
   clientId             String
   invoiceId            String?
-  status               String        @default("Success")
-  gateway              String?
+  status               String        @default("Success") // Pending, Success, Failed
+  gateway              String? // EdfaPay, Manual, etc.
   edfaPayOrderId       String?
   edfaPayTransactionId String?
   edfaPayResponse      String?
@@ -833,8 +1021,8 @@ model SupportMessage {
 model SupportConversation {
   id            String    @id @default(cuid())
   visitorId     String    @unique
-  status        String    @default("bot")
-  channel       String    @default("website")
+  status        String    @default("bot") // bot | human | closed
+  channel       String    @default("website") // website | whatsapp | email
   visitorName   String?
   visitorEmail  String?
   handedOffAt   DateTime?
@@ -957,7 +1145,7 @@ model NotificationEventSetting {
 model NotificationPreference {
   id        String   @id @default(cuid())
   userId    String
-  eventType String
+  eventType String // LEAD_CREATION, LEAD_FOLLOWUP, CLIENT_CONVERSION
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -971,7 +1159,7 @@ model NotificationPreference {
 model NotificationSettings {
   id                    String   @id @default(cuid())
   userId                String   @unique
-  reminderMinutesBefore Int      @default(15)
+  reminderMinutesBefore Int      @default(15) // Send follow-up reminder this many minutes before scheduled time
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -999,24 +1187,24 @@ model PushSubscription {
 model EmailSettings {
   id                             String   @id @default(cuid())
   mailDriver                     String   @default("SMTP")
-  host                           String
-  port                           Int
-  username                       String
-  password                       String
+  host                           String   @default("smtp.gmail.com")
+  port                           Int      @default(587)
+  username                       String   @default("")
+  password                       String   @default("")
   encryption                     String   @default("tls")
-  fromAddress                    String
-  fromName                       String
+  fromAddress                    String   @default("")
+  fromName                       String   @default("Tabadl Alkon CRM")
   tlsServername                  String?
   allowBusinessEmailConfig       Boolean  @default(true)
   enableNewBusinessEmail         Boolean  @default(true)
   enableNewSubscriptionEmail     Boolean  @default(true)
   enableWelcomeEmail             Boolean  @default(true)
-  welcomeEmailSubject            String
-  welcomeEmailBody               String
+  welcomeEmailSubject            String   @default("Welcome to Tabadl Alkon CRM")
+  welcomeEmailBody               String   @default("<p>Welcome to Tabadl Alkon CRM</p>")
   contactEmail                   String?
   contactPhone                   String?
-  businessConsultationRecipients String?
-  staffWhatsAppNumbers           String?
+  businessConsultationRecipients String?   // JSON string array
+  staffWhatsAppNumbers           String?   // JSON string array
   enableWhatsAppNotifications    Boolean  @default(true)
   whatsappAccessToken            String?
   whatsappApiVersion             String?
@@ -1030,11 +1218,11 @@ model EmailSettings {
 
 /// Singleton-style system preferences (one active row).
 model GeneralSettings {
-  id                             String   @id @default(cuid())
-  clientEmailNotifications       Boolean  @default(true)
-  clientWhatsAppNotifications    Boolean  @default(true)
-  createdAt                      DateTime @default(now())
-  updatedAt                      DateTime @updatedAt
+  id                          String   @id @default(cuid())
+  clientEmailNotifications    Boolean  @default(true)
+  clientWhatsAppNotifications Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   @@map("general_settings")
 }

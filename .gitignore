@@ -56,4 +56,84 @@ server.log
 tk-deployment.zip
 Deployment_Files.zip
 Tabadl-Alkon-CRM-Deployment.zip
-.neon
+
+# ==========================================
+# 🔵 NEW — .NET backend (backend/Tabadl.Api/)
+# ==========================================
+
+# .NET build output
+backend/**/bin/
+backend/**/obj/
+backend/**/out/
+
+# .NET user-specific files
+backend/**/*.user
+backend/**/*.suo
+backend/**/*.rsuser
+backend/**/*.userprefs
+backend/**/*.sln.docstates
+
+# Visual Studio / Rider IDE folders
+backend/**/.vs/
+backend/**/.idea/
+backend/**/.vscode/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+!**/[Pp]ackages/*.props
+!**/[Pp]ackages/*.targets
+
+# MSBuild / dotnet CLI generated
+backend/**/project.lock.json
+backend/**/project.fragment.lock.json
+backend/**/artifacts/
+
+# Publish output
+backend/**/publish/
+backend/**/*.pubxml
+backend/**/*.pubxml.user
+
+# EF Core local overrides
+backend/**/appsettings.Local.json
+backend/**/appsettings.*.Local.json
+backend/**/appsettings.Development.Local.json
+
+# SQLite temp files (if used locally in backend)
+backend/**/*.db-shm
+backend/**/*.db-wal
+backend/**/*.sqlite
+backend/**/*.sqlite3
+
+# .NET test results
+backend/**/[Tt]est[Rr]esult*/
+backend/**/coverage*.json
+backend/**/coverage*.xml
+backend/**/coverage*.info
+
+# .NET deployment zip (if ever created)
+backend/**/*.zip
+
+# ==========================================
+# 🔵 NEW — Docker overrides (local-only)
+# ==========================================
+docker-compose.override.yml
+docker-compose.*.local.yml
+docker-compose.*.override.yml
+
+# ==========================================
+# 🔵 NEW — PostgreSQL local data (if using bind mounts)
+# ==========================================
+*.pgdata/
+postgres-data/
+postgres_data/
+/pgdata/
+
+# ==========================================
+# 🔵 NEW — .NET secrets (never commit)
+# ==========================================
+backend/**/secrets.json
+backend/**/secrets.*.json
+backend/**/appsettings.Production.json

@@ -38,6 +38,8 @@ services:
       # Push Notifications (VAPID keys - required for browser push)
       - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      # 🔵 NEW — .NET backend URL (container ke andar se)
+      - BACKEND_URL=http://tabadl-api:5000
     volumes:
       - ./prisma/db:/app/prisma/db:rw
       - ./uploads:/app/uploads:rw
@@ -71,28 +73,33 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ==========================================================
+  # 🔵 NEW — PostgreSQL for .NET backend
+  # ==========================================================
   postgres:
-      image: postgres:16
-      container_name: tabadl-postgres
-      restart: unless-stopped
-
-      environment:
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_DB: tabadl
-      ports:
-        - "5432:5432"
-      volumes:
-        - postgres_data:/var/lib/postgresql/data
-      networks:
-        - tabadl-network
-      
-
+    image: postgres:16-alpine
+    container_name: tabadl-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tabadl_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tabadl_pass_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-tabadl_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - tabadl_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tabadl_user} -d ${POSTGRES_DB:-tabadl_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - tabadl-network
 
 networks:
   tabadl-network:
     driver: bridge
 
-# File ke bilkul bottom
 volumes:
-  postgres_data:
+  # 🔵 NEW — persistent Postgres data
+  tabadl_pgdata:

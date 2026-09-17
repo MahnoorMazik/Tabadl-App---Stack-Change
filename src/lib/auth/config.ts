@@ -53,6 +53,9 @@ declare module "next-auth" {
 // JWT module augmentation - disabled due to NextAuth 5 beta changes
 // Types are handled via 'any' casts in callbacks
 
+// .NET backend base URL for auth
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000'
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db) as any,
   session: { strategy: "jwt" },
@@ -79,66 +82,87 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const email = credentials.email as string
         const password = credentials.password as string
-        const userType = credentials.userType as string | undefined
+        const userType = (credentials.userType as string | undefined) || 'client'
 
-        // Find user by email
-        const user = await db.user.findFirst({
-          where: { 
-            email,
-            isDeleted: false 
-          },
-          include: {
-            clientProfile: true,
-            customRole: true
+        // ✅ Call .NET backend for authentication
+        let loginResponse: Response
+        try {
+          loginResponse = await fetch(`${BACKEND_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, audience: userType }),
+          })
+        } catch (fetchError) {
+          console.error('[Auth] Failed to reach .NET backend:', fetchError)
+          throw new Error('Unable to reach authentication service. Please try again.')
+        }
+
+        const loginPayload = await loginResponse.json().catch(() => ({}))
+
+        // .NET returns 200 even on failure — check `success` flag
+        if (!loginResponse.ok || !loginPayload?.success) {
+          const errMsg = loginPayload?.error || 'Invalid credentials'
+
+          if (errMsg === 'EMAIL_NOT_VERIFIED') {
+            throw new EmailNotVerifiedError()
           }
-        })
-
-        if (!user) {
-          console.error(`[Auth] User not found: ${email}`)
-          throw new UserNotFoundError()
+          if (errMsg === 'No account found with this email') {
+            throw new Error('No account found with this email')
+          }
+          if (errMsg === 'Incorrect password') {
+            throw new Error('Incorrect password')
+          }
+          if (errMsg.includes('inactive')) {
+            throw new Error('Account is inactive. Contact an administrator.')
+          }
+          throw new Error(errMsg)
         }
 
-        if (!user.isActive) {
-          console.error(`[Auth] User account is inactive: ${email}`)
-          throw new AccountInactiveError()
+        const dotnetUser = loginPayload.user
+        if (!dotnetUser?.id || !dotnetUser?.email) {
+          throw new Error('Invalid response from authentication service')
         }
 
-        if (userType === "client" && user.role !== UserRole.CLIENT && user.role !== UserRole.COLLABORATOR) {
-          console.error(`[Auth] User type mismatch - expected CLIENT/COLLABORATOR, got ${user.role}: ${email}`)
-          throw new InvalidCredentialsError()
-        }
-        if (userType === "staff" && user.role !== UserRole.STAFF && user.role !== UserRole.ADMIN) {
-          console.error(`[Auth] User type mismatch - expected STAFF/ADMIN, got ${user.role}: ${email}`)
-          throw new InvalidCredentialsError()
+        // ✅ Optionally: sync .NET user back to SQLite (Prisma) so other modules keep working
+        // This keeps `db.user` in sync for `jwt` callback (which reads from Prisma by id)
+        try {
+          const existing = await db.user.findFirst({
+            where: { email: dotnetUser.email, isDeleted: false },
+            select: { id: true },
+          })
+
+          if (!existing) {
+            // Create a mirror record in SQLite so token-based sessions work
+            await db.user.create({
+              data: {
+                id: dotnetUser.id,
+                email: dotnetUser.email,
+                name: dotnetUser.name ?? '',
+                role: (dotnetUser.role as UserRole) ?? UserRole.CLIENT,
+                passwordHash: '$2b$12$DOTNET_MANAGED', // placeholder — password lives in .NET/Postgres
+                emailVerified: dotnetUser.emailVerified ? new Date() : null,
+                isActive: true,
+                isDeleted: false,
+              },
+            })
+          } else if (existing.id !== dotnetUser.id) {
+            // ID mismatch — keep DB row as-is; jwt callback will re-read by dotnetUser.id
+            console.warn(`[Auth] SQLite user id (${existing.id}) differs from .NET id (${dotnetUser.id})`)
+          }
+        } catch (syncErr) {
+          // Non-fatal — auth still succeeds even if SQLite mirror fails
+          console.error('[Auth] SQLite mirror sync failed (non-fatal):', syncErr)
         }
 
-        const isValidPassword = await bcrypt.compare(password, user.passwordHash)
-        if (!isValidPassword) {
-          console.error(`[Auth] Invalid password for user: ${email}`)
-          throw new IncorrectPasswordError()
-        }
-
-        // Client self-signup must verify email before login (collaborators verified via invite)
-        if (user.role === UserRole.CLIENT && !user.emailVerified) {
-          console.error(`[Auth] Email not verified: ${email}`)
-          throw new EmailNotVerifiedError()
-        }
-
-        // Update last login
-        await db.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() }
-        })
-
-        // Permissions fetched on-demand via /api/auth/permissions — not stored in JWT
+        // Return the user object expected by NextAuth
         return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? null,
-          role: user.role,
-          staffType: user.staffType ?? null,
-          avatar: user.avatar ?? null,
-          phone: user.phone ?? null,
+          id: dotnetUser.id,
+          email: dotnetUser.email,
+          name: dotnetUser.name ?? null,
+          role: (dotnetUser.role as UserRole) ?? UserRole.CLIENT,
+          staffType: null,
+          avatar: null,
+          phone: null,
         } as User
       }
     })
